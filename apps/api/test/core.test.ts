@@ -153,6 +153,22 @@ describe("yapılandırma", () => {
     );
   });
 
+  it("bildirim sağlayıcısı varsayılan olarak log; boş Expo belirteci yok sayılır", () => {
+    expect(loadConfig({}).push).toEqual({ provider: "log" });
+    expect(loadConfig({ ...production, VADO_PUSH_PROVIDER: "expo" }).push).toEqual({
+      provider: "expo",
+      accessToken: null,
+    });
+    expect(loadConfig({ VADO_PUSH_PROVIDER: "expo", VADO_EXPO_ACCESS_TOKEN: "  " }).push).toEqual({
+      provider: "expo",
+      accessToken: null,
+    });
+    expect(
+      loadConfig({ VADO_PUSH_PROVIDER: "expo", VADO_EXPO_ACCESS_TOKEN: "belirtec" }).push,
+    ).toEqual({ provider: "expo", accessToken: "belirtec" });
+    expect(() => loadConfig({ VADO_PUSH_PROVIDER: "fcm" })).toThrow(ConfigError);
+  });
+
   it("paket ayarlarının varsayılanlarını ve sınırlarını uygular", () => {
     const config = loadConfig({});
     expect(config.packageMaxBytes).toBe(5 * 1024 * 1024);

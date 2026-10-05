@@ -19,6 +19,7 @@ import { type Database, sql, type SqlFragment } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { areContacts, filterContacts } from "../contacts/relations";
 import { requireOwnedMedia } from "../media/media.service";
+import type { NotificationService } from "../notifications/notifications.service";
 import { DELETED_USER, displayNameOf, toUserRef, type UserRefRow } from "../users/user-rows";
 
 /**
@@ -197,7 +198,10 @@ async function removeFromGroup(
   return false;
 }
 
-export function createChatService({ db, storage, realtime }: AppContext) {
+export function createChatService(
+  { db, storage, realtime }: AppContext,
+  { notifications }: { notifications: NotificationService },
+) {
   function toMessage(row: MessageRow, names: Names): Message {
     return {
       id: row.id,
@@ -624,6 +628,12 @@ export function createChatService({ db, storage, realtime }: AppContext) {
 
     const message = toMessage(inserted, NO_NAMES);
     realtime.emit(members, "message:new", { conversationId, message });
+    notifications.notifyMessage({
+      conversationId,
+      senderId: userId,
+      kind: inserted.kind,
+      body: inserted.body,
+    });
     return message;
   }
 

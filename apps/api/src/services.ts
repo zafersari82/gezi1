@@ -9,6 +9,7 @@ import { createMediaService } from "./modules/media/media.service";
 import { createMiniAppAdminService } from "./modules/miniapps/miniapp-admin.service";
 import { createMiniAppService } from "./modules/miniapps/miniapps.service";
 import { createMomentService } from "./modules/moments/moments.service";
+import { createNotificationService } from "./modules/notifications/notifications.service";
 import { createPackageService } from "./modules/packages/packages.service";
 import { createPaymentService } from "./modules/payments/payments.service";
 import { createQrService } from "./modules/qr/qr.service";
@@ -17,9 +18,10 @@ import { createUserService } from "./modules/users/users.service";
 
 /** Tüm servisleri bağımlılık sırasına göre kurar. */
 export function createServices(context: AppContext) {
-  const auth = createAuthService(context);
+  const notifications = createNotificationService(context);
+  const auth = createAuthService(context, { notifications });
   const media = createMediaService(context);
-  const chat = createChatService(context);
+  const chat = createChatService(context, { notifications });
   const users = createUserService(context, { auth, chat });
   const contacts = createContactService(context);
   const moments = createMomentService(context);
@@ -34,6 +36,7 @@ export function createServices(context: AppContext) {
   const adminAccounts = createAdminAccountService(context);
 
   return {
+    notifications,
     auth,
     media,
     chat,

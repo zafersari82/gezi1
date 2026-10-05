@@ -390,6 +390,8 @@ async function main(): Promise<void> {
       storage: await createLocalStorage(config.storageDir, config.publicUrl),
       packageStore: await createLocalPackageStore(config.packageDir),
       sms: { sendOtp: () => Promise.resolve() },
+      // Komut satırından bildirim gönderilmez.
+      push: { send: (messages) => Promise.resolve(messages.map(() => "sent" as const)) },
       // Betik çalışırken bağlı istemci yoktur; bildirimler gönderilmez.
       realtime: { emit: () => undefined, disconnectSession: () => undefined },
     };

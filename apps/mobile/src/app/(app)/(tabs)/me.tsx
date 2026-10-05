@@ -89,6 +89,15 @@ export default function MeScreen() {
         testID="open-privacy"
       />
       <ListRow
+        title="Bildirimler"
+        leading={<IconTile name="notifications" accent="brick" />}
+        chevron
+        onPress={() => {
+          router.push("/settings/notifications");
+        }}
+        testID="open-notifications"
+      />
+      <ListRow
         title="Mini uygulama izinleri"
         leading={<IconTile name="shield-checkmark" accent="emerald" />}
         chevron

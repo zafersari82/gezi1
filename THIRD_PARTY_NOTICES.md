@@ -34,6 +34,7 @@ derlenir. Tamamı MIT lisanslıdır.
 | `expo-image-picker`                         | 57.0.20 | Mobil                       |
 | `expo-linking`                              | 57.0.11 | Mobil                       |
 | `expo-local-authentication`                 | 57.0.3  | Mobil                       |
+| `expo-notifications`                        | 57.0.21 | Mobil (2.5)                 |
 | `expo-location`                             | 57.0.20 | Mobil                       |
 | `expo-router`                               | 57.0.24 | Mobil                       |
 | `expo-secure-store`                         | 57.0.4  | Mobil                       |

@@ -11,6 +11,7 @@ export * from "./errors";
 export * from "./media";
 export * from "./miniapps";
 export * from "./moments";
+export * from "./notifications";
 export * from "./packages";
 export * from "./payments";
 export * from "./phone";

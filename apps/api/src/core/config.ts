@@ -51,9 +51,14 @@ const envSchema = z.object({
   VADO_SMS_PROVIDER: z.enum(["log", "webhook"]).default("log"),
   VADO_SMS_WEBHOOK_URL: z.url().optional(),
   VADO_SMS_WEBHOOK_SECRET: z.string().optional(),
+  VADO_PUSH_PROVIDER: z.enum(["log", "expo"]).default("log"),
+  /** Expo hesabında "Enhanced push security" açıksa gerekir; değilse boş kalabilir. */
+  VADO_EXPO_ACCESS_TOKEN: z.string().optional(),
 });
 
 export type SmsConfig = { provider: "log" } | { provider: "webhook"; url: string; secret: string };
+
+export type PushConfig = { provider: "log" } | { provider: "expo"; accessToken: string | null };
 
 export interface Config {
   env: "development" | "test" | "production";
@@ -101,6 +106,7 @@ export interface Config {
    */
   rateLimitPerMinute: number;
   sms: SmsConfig;
+  push: PushConfig;
 }
 
 export class ConfigError extends StartupError {
@@ -128,6 +134,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
   const env = parsed.data;
 
   const problems: string[] = [];
+  // Compose tanımsız değişkeni boş metin olarak geçirir; boş belirteç "yok" demektir.
+  const expoAccessToken = env.VADO_EXPO_ACCESS_TOKEN?.trim() ?? "";
   let sms: SmsConfig = { provider: "log" };
   if (env.VADO_SMS_PROVIDER === "webhook") {
     if (env.VADO_SMS_WEBHOOK_URL === undefined || env.VADO_SMS_WEBHOOK_SECRET === undefined) {
@@ -207,5 +215,9 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: env.VADO_TRUST_PROXY,
     rateLimitPerMinute: env.VADO_RATE_LIMIT_PER_MINUTE,
     sms,
+    push:
+      env.VADO_PUSH_PROVIDER === "expo"
+        ? { provider: "expo", accessToken: expoAccessToken === "" ? null : expoAccessToken }
+        : { provider: "log" },
   };
 }

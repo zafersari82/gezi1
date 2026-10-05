@@ -1,0 +1,17 @@
+import { pushDataSchema } from "@vado/contracts";
+import type { Href } from "expo-router";
+
+/**
+ * Bildirime dokunulunca açılacak ekran. Bildirimin verisi sunucudan gelir ama telefonda
+ * değiştirilmiş olabilir; tanınmayan veri hiçbir ekran açmaz.
+ */
+export function pushTarget(data: unknown): Href | null {
+  const parsed = pushDataSchema.safeParse(data);
+  if (!parsed.success) return null;
+  switch (parsed.data.type) {
+    case "message":
+      return { pathname: "/chat/[id]", params: { id: parsed.data.conversationId } };
+    case "new_device":
+      return "/settings/sessions";
+  }
+}

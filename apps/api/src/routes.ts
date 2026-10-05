@@ -13,6 +13,7 @@ import { miniAppAdminRoutes } from "./modules/miniapps/miniapp-admin.routes";
 import { miniAppDeliveryRoutes } from "./modules/miniapps/miniapp-delivery.routes";
 import { miniAppRoutes } from "./modules/miniapps/miniapps.routes";
 import { momentRoutes } from "./modules/moments/moments.routes";
+import { notificationRoutes } from "./modules/notifications/notifications.routes";
 import { packageRoutes } from "./modules/packages/packages.routes";
 import { paymentRoutes } from "./modules/payments/payments.routes";
 import { qrRoutes } from "./modules/qr/qr.routes";
@@ -40,6 +41,7 @@ export interface RouteContext {
 export function registerRoutes(server: FastifyInstance, context: RouteContext): void {
   authRoutes(server, context);
   userRoutes(server, context);
+  notificationRoutes(server, context);
   contactRoutes(server, context);
   chatRoutes(server, context);
   momentRoutes(server, context);

@@ -31,6 +31,7 @@ import { createAppKeys } from "./core/keys";
 import { APPS_ROUTE_PREFIX, createPackageUrls } from "./core/package-urls";
 import { safeEqual } from "./core/security";
 import { createLocalPackageStore } from "./providers/package-store";
+import { createPushProvider, type PushProvider } from "./providers/push";
 import { createSmsProvider, type SmsProvider } from "./providers/sms";
 import { createLocalStorage, MEDIA_ROUTE_PREFIX } from "./providers/storage";
 import { createRealtime } from "./realtime/realtime";
@@ -46,6 +47,8 @@ export interface AppOptions {
   db: Database;
   /** Verilmezse yapılandırmadaki sağlayıcı kullanılır; testler sahte sağlayıcı verir. */
   sms?: SmsProvider;
+  /** Verilmezse yapılandırmadaki bildirim sağlayıcısı kullanılır; testler sahtesini verir. */
+  push?: PushProvider;
   /** Verilmezse sunucunun günlüğü kullanılır; testler servislerin kayıtlarını görmek için verir. */
   log?: Logger;
 }
@@ -60,7 +63,7 @@ export interface App {
 }
 
 /** Uygulamayı kurar; dinlemeye başlamaz. Testler ve `main.ts` aynı kurulumu kullanır. */
-export async function buildApp({ config, db, sms, log }: AppOptions): Promise<App> {
+export async function buildApp({ config, db, sms, push, log }: AppOptions): Promise<App> {
   const packageUrls = createPackageUrls(config.publicUrl, config.appsOrigin);
   const server = Fastify({
     logger: config.env === "test" ? false : loggerOptions(config.logLevel),
@@ -123,6 +126,7 @@ export async function buildApp({ config, db, sms, log }: AppOptions): Promise<Ap
     storage,
     packageStore: await createLocalPackageStore(config.packageDir),
     sms: sms ?? createSmsProvider(config.sms, server.log),
+    push: push ?? createPushProvider(config.push, log ?? server.log),
     realtime,
   };
   const services = createServices(context);

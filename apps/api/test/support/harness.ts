@@ -19,6 +19,7 @@ import { type App, buildApp } from "../../src/app";
 import { type Config, loadConfig } from "../../src/core/config";
 import { createDatabase, type DatabasePool, sql } from "../../src/core/database";
 import { randomToken, sha256 } from "../../src/core/security";
+import type { PushMessage } from "../../src/providers/push";
 import type { OtpPurpose } from "../../src/providers/sms";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -40,6 +41,10 @@ export interface TestApp extends App {
   db: DatabasePool;
   /** Demo modu kapalıyken "gönderilen" doğrulama kodları burada birikir. */
   sentSms: SentSms[];
+  /** Sahte sağlayıcının "gönderdiği" anlık bildirimler burada birikir. */
+  sentPush: PushMessage[];
+  /** Bu adreslere giden bildirim sağlayıcıda "geçersiz adres" sonucunu alır. */
+  invalidPushTokens: Set<string>;
   /** Servislerin günlüğe düştüğü kayıtlar burada birikir. */
   logs: LogEntry[];
   /** Her rolden, oturumu açık birer panel hesabı (bkz. `asAdmin`). */
@@ -112,6 +117,8 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
   });
   const db = createDatabase(config.databaseUrl, 5);
   const sentSms: SentSms[] = [];
+  const sentPush: PushMessage[] = [];
+  const invalidPushTokens = new Set<string>();
   const logs: LogEntry[] = [];
   const record = (level: LogEntry["level"]) => (fields: unknown, message?: string) => {
     logs.push({ level, fields, message });
@@ -123,6 +130,14 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
       sendOtp(phone, code, purpose) {
         sentSms.push({ phone, code, purpose });
         return Promise.resolve();
+      },
+    },
+    push: {
+      send(messages) {
+        sentPush.push(...messages);
+        return Promise.resolve(
+          messages.map((message) => (invalidPushTokens.has(message.to) ? "invalid" : "sent")),
+        );
       },
     },
     log: { info: record("info"), warn: record("warn"), error: record("error") },
@@ -141,6 +156,8 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
     config,
     db,
     sentSms,
+    sentPush,
+    invalidPushTokens,
     logs,
     admins,
     adminBusinessId,

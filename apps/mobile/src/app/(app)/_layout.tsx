@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { useEffect } from "react";
 
 import { outbox } from "@/features/chat/outbox";
+import { PushListener } from "@/features/notifications/push-listener";
 import { RealtimeProvider } from "@/features/realtime/realtime-provider";
 import { useAppLock, watchAppLock } from "@/features/security/app-lock";
 import { NewDeviceAlert } from "@/features/security/new-device-alert";
@@ -69,9 +70,11 @@ export default function AppLayout() {
               options={{ title: "Mini uygulama izinleri" }}
             />
             <Stack.Screen name="settings/sessions" options={{ title: "Oturumlar" }} />
+            <Stack.Screen name="settings/notifications" options={{ title: "Bildirimler" }} />
           </Stack.Protected>
         </Stack>
         {!locked && <NewDeviceAlert />}
+        <PushListener />
       </VerificationProvider>
     </RealtimeProvider>
   );

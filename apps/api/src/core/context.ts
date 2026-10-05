@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from "fastify";
 
 import type { PackageStore } from "../providers/package-store";
+import type { PushProvider } from "../providers/push";
 import type { SmsProvider } from "../providers/sms";
 import type { StorageProvider } from "../providers/storage";
 import type { RealtimePublisher } from "../realtime/realtime";
@@ -21,5 +22,7 @@ export interface AppContext {
   /** Paket dosyalarının durduğu içerik adresli depo. */
   packageStore: PackageStore;
   sms: SmsProvider;
+  /** Anlık bildirimleri telefona ulaştıran sağlayıcı. */
+  push: PushProvider;
   realtime: RealtimePublisher;
 }

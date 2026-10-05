@@ -20,6 +20,7 @@ import { AppError } from "../../core/errors";
 import type { AuthContext } from "../../core/http";
 import { randomToken, sha256 } from "../../core/security";
 import type { OtpPurpose } from "../../providers/sms";
+import type { NotificationService } from "../notifications/notifications.service";
 import { findMe } from "../users/user-rows";
 
 const OTP_TTL_SECONDS = 300;
@@ -46,7 +47,10 @@ interface SessionRow {
   recently_new_device: boolean;
 }
 
-export function createAuthService({ config, db, keys, sms, storage, realtime }: AppContext) {
+export function createAuthService(
+  { config, db, keys, sms, storage, realtime }: AppContext,
+  { notifications }: { notifications: NotificationService },
+) {
   function requirePhone(input: string): string {
     const phone = normalizePhone(input);
     if (phone === null) throw new AppError("invalid_phone");
@@ -232,6 +236,7 @@ export function createAuthService({ config, db, keys, sms, storage, realtime }: 
         sessionId: opened.sessionId,
         deviceName: body.deviceName,
       });
+      notifications.notifyNewDevice(opened.result.user.id, opened.sessionId, body.deviceName);
     }
     return opened.result;
   }

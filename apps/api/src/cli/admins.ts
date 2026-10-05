@@ -83,6 +83,8 @@ async function main(): Promise<void> {
       storage: await createLocalStorage(config.storageDir, config.publicUrl),
       packageStore: await createLocalPackageStore(config.packageDir),
       sms: { sendOtp: () => Promise.resolve() },
+      // Komut satırından bildirim gönderilmez.
+      push: { send: (messages) => Promise.resolve(messages.map(() => "sent" as const)) },
       realtime: { emit: () => undefined, disconnectSession: () => undefined },
     };
     const { adminAccounts } = createServices(context);

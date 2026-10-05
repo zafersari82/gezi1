@@ -56,6 +56,12 @@
       ],
       "expo-secure-store",
       [
+        "expo-notifications",
+        {
+          "color": "#155E63"
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "VADO, ödeme ve hesap işlemlerinde kimliğini doğrulamak için Face ID kullanır."

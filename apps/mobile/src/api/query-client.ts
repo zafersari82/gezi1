@@ -52,4 +52,5 @@ export const queryKeys = {
   payments: ["payments"],
   personalQr: ["qr", "personal"],
   sessions: ["sessions"],
+  notificationSettings: ["notification-settings"],
 } as const;
