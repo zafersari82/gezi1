@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Platform } from "./auth";
 import type { Capability } from "./capabilities";
 import { amountMinorSchema } from "./common";
-import type { MiniAppIdentity } from "./miniapps";
+import type { MiniAppIdentity, MiniAppIdentityToken } from "./miniapps";
 import type { ConfigValues } from "./packages";
 import { merchantIdSchema, orderIdSchema, paymentDescriptionSchema } from "./payments";
 
@@ -22,6 +22,7 @@ export const BRIDGE_METHODS = {
   "container.close": null,
   "app.getContext": null,
   "identity.getProfile": "identity.basic",
+  "identity.getToken": "identity.basic",
   "scanner.scanQr": "camera.qr",
   "location.getCurrent": "location.coarse",
   "payment.request": "payment.request",
@@ -63,6 +64,7 @@ export const bridgeParamsSchemas = {
   "container.close": noParamsSchema,
   "app.getContext": noParamsSchema,
   "identity.getProfile": noParamsSchema,
+  "identity.getToken": noParamsSchema,
   "scanner.scanQr": noParamsSchema,
   "location.getCurrent": noParamsSchema,
   "payment.request": paymentRequestParamsSchema,
@@ -99,6 +101,8 @@ export interface BridgeResults {
   "container.close": null;
   "app.getContext": MiniAppContext;
   "identity.getProfile": MiniAppIdentity;
+  /** Mini uygulamanın kendi sunucusunun doğrulayacağı kısa ömürlü belirteç. */
+  "identity.getToken": MiniAppIdentityToken;
   "scanner.scanQr": { value: string };
   "location.getCurrent": { latitude: number; longitude: number; accuracyMeters: number | null };
   "payment.request": { paymentId: string; status: "paid" };

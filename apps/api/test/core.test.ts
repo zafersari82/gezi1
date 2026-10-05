@@ -107,6 +107,7 @@ describe("yapılandırma", () => {
     VADO_OTP_KEYS: `k1:${key("otp")}`,
     VADO_QR_KEYS: `k1:${key("qr")}`,
     VADO_OPENID_KEY: key("openid"),
+    VADO_IDENTITY_KEYS: `k1:${key("identity")}`,
     VADO_ADMIN_API_KEY: "y".repeat(40),
     VADO_SMS_PROVIDER: "webhook",
     VADO_SMS_WEBHOOK_URL: "https://sms.example.com/gonder",

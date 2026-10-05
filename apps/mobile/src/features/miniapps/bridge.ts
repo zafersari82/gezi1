@@ -15,6 +15,7 @@ import {
   isBridgeMethod,
   type MiniAppDetail,
   type MiniAppIdentity,
+  type MiniAppIdentityToken,
   type PaymentRequestParams,
   requiresConsent,
   type ShareParams,
@@ -33,6 +34,7 @@ export interface BridgeHost {
   /** Kullanıcıya izin sorar; verirse izni kalıcı olarak kaydeder. */
   askConsent: (capability: ConsentCapability) => Promise<boolean>;
   getIdentity: () => Promise<MiniAppIdentity>;
+  getIdentityToken: () => Promise<MiniAppIdentityToken>;
   /** Kullanıcı vazgeçerse `null` döner. */
   scanQr: () => Promise<string | null>;
   /** Cihaz konum izni verilmezse `null` döner. */
@@ -77,6 +79,7 @@ const handlers: Handlers = {
     params: {},
   }),
   "identity.getProfile": (host) => host.getIdentity(),
+  "identity.getToken": (host) => host.getIdentityToken(),
   "scanner.scanQr": async (host) => {
     const value = await host.scanQr();
     if (value === null) throw new BridgeFailure("user_denied", "QR okutmadan vazgeçildi.");

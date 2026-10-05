@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { capabilitySchema } from "./capabilities";
-import { categorySchema } from "./common";
+import { categorySchema, timestampSchema } from "./common";
 import { configValuesSchema } from "./packages";
 
 /** Mini uygulama (uygulama kaydı) kimliği: küçük harf, rakam ve tire (3-40 karakter). */
@@ -90,6 +90,35 @@ export const miniAppIdentitySchema = z.object({
   avatarUrl: z.string().nullable(),
 });
 export type MiniAppIdentity = z.infer<typeof miniAppIdentitySchema>;
+
+/** Kimlik belirtecinin ömrü: mini uygulama onu hemen kendi sunucusuna gönderir. */
+export const IDENTITY_TOKEN_TTL_SECONDS = 300;
+
+/**
+ * Mini uygulamanın kendi sunucusuna gönderdiği kimlik belirteci: VADO'nun Ed25519 ile imzaladığı
+ * bir JWT. Sunucu onu VADO'nun yayımladığı açık anahtarlarla doğrular; `sub` kullanıcının o kayda
+ * özgü `openId` değeri, `aud` uygulama kaydının kimliğidir.
+ */
+export const miniAppIdentityTokenSchema = z.object({
+  token: z.string(),
+  expiresAt: timestampSchema,
+});
+export type MiniAppIdentityToken = z.infer<typeof miniAppIdentityTokenSchema>;
+
+/** Kimlik belirteçlerini doğrulayan açık anahtarlar (JWKS, RFC 7517; anahtarlar RFC 8037). */
+export const identityKeySetSchema = z.object({
+  keys: z.array(
+    z.object({
+      kty: z.literal("OKP"),
+      crv: z.literal("Ed25519"),
+      x: z.string(),
+      kid: z.string(),
+      use: z.literal("sig"),
+      alg: z.literal("EdDSA"),
+    }),
+  ),
+});
+export type IdentityKeySet = z.infer<typeof identityKeySetSchema>;
 
 /** Bir adresin kaynağını (şema + alan adı + port) döndürür; adres geçersizse `null`. */
 export function originOf(url: string): string | null {

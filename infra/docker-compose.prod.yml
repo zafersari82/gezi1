@@ -17,6 +17,7 @@ x-api-environment: &api-environment
   VADO_OTP_KEYS: ${VADO_OTP_KEYS:?bkz. docs/ANAHTARLAR.md}
   VADO_QR_KEYS: ${VADO_QR_KEYS:?bkz. docs/ANAHTARLAR.md}
   VADO_OPENID_KEY: ${VADO_OPENID_KEY:?bkz. docs/ANAHTARLAR.md}
+  VADO_IDENTITY_KEYS: ${VADO_IDENTITY_KEYS:?bkz. docs/ANAHTARLAR.md}
   # Yalnızca 2.1 ve öncesinden geçişte: tanımlıysa API, yeni anahtarların onunla uyumunu doğrular.
   VADO_APP_SECRET: ${VADO_APP_SECRET:-}
   VADO_ADMIN_API_KEY: ${VADO_ADMIN_API_KEY:?}

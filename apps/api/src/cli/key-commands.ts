@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { StartupError } from "../core/errors";
 import {
   describeKeyring,
+  firstKey,
   generateKeys,
   type KeyStatus,
   migrateKeys,
@@ -29,7 +30,9 @@ import {
 const USAGE = `Kullanım:
   keys generate               Yeni kurulum için anahtar üretir.
   keys migrate                VADO_APP_SECRET kullanan kurulumu (2.1 ve öncesi) yeni anahtarlara geçirir.
-  keys rotate <otp|qr>        Halkaya yeni bir imza anahtarı ekler; eskisi doğrulamayı sürdürür.
+  keys add identity           2.4 ve öncesinden yükseltmede kimlik belirteci anahtarını üretir.
+  keys rotate <otp|qr|identity>
+                              Halkaya yeni bir imza anahtarı ekler; eskisi doğrulamayı sürdürür.
       --until YYYY-AA-GG      Eski anahtar bu günün sonuna (UTC) kadar doğrular.
       --drop-old              Eski anahtarlar hemen çıkarılır (anahtar sızdıysa).
   keys check                  Tanımlı anahtarları canlı ortam kurallarıyla denetler ve özetler.
@@ -39,7 +42,11 @@ const USAGE = `Kullanım:
 Komutlar dosya değiştirmez; çıktıdaki satırları .env dosyasına siz yazarsınız.
 Ayrıntılar: docs/ANAHTARLAR.md`;
 
-const RINGS = { otp: "VADO_OTP_KEYS", qr: "VADO_QR_KEYS" } as const;
+const RINGS = {
+  otp: "VADO_OTP_KEYS",
+  qr: "VADO_QR_KEYS",
+  identity: "VADO_IDENTITY_KEYS",
+} as const;
 type Family = keyof typeof RINGS;
 const isFamily = (value: string | undefined): value is Family =>
   value !== undefined && Object.hasOwn(RINGS, value);
@@ -48,9 +55,12 @@ const isFamily = (value: string | undefined): value is Family =>
 const DROP_CONSEQUENCE: Record<Family, string> = {
   otp: "yoldaki doğrulama kodları geçersiz olur; kullanıcılar yeni kod ister.",
   qr: "bu ana kadar üretilmiş tüm QR kodları geçersiz olur; basılmış kodlar yeniden alınmalıdır.",
+  identity:
+    "verilmiş kimlik belirteçleri (en çok birkaç dakikalık) geçersiz olur; mini uygulama " +
+    "sunucuları yeni açık anahtarı yayımlanan listeden okur.",
 };
 
-const KEY_VARIABLES = [RINGS.otp, RINGS.qr, "VADO_OPENID_KEY"] as const;
+const KEY_VARIABLES = [RINGS.otp, RINGS.qr, "VADO_OPENID_KEY", RINGS.identity] as const;
 const definedKeys = (env: KeyEnv) => KEY_VARIABLES.filter((name) => isPresent(env[name]));
 
 interface Arguments {
@@ -129,6 +139,28 @@ function generate(env: KeyEnv): string[] {
     `VADO_QR_KEYS=${lines.VADO_QR_KEYS}`,
     "# Mini uygulama kimlikleri. Değişirse tüm kimlikler değişir; değiştirmeyin.",
     `VADO_OPENID_KEY=${lines.VADO_OPENID_KEY}`,
+    "# Mini uygulama sunucularına verilen kimlik belirteçleri. Değiştirmek için: keys rotate identity",
+    `VADO_IDENTITY_KEYS=${lines.VADO_IDENTITY_KEYS}`,
+  ];
+}
+
+/**
+ * 2.4 ve öncesinden yükseltmede eksik olan kimlik belirteci anahtarını üretir. Diğer anahtarlara
+ * dokunmaz; tanımlıysa üretmez.
+ */
+function add(env: KeyEnv, family: string | undefined): string[] {
+  if (family !== "identity") throw new StartupError(USAGE);
+  if (isPresent(env.VADO_IDENTITY_KEYS)) {
+    throw new StartupError(
+      "VADO_IDENTITY_KEYS zaten tanımlı. Anahtarı değiştirmek için `keys rotate identity` kullanın.",
+    );
+  }
+  const ring = formatKeyring([firstKey()]);
+  ensureAccepted({ ...env, VADO_IDENTITY_KEYS: ring });
+  return [
+    "# Mini uygulama sunucularına verilen kimlik belirteçleri (2.5). Bu satırı .env dosyasına",
+    "# ekleyin ve `keys check` ile denetleyin. Değiştirmek için: keys rotate identity",
+    `VADO_IDENTITY_KEYS=${ring}`,
   ];
 }
 
@@ -161,6 +193,8 @@ function migrate(env: KeyEnv, now: number): string[] {
     `VADO_QR_KEYS=${lines.VADO_QR_KEYS}`,
     "# Mini uygulama kimlikleri: eski sistemle aynı anahtar; kimlikler değişmez.",
     `VADO_OPENID_KEY=${lines.VADO_OPENID_KEY}`,
+    "# Mini uygulama sunucularına verilen kimlik belirteçleri: yeni anahtar.",
+    `VADO_IDENTITY_KEYS=${lines.VADO_IDENTITY_KEYS}`,
   ];
 }
 
@@ -184,9 +218,10 @@ function rotate(env: KeyEnv, family: Family, options: Arguments, now: number): s
     );
   }
 
-  // Doğrulama kodları birkaç dakika yaşar; eski anahtarın ertesi günün sonuna kadar kalması yeter.
-  // QR kodları basılmış olabilir; ne kadar geçerli kalacaklarına işleten karar verir.
-  const until = options.until ?? (family === "otp" ? utcDay(now + DAY_MS) : null);
+  // Doğrulama kodları ve kimlik belirteçleri birkaç dakika yaşar; eski anahtarın ertesi günün
+  // sonuna kadar kalması yeter. QR kodları basılmış olabilir; ne kadar geçerli kalacaklarına
+  // işleten karar verir.
+  const until = options.until ?? (family === "qr" ? null : utcDay(now + DAY_MS));
   const rotated = rotateKeyring(current.entries, until, now);
   const ring = options.dropOld ? rotated.slice(0, 1) : rotated;
   const problems = keyringProblems(ring);
@@ -208,7 +243,9 @@ function check(env: KeyEnv, now: number): string[] {
   const keys = loadKeyConfig(env, true, problems);
   if (keys === null) throw fail("Anahtarlar geçersiz:", problems);
 
-  const width = Math.max(...[...keys.otp, ...keys.qr].map((entry) => entry.id.length));
+  const width = Math.max(
+    ...[...keys.otp, ...keys.qr, ...keys.identity].map((entry) => entry.id.length),
+  );
   const ring = (family: Family) =>
     describeKeyring(keys[family], now).map(
       (status) => `  ${status.id.padEnd(width)}  ${describeStatus(status)}`,
@@ -220,6 +257,8 @@ function check(env: KeyEnv, now: number): string[] {
     ...ring("qr"),
     "VADO_OPENID_KEY",
     "  tanımlı",
+    RINGS.identity,
+    ...ring("identity"),
     ...(isPresent(env.VADO_APP_SECRET)
       ? [
           "VADO_APP_SECRET",
@@ -242,6 +281,12 @@ export function runKeyCommand(args: string[], readEnv: ReadKeyEnv, now: number):
   if (command === "rotate") {
     if (!isFamily(family) || rest.length > 0) throw new StartupError(USAGE);
     return rotate(readEnv(options.from), family, options, now);
+  }
+  if (command === "add") {
+    if (rest.length > 0 || options.until !== undefined || options.dropOld) {
+      throw new StartupError(USAGE);
+    }
+    return add(readEnv(options.from), family);
   }
   if (family !== undefined || options.until !== undefined || options.dropOld) {
     throw new StartupError(USAGE);

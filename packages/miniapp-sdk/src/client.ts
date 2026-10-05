@@ -9,6 +9,7 @@ import type {
   ContainerInfo,
   MiniAppContext,
   MiniAppIdentity,
+  MiniAppIdentityToken,
   PaymentRequestParams,
   ShareParams,
 } from "@vado/contracts";
@@ -71,6 +72,12 @@ export interface Vado {
   identity: {
     /** Kullanıcının adını, fotoğrafını ve bu mini uygulamaya özel kimliğini döndürür. */
     getProfile: () => Promise<MiniAppIdentity>;
+    /**
+     * Mini uygulamanın kendi sunucusuna göndereceği, VADO'nun imzaladığı kısa ömürlü kimlik
+     * belirtecini döndürür. Sunucu belirteci VADO'nun yayımladığı açık anahtarlarla doğrular;
+     * köprüden gelen `openId` değerine sunucuda güvenilmez.
+     */
+    getToken: () => Promise<MiniAppIdentityToken>;
   };
   scanner: {
     scanQr: () => Promise<string>;
@@ -216,6 +223,7 @@ export function createVado(host: HostWindow | undefined): Vado {
     },
     identity: {
       getProfile: () => interactive("identity.getProfile"),
+      getToken: () => interactive("identity.getToken"),
     },
     scanner: {
       scanQr: async () => (await interactive("scanner.scanQr")).value,

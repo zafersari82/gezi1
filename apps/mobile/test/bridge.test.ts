@@ -80,6 +80,10 @@ function createHost(options: HostOptions = {}) {
       calls.push("identity");
       return Promise.resolve({ openId: "open-123", displayName: "Ayşe", avatarUrl: null });
     },
+    getIdentityToken: () => {
+      calls.push("token");
+      return Promise.resolve({ token: "a.b.c", expiresAt: "2026-10-05T12:05:00.000Z" });
+    },
     scanQr: () => Promise.resolve(options.scanResult ?? null),
     getLocation: () => Promise.resolve(null),
     requestPayment: (params) => {
@@ -186,6 +190,27 @@ describe("handleBridgeMessage", () => {
     expect(first).toMatchObject({ ok: true, result: { openId: "open-123", displayName: "Ayşe" } });
     expect(second).toMatchObject({ id: "2", ok: true });
     expect(calls).toEqual(["ask:identity.basic", "identity", "identity"]);
+  });
+
+  it("kimlik belirteci de kimlik yetkisine ve aynı izne bağlıdır", async () => {
+    const denied = createHost({ capabilities: ["storage.local"] });
+    expect(await handleBridgeMessage(request("identity.getToken"), denied.host)).toMatchObject({
+      ok: false,
+      error: { code: "capability_denied" },
+    });
+    const refused = createHost({ answer: false });
+    expect(await handleBridgeMessage(request("identity.getToken"), refused.host)).toMatchObject({
+      ok: false,
+      error: { code: "user_denied" },
+    });
+    expect(refused.calls).toEqual(["ask:identity.basic"]);
+
+    const { host, calls } = createHost({ answer: true });
+    const profile = await handleBridgeMessage(request("identity.getProfile"), host);
+    const token = await handleBridgeMessage(request("identity.getToken", undefined, "2"), host);
+    expect(profile).toMatchObject({ ok: true });
+    expect(token).toMatchObject({ ok: true, result: { token: "a.b.c" } });
+    expect(calls).toEqual(["ask:identity.basic", "identity", "token"]);
   });
 
   it("kullanıcı izin vermezse kimliği paylaşmaz", async () => {

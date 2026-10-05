@@ -26,6 +26,7 @@ const envSchema = z.object({
   VADO_OTP_KEYS: z.string().optional(),
   VADO_QR_KEYS: z.string().optional(),
   VADO_OPENID_KEY: z.string().optional(),
+  VADO_IDENTITY_KEYS: z.string().optional(),
   VADO_APP_SECRET: z.string().optional(),
   VADO_ADMIN_API_KEY: z.string().default(DEV_ADMIN_API_KEY),
   VADO_DEMO_MODE: flagSchema.default(true),

@@ -41,6 +41,7 @@ function readEnv(file: string | undefined): KeyEnv {
     VADO_OTP_KEYS: source.VADO_OTP_KEYS,
     VADO_QR_KEYS: source.VADO_QR_KEYS,
     VADO_OPENID_KEY: source.VADO_OPENID_KEY,
+    VADO_IDENTITY_KEYS: source.VADO_IDENTITY_KEYS,
     VADO_APP_SECRET: source.VADO_APP_SECRET,
   };
 }

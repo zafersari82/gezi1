@@ -1,14 +1,17 @@
 import { createHmac } from "node:crypto";
 
+import { createIdentitySigner, type IdentitySigner } from "./identity-tokens";
 import { safeEqual } from "./security";
 
 /**
- * VADO'nun imza anahtarları. Üç bağımsız aile vardır; birinin değişmesi diğerlerini etkilemez:
+ * VADO'nun imza anahtarları. Dört bağımsız aile vardır; birinin değişmesi diğerlerini etkilemez:
  *
  * - OTP: doğrulama kodlarının özeti. Halka; gerektiğinde değiştirilir.
  * - QR: QR kodlarının imzası. Halka; kod, imzalayan anahtarın kimliğini taşır.
  * - OpenID: mini uygulamalara verilen takma kimlik. Tek ve uzun ömürlü anahtar; değişirse tüm
  *   kimlikler değişir.
+ * - Kimlik belirteci: mini uygulamanın sunucusuna giden belirtecin imzası (Ed25519). Halka;
+ *   açık anahtarlar yayımlanır, gizli anahtar yalnızca API'dedir.
  *
  * Kurulum, eski sistemden geçiş ve anahtar değiştirme adımları docs/ANAHTARLAR.md belgesindedir.
  */
@@ -35,7 +38,7 @@ export const LEGACY_KEY_ID = "legacy";
 const DEV_KEY_ID = "dev";
 const DEV_APP_SECRET = "vado-development-secret-not-for-production";
 
-const PURPOSES = ["otp", "qr", "openid"] as const;
+const PURPOSES = ["otp", "qr", "openid", "identity"] as const;
 type Purpose = (typeof PURPOSES)[number];
 
 /** Halkadaki tek anahtar. Ortam değişkeninde `kimlik:anahtar` ya da `kimlik:anahtar:YYYY-AA-GG`. */
@@ -50,11 +53,13 @@ export interface KeyEntry {
   validThrough: string | null;
 }
 
-/** Üç anahtar ailesinin yapılandırmadan okunmuş hali. */
+/** Anahtar ailelerinin yapılandırmadan okunmuş hali. */
 export interface KeyConfig {
   otp: KeyEntry[];
   qr: KeyEntry[];
   openId: Buffer;
+  /** Kimlik belirteci halkası; her anahtar bir Ed25519 gizli anahtarının 32 baytlık tohumudur. */
+  identity: KeyEntry[];
 }
 
 /** Anahtarların okunduğu ortam değişkenleri. */
@@ -62,6 +67,7 @@ export interface KeyEnv {
   VADO_OTP_KEYS?: string | undefined;
   VADO_QR_KEYS?: string | undefined;
   VADO_OPENID_KEY?: string | undefined;
+  VADO_IDENTITY_KEYS?: string | undefined;
   /** 2.1 ve öncesinin tek ana anahtarı. Yalnızca geçişte ve geliştirmede okunur. */
   VADO_APP_SECRET?: string | undefined;
 }
@@ -89,6 +95,8 @@ export interface AppKeys {
   qr: Keyring;
   /** Kullanıcının bir mini uygulamaya özgü, geri çevrilemeyen takma kimliğini türetir. */
   openId: (miniAppId: string, userId: string) => string;
+  /** Mini uygulamanın sunucusunun doğrulayacağı kimlik belirtecini imzalar. */
+  identity: IdentitySigner;
 }
 
 const mac = (key: Buffer, value: string) =>
@@ -197,11 +205,12 @@ export function createKeyring(entries: readonly KeyEntry[], now: () => number = 
   };
 }
 
-export function createAppKeys(config: KeyConfig): AppKeys {
+export function createAppKeys(config: KeyConfig, now: () => number = Date.now): AppKeys {
   return {
-    otp: createKeyring(config.otp),
-    qr: createKeyring(config.qr),
+    otp: createKeyring(config.otp, now),
+    qr: createKeyring(config.qr, now),
     openId: (miniAppId, userId) => mac(config.openId, `${miniAppId}:${userId}`),
+    identity: createIdentitySigner(config.identity, now),
   };
 }
 
@@ -215,7 +224,7 @@ export function legacyKey(appSecret: string, purpose: Purpose): Buffer {
 }
 
 /**
- * Anahtar halkasını (`VADO_OTP_KEYS`, `VADO_QR_KEYS`) çözümler. Biçim: virgülle ayrılmış
+ * Anahtar halkasını (`VADO_OTP_KEYS`, `VADO_QR_KEYS`, `VADO_IDENTITY_KEYS`) çözümler. Biçim: virgülle ayrılmış
  * `kimlik:anahtar` ya da `kimlik:anahtar:YYYY-AA-GG`. Sorun varsa halka boş döner.
  */
 export function parseKeyring(text: string): { entries: KeyEntry[]; problems: string[] } {
@@ -288,7 +297,7 @@ function migrationProblems(appSecret: string, keys: KeyConfig): string[] {
  * Anahtarları ortam değişkenlerinden okur; sorunları `problems` listesine ekler ve sorun varsa
  * `null` döner.
  *
- * Canlı ortamda üç değişken de açıkça tanımlanmalıdır. Geliştirmede ve testte tanımlanmayanlar eski
+ * Canlı ortamda dört değişken de açıkça tanımlanmalıdır. Geliştirmede ve testte tanımlanmayanlar eski
  * ana anahtardan (`VADO_APP_SECRET`, o da yoksa sabit geliştirme değeri) türetilir: kurulum ayarsız
  * çalışır ve önceki sürümle üretilmiş mini uygulama kimlikleri değişmez.
  */
@@ -302,7 +311,10 @@ export function loadKeyConfig(
   const appSecret = isPresent(env.VADO_APP_SECRET) ? env.VADO_APP_SECRET : null;
   const derived = (purpose: Purpose) => legacyKey(appSecret ?? DEV_APP_SECRET, purpose);
 
-  const readRing = (name: "VADO_OTP_KEYS" | "VADO_QR_KEYS", purpose: Purpose): KeyEntry[] => {
+  const readRing = (
+    name: "VADO_OTP_KEYS" | "VADO_QR_KEYS" | "VADO_IDENTITY_KEYS",
+    purpose: Purpose,
+  ): KeyEntry[] => {
     const text = env[name];
     if (isPresent(text)) {
       const ring = parseKeyring(text);
@@ -332,23 +344,29 @@ export function loadKeyConfig(
   const otp = readRing("VADO_OTP_KEYS", "otp");
   const qr = readRing("VADO_QR_KEYS", "qr");
   const openId = readOpenId();
+  const identity = readRing("VADO_IDENTITY_KEYS", "identity");
   if (missing.length > 0) {
+    const onlyIdentity = missing.length === 1 && missing[0] === "VADO_IDENTITY_KEYS";
     found.push(
-      `${missing.join(", ")} tanımlı değil. Yeni kurulumda \`keys generate\`, 2.1 ve öncesinden ` +
-        "yükseltmede `keys migrate` çıktısını kullanın (bkz. docs/ANAHTARLAR.md)",
+      onlyIdentity
+        ? "VADO_IDENTITY_KEYS tanımlı değil. 2.4 ve öncesinden yükseltmede `keys add identity` " +
+            "çıktısını ekleyin (bkz. docs/ANAHTARLAR.md)"
+        : `${missing.join(", ")} tanımlı değil. Yeni kurulumda \`keys generate\`, 2.1 ve ` +
+            "öncesinden yükseltmede `keys migrate` çıktısını kullanın (bkz. docs/ANAHTARLAR.md)",
     );
   }
   if (openId === null || found.length > 0) {
     problems.push(...found);
     return null;
   }
-  const keys: KeyConfig = { otp, qr, openId };
+  const keys: KeyConfig = { otp, qr, openId, identity };
 
   const developmentKeys = PURPOSES.map((purpose) => legacyKey(DEV_APP_SECRET, purpose));
   const labelled = [
     ...otp.map((entry) => ({ label: `VADO_OTP_KEYS "${entry.id}"`, key: entry.key })),
     ...qr.map((entry) => ({ label: `VADO_QR_KEYS "${entry.id}"`, key: entry.key })),
     { label: "VADO_OPENID_KEY", key: openId },
+    ...identity.map((entry) => ({ label: `VADO_IDENTITY_KEYS "${entry.id}"`, key: entry.key })),
   ];
   for (const [index, { label, key }] of labelled.entries()) {
     // Aynı halkadaki yinelenmeyi halkanın kendi denetimi yakalar; buraya ulaşan, aileler arasıdır.

@@ -1,4 +1,12 @@
-import type { Category, MiniApp, MiniAppDetail, MiniAppIdentity } from "@vado/contracts";
+import {
+  type Category,
+  IDENTITY_TOKEN_TTL_SECONDS,
+  type IdentityKeySet,
+  type MiniApp,
+  type MiniAppDetail,
+  type MiniAppIdentity,
+  type MiniAppIdentityToken,
+} from "@vado/contracts";
 
 import type { AppContext } from "../../core/context";
 import { sql } from "../../core/database";
@@ -85,6 +93,28 @@ export function createMiniAppService({ config, db, keys, log, storage, packageSt
   }
 
   /**
+   * Mini uygulamanın kendi sunucusuna göndereceği kimlik belirtecini imzalar. Koşullar kimlik
+   * bilgisiyle aynıdır: kayıt kullanıcılara açık olmalı ve `identity.basic` yetkisini istemiş
+   * olmalıdır. Belirteç yalnızca takma kimliği (`sub`) ve kaydı (`aud`) taşır; ad ve fotoğraf yoktur.
+   */
+  async function identityToken(userId: string, miniAppId: string): Promise<MiniAppIdentityToken> {
+    const miniApp = await get(miniAppId);
+    if (!miniApp.capabilities.includes("identity.basic")) throw new AppError("forbidden");
+    const signed = keys.identity.sign({
+      issuer: config.publicUrl,
+      audience: miniAppId,
+      subject: keys.openId(miniAppId, userId),
+      ttlSeconds: IDENTITY_TOKEN_TTL_SECONDS,
+    });
+    return { token: signed.token, expiresAt: signed.expiresAt.toISOString() };
+  }
+
+  /** Kimlik belirteçlerini doğrulayan açık anahtarlar; herkese açıktır. */
+  function identityKeys(): IdentityKeySet {
+    return { keys: keys.identity.publicKeys() };
+  }
+
+  /**
    * Uygulama kaydının sarmalayıcı belgesi için kaydın adını ve paketin giriş belgesini okur.
    * Kayıt kullanıcılara kapalıysa ya da özet yayındaki sürümün özeti değilse `null` döner.
    */
@@ -134,7 +164,7 @@ export function createMiniAppService({ config, db, keys, log, storage, packageSt
     }
   }
 
-  return { list, find, get, identity, openWrapper, openPackageFile };
+  return { list, find, get, identity, identityToken, identityKeys, openWrapper, openPackageFile };
 }
 
 export type MiniAppService = ReturnType<typeof createMiniAppService>;

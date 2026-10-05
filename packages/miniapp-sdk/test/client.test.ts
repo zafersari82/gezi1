@@ -48,6 +48,19 @@ describe("mini uygulama SDK'sı", () => {
     await expect(profile).resolves.toEqual({ openId: "abc", displayName: "Ayşe", avatarUrl: null });
   });
 
+  it("kimlik belirtecini köprüden ister", async () => {
+    const shell = fakeShell();
+    const vado = createVado(shell.host);
+    const token = vado.identity.getToken();
+    expect(shell.last()).toMatchObject({ vado: 1, method: "identity.getToken" });
+    shell.reply({
+      id: shell.last().id,
+      ok: true,
+      result: { token: "a.b.c", expiresAt: "2026-10-05T12:05:00.000Z" },
+    });
+    await expect(token).resolves.toEqual({ token: "a.b.c", expiresAt: "2026-10-05T12:05:00.000Z" });
+  });
+
   it("parametreleri iletir ve sonucu sadeleştirir", async () => {
     const shell = fakeShell();
     const vado = createVado(shell.host);

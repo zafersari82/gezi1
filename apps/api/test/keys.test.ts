@@ -91,6 +91,7 @@ const VALID: KeyEnv = {
   VADO_OTP_KEYS: `k1:${hex("otp")}`,
   VADO_QR_KEYS: `k1:${hex("qr")}`,
   VADO_OPENID_KEY: hex("openid"),
+  VADO_IDENTITY_KEYS: `k1:${hex("identity")}`,
 };
 
 describe("anahtar halkası", () => {
@@ -220,7 +221,7 @@ describe("anahtar halkasının yazımı", () => {
 });
 
 describe("anahtar yapılandırması", () => {
-  it("canlı ortamda üç aile de tanımlıysa kabul eder", () => {
+  it("canlı ortamda dört aile de tanımlıysa kabul eder", () => {
     const { keys, problems } = load(VALID);
     expect(problems).toEqual([]);
     expect(keys?.otp.map((item) => item.id)).toEqual(["k1"]);
@@ -241,10 +242,17 @@ describe("anahtar yapılandırması", () => {
     },
   );
 
+  it("2.4'ten yükseltmede yalnızca kimlik belirteci anahtarı eksikse keys add identity önerir", () => {
+    const { keys, problems } = load({ ...VALID, VADO_IDENTITY_KEYS: undefined });
+    expect(keys).toBeNull();
+    expect(problems).toEqual([expect.stringContaining("keys add identity")]);
+    expect(problems[0]).not.toContain("keys generate");
+  });
+
   it("canlı ortamda geliştirme anahtarlarını reddeder", () => {
     const { keys, problems } = load(toKeyEnv(mustLoad({}, false)));
     expect(keys).toBeNull();
-    expect(problems).toHaveLength(3);
+    expect(problems).toHaveLength(4);
     for (const problem of problems) expect(problem).toContain("geliştirme anahtarı");
   });
 
@@ -304,6 +312,7 @@ describe("anahtar yapılandırması", () => {
       VADO_OTP_KEYS: `k1:${hex("ortak")}`,
       VADO_QR_KEYS: `k1:${hex("ortak")}`,
       VADO_OPENID_KEY: hex("kimlik"),
+      VADO_IDENTITY_KEYS: `k1:${hex("belirtec")}`,
       VADO_APP_SECRET: APP_SECRET,
     });
     const messages = problems.join("\n");
@@ -480,12 +489,33 @@ describe("keys komutu", () => {
         }),
     );
 
-  it("generate: canlı ortamın kabul ettiği üç değişkeni .env satırları olarak üretir", () => {
+  it("generate: canlı ortamın kabul ettiği dört değişkeni .env satırları olarak üretir", () => {
     const lines = run(["generate"]);
     for (const line of lines) expect(line).toMatch(/^(# .+|VADO_[A-Z_]+=[0-9a-z:,-]+)$/);
     const env = variables(lines);
-    expect(Object.keys(env).sort()).toEqual(["VADO_OPENID_KEY", "VADO_OTP_KEYS", "VADO_QR_KEYS"]);
+    expect(Object.keys(env).sort()).toEqual([
+      "VADO_IDENTITY_KEYS",
+      "VADO_OPENID_KEY",
+      "VADO_OTP_KEYS",
+      "VADO_QR_KEYS",
+    ]);
     expect(load(env).problems).toEqual([]);
+  });
+
+  it("add identity: yalnızca eksik kimlik belirteci anahtarını üretir; varsa üretmez", () => {
+    const upgraded: KeyEnv = { ...VALID, VADO_IDENTITY_KEYS: undefined };
+    const lines = run(["add", "identity"], upgraded);
+    const env = variables(lines);
+    expect(Object.keys(env)).toEqual(["VADO_IDENTITY_KEYS"]);
+    expect(load({ ...upgraded, ...env }).problems).toEqual([]);
+    expect(() => run(["add", "identity"], VALID)).toThrow("zaten tanımlı");
+    expect(() => run(["add", "qr"], upgraded)).toThrow("Kullanım");
+  });
+
+  it("rotate identity: eski anahtar ertesi günün sonuna kadar yayımlanmaya devam eder", () => {
+    const env = variables(run(["rotate", "identity"], VALID));
+    expect(env.VADO_IDENTITY_KEYS).toMatch(/^k2:[0-9a-f]{64},k1:[0-9a-f]{64}:2026-10-05$/);
+    expect(load({ ...VALID, ...env }).problems).toEqual([]);
   });
 
   it("generate: tanımlı anahtarların yerine yenisini üretmez", () => {

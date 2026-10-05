@@ -35,20 +35,25 @@ export function utcDay(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
-/** Yeni kurulum için üç ailenin anahtarlarını üretir. */
+/** Halkanın ilk, imzalayan anahtarı. */
+export function firstKey(): KeyEntry {
+  return { id: FIRST_KEY_ID, key: generateKey(), validThrough: null };
+}
+
+/** Yeni kurulum için bütün ailelerin anahtarlarını üretir. */
 export function generateKeys(): KeyConfig {
-  const signing = (): KeyEntry => ({ id: FIRST_KEY_ID, key: generateKey(), validThrough: null });
-  return { otp: [signing()], qr: [signing()], openId: generateKey() };
+  return { otp: [firstKey()], qr: [firstKey()], openId: generateKey(), identity: [firstKey()] };
 }
 
 /**
- * 2.1 ve öncesinin tek ana anahtarından (`VADO_APP_SECRET`) üç bağımsız aileye geçişi hazırlar:
+ * 2.1 ve öncesinin tek ana anahtarından (`VADO_APP_SECRET`) bağımsız ailelere geçişi hazırlar:
  *
  * - OpenID: eski sistemin kullandığı anahtarın kendisi. Mini uygulama kimlikleri değişmez.
  * - QR: yeni bir imza anahtarı. Eski (kimlik taşımayan) kodlar, halkadan çıkarılana kadar `legacy`
  *   anahtarıyla doğrulanır.
  * - OTP: yeni bir anahtar. Geçiş anında yolda olan kodlar `otpGraceDay` gününün sonuna kadar eski
  *   anahtarla doğrulanır; kodlar birkaç dakika yaşadığı için bu süre fazlasıyla yeter.
+ * - Kimlik belirteci: yeni bir anahtar; eski sistemde bu aile yoktu.
  */
 export function migrateKeys(appSecret: string, otpGraceDay: string): KeyConfig {
   const fresh = generateKeys();
@@ -61,6 +66,7 @@ export function migrateKeys(appSecret: string, otpGraceDay: string): KeyConfig {
     otp: [...fresh.otp, legacy("otp", otpGraceDay)],
     qr: [...fresh.qr, legacy("qr", null)],
     openId: legacyKey(appSecret, "openid"),
+    identity: fresh.identity,
   };
 }
 
@@ -107,5 +113,6 @@ export function toKeyEnv(keys: KeyConfig) {
     VADO_OTP_KEYS: formatKeyring(keys.otp),
     VADO_QR_KEYS: formatKeyring(keys.qr),
     VADO_OPENID_KEY: keys.openId.toString("hex"),
+    VADO_IDENTITY_KEYS: formatKeyring(keys.identity),
   };
 }

@@ -1,5 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import type { List, MiniApp, MiniAppDetail, MiniAppIdentity } from "@vado/contracts";
+import type {
+  List,
+  MiniApp,
+  MiniAppDetail,
+  MiniAppIdentity,
+  MiniAppIdentityToken,
+} from "@vado/contracts";
 
 import { api } from "@/api/client";
 import { queryKeys } from "@/api/query-client";
@@ -23,4 +29,9 @@ export function useMiniApp(miniAppId: string) {
 /** Kullanıcının bu mini uygulamaya özel kimliğini sunucudan alır. */
 export function fetchMiniAppIdentity(miniAppId: string): Promise<MiniAppIdentity> {
   return api.get<MiniAppIdentity>(`/v1/miniapps/${miniAppId}/identity`);
+}
+
+/** Mini uygulamanın kendi sunucusuna göndereceği kimlik belirtecini sunucudan alır. */
+export function fetchMiniAppIdentityToken(miniAppId: string): Promise<MiniAppIdentityToken> {
+  return api.post<MiniAppIdentityToken>(`/v1/miniapps/${miniAppId}/identity-token`);
 }

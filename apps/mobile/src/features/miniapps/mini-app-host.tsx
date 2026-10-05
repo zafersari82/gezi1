@@ -27,7 +27,7 @@ import { consentStatusOf, grantConsent, miniAppStorage } from "./consents";
 import { MiniAppFrame } from "./mini-app-frame";
 import type { MiniAppFrameHandle } from "./mini-app-frame.types";
 import { MiniAppIcon } from "./mini-app-icon";
-import { fetchMiniAppIdentity } from "./queries";
+import { fetchMiniAppIdentity, fetchMiniAppIdentityToken } from "./queries";
 
 /** "Yaklaşık konum" yetkisi: koordinatlar yaklaşık 100 metre duyarlılığa yuvarlanır. */
 const COARSE_PRECISION = 1000;
@@ -71,6 +71,7 @@ export function MiniAppHost({ miniApp }: { miniApp: MiniAppDetail }) {
       return granted;
     },
     getIdentity: () => fetchMiniAppIdentity(miniApp.id),
+    getIdentityToken: () => fetchMiniAppIdentityToken(miniApp.id),
     scanQr: () => scanner.ask(true),
     async getLocation() {
       const permission = await Location.requestForegroundPermissionsAsync();
