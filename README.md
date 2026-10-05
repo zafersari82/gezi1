@@ -162,41 +162,61 @@ Dürüst bir liste; ayrıntısı ve önerilen sıra [docs/YOL_HARITASI.md](docs/
 
 ## Neyi denedik, neyi denemedik
 
-Denendi (bu depodaki kodla, gerçek PostgreSQL üzerinde):
+Denendi (bu depodaki kodla, gerçek PostgreSQL üzerinde; 2.4 için yinelenenler ve yenileri):
 
-- 544 otomatik test: sözleşmeler, API (gerçek veritabanı ve gerçek WebSocket bağlantılarıyla), mini
-  uygulama kitaplığı ve mobil uygulamanın telefondan bağımsız mantığı. Paket testleri bozuk ve kötü
-  niyetli zip arşivleri yükler, depodaki dosyaları bozar ve değişmezlik kurallarını doğrudan SQL ile
-  zorlar; sarmalayıcı belgenin betiği, tarayıcıya gönderilen metniyle çalıştırılır. Koruma
-  kurallarının 50'si tek tek bozuldu; testler hepsini yakaladı.
-- Tarayıcıda uçtan uca sekiz senaryo, toplam 169 adım: kayıt, kişi ekleme, iki kullanıcı arasında
-  anlık sohbet, grup, Anlar, QR, şikayet, oturumu uzaktan kapatma, hesap silme, yeni cihaz uyarısı
-  ve yeniden doğrulama; paketli mini uygulamanın sarmalayıcı belgenin içinde açılması, izin, ödeme,
-  iki işletmenin aynı paketi ayrı verilerle kullanması, paketin dışarıya ve başka kayıtlara
-  ulaşamaması, başka adrese gitme girişiminin istek gönderilmeden engellenmesi, sayfa yenileyen
-  mini uygulamanın kapatılması, yeni sürümde iznin yeniden sorulması, geri alma ve acil kapatma;
-  panelde paket yükleme, inceleme, yayın, toplu dağıtım ve geri çekme. Senaryolar hem geliştirme
-  kipinde hem canlı derlemelerle çalıştırıldı.
-- **Yalıtım ölçümü:** paketin açıldığı belgeden çıkış 59 denemeyle, Chromium 141 ve WebKit 2.52
-  üzerinde, telefondaki köprünün Android ve iOS davranışı ile web önizlemesi öykünülerek ölçüldü;
-  hiçbirinde paketin dışına istek çıkmadı. Aynı ölçüm, sarmalayıcının kısıtı kaldırıldığında dokuz
-  yoldan isteğin çıktığını gösterdi. Açık kalan yollar (WebRTC, tam Chrome'daki iki yan kanal) bu
-  ölçümle bulundu ve [SECURITY.md](SECURITY.md) içinde yazılı.
-- **Canlı ortam düzeni:** derlenmiş API (canlı ayarlar, her kayıt kendi alt alan adında) ve canlı
-  derlenmiş panel, depodaki Nginx örneğinin arkasında, TLS ile çalıştırıldı; paket panelden
-  yüklendi, onaylandı, yayınlandı, mini uygulama açılıp ödeme alındı, başka adrese gitme girişimi
-  engellendi ve sürüm geri çekildi.
-- **2.3.0'dan geçiş:** 2.3.0'ın derlenmiş API'siyle yayınlanan paket, aynı veritabanı ve depoyla
-  2.3.1'de yeni adres düzeninde açıldı; kullanıcı kimliği ve izin özeti değişmedi, yeni kitaplıkla
-  derlenen sürüm dağıtıldı, 2.3.0'a geri dönülebildi. 2.3.0'ın web sürümünün yeni sunucuyla mini
-  uygulama açamadığı da görüldü. 2.2'den doğrudan 2.3.1'e geçiş yinelendi: eski mini uygulama
-  kayıtları kapandı, paket yayınlanınca aynı kullanıcı kimliği, satıcı ve QR koduyla açıldı.
-- **Yedekten dönüş:** veritabanı ve paket deposu yedeklendi, silindi, geri yüklendi ve denetlendi.
-- Zip dosyası boş bir klasöre açılıp sıfırdan kuruldu; `npm run db:seed`, `npm run dev`,
-  `npm run web` ve `npm run check` o kopyada çalıştırıldı.
-- API'nin ve panelin Docker imajları canlı ortam ayarlarıyla çalıştırıldı; çalışan API'de
-  veritabanı bağlantıları koparıldı ve Redis yeniden başlatıldı.
+- 606 otomatik test: sözleşmeler (132), mini uygulama kitaplığı (10), API (403; gerçek veritabanı
+  ve gerçek WebSocket bağlantılarıyla), mobil uygulamanın telefondan bağımsız mantığı (61). Panel
+  hesaplarının testleri TOTP'yi RFC 4226 ve RFC 6238'in sınama vektörleriyle, girişi gerçek
+  kodlarla sınar; izin testi kayıtlı her yönetim ucunu (34) her rolle (5) çağırır ve izni olmayan
+  her rolün reddedildiğini doğrular; dört göz kuralı ve son sahibin korunması doğrudan SQL ile de
+  zorlanır. Paket testleri bozuk ve kötü niyetli zip arşivleri yükler, depodaki dosyaları bozar ve
+  değişmezlik kurallarını doğrudan SQL ile zorlar.
+- **Bozma denemesi:** koruma kurallarının 78'i (2.3.1'den 50, 2.4'te eklenen 28: izin denetimi,
+  yönetici anahtarı, yarım oturum, oturumun süresi ve iptali, kapalı hesap, kodun yeniden
+  kullanımı, kurtarma kodu, kilitlenme, parola, son sahip, yükleyen/onaylayan kuralı) tek tek
+  bozuldu; testler hepsini yakaladı. İlk turda dört bozma kaçtı; eksik testler yazıldı.
+- **Tarayıcıda uçtan uca sekiz senaryo, toplam 171 adım:** kayıt, kişi ekleme, iki kullanıcı
+  arasında anlık sohbet, grup, Anlar, QR, şikayet, oturumu uzaktan kapatma, hesap silme, yeni cihaz
+  uyarısı ve yeniden doğrulama; paketli mini uygulama, izin, ödeme, yalıtım, gezinme, yeniden izin,
+  geri alma ve acil kapatma; panelde hesapla giriş (yanlış parola, yanlış kod), paket yükleme
+  (operatör), onay (inceleyen; operatör onay düğmesini görmez), yayın, toplu dağıtım, geri çekme ve
+  denetim kaydında kişi adları. Senaryo 1-7 hem geliştirme kipinde hem canlı derlemelerle
+  çalıştırıldı (151 adım, ikisinde de hatasız); geliştirme kipinde 36 ekran tarandı, tarayıcı
+  konsolu temiz. Ayrıca panelin yeni sayfaları (giriş, ikinci adımın kurulumu, kurtarma kodları,
+  hesabım, panel hesapları, role göre menü, yetki sayfası, çıkış) tarayıcıda 17 adımla denendi.
+- **Canlı ortam düzeni (senaryo 8, 20 adım):** derlenmiş API (canlı ayarlar, alt alan adı kipi) ve
+  canlı derlenmiş panel, depodaki Nginx örneğinin (1.24) arkasında, TLS ile çalıştırıldı. İlk sahip
+  komut satırından açıldı; panelde ilk giriş, ikinci adımın gerçek TOTP koduyla kurulumu (demo kodu
+  reddedildi), kurtarma kodları ve parola değişikliği tarayıcıda yapıldı; oturum çerezinin
+  `HttpOnly`, `Secure` ve `SameSite=Strict` olduğu görüldü. Paketi yükleyen sahip onay düğmesini
+  görmedi, ikinci hesap onayladı; mini uygulama açılıp ödeme alındı ve sürüm geri çekildi.
+- **Canlı ortam denemesi:** derlenmiş API canlı ayarlarla 50 denetimden geçti (eksik ya da zayıf
+  anahtarla başlamama; yönetici anahtarının tek başına yetmemesi; demo kodunun canlıda
+  geçmemesi; kendi sürümünü onaylayamama dahil). Dayanıklılık: iki API sürecinde veritabanı
+  bağlantıları koparıldı, Redis yeniden başlatıldı (19/19).
+- **2.3.1'den geçiş (28/28):** 2.3.1'in derlenmiş API'si canlı ayarlarla kullanıcı, yayınlanmış
+  paket, incelemede bekleyen ve taslak sürüm, askıya alma ve denetim kaydı üretti. 2.4 şema
+  yükseltilmeden başlamadı; `migrate` yalnızca `0004` ve `0005`'i uyguladı; sahip yokken API
+  uyardı; eski panel girişi (yalnızca anahtar) reddedildi. Kullanıcı oturumu, mini uygulamanın
+  adresi, izin özeti ve kullanıcı kimliği değişmedi. Hesaplar komut satırından açıldı, ilk girişte
+  ikinci adım kuruldu. Eski kayıtlar "Ortak panel hesabı (2.3)" adıyla göründü; incelemede bekleyen
+  eski sürüm doğrudan onaylanamadı, bir hesap yeniden gönderince başka bir hesap onayladı. Aynı
+  veritabanında 2.3.1'in başladığı ama incelemeye gönderme yapamadığı görüldü: geri dönüş yedekten
+  yapılır.
+- **Docker:** API ve panel imajları resmî `node:22-bookworm-slim` imajından derlendi (bu ortamın
+  ağ vekili için taban imaja yalnızca bir kök sertifika eklendi) ve canlı ayarlarla 28 denetimden
+  geçti (ilk sahip kabın içindeki komutla, eski panel değişkenleriyle panelin açılmaması dahil).
+  **`docker-compose.prod.yml` dosyasının tamamı** resmî PostgreSQL ve Redis imajlarıyla `up` ile
+  çalıştırıldı: şema kuruldu, API ve panel sağlıklı açıldı, belgedeki `run --rm api … admins.js
+create` komutu ilk sahibi açtı, panelde ilk giriş ve ikinci adım kurulumu yapıldı.
+  `npm run db:up` de çalıştırıldı. **Yedekten dönüş** tatbikatı 12/12.
+- Zip dosyası boş bir klasöre açılıp sıfırdan kuruldu; `npm ci` ve `npm run check` o kopyada
+  hatasız geçti.
 - Mobil uygulamanın Android ve iOS için JavaScript paketleri derlendi.
+- **Yalıtım ölçümü** (2.3.1): paketin açıldığı belgeden çıkış 59 denemeyle, Chromium 141 ve WebKit
+  2.52 üzerinde ölçüldü; hiçbirinde paketin dışına istek çıkmadı, koruma kaldırıldığında dokuz
+  yoldan istek çıktı. 2.4 bu alana dokunmadığı için ölçüm yinelenmedi; senaryo 6 ve 8'deki yalıtım
+  adımları geçti.
 
 Her birinin ayrıntısı ve sınırı [docs/YAYIN.md](docs/YAYIN.md) belgesinin son bölümündedir.
 
@@ -210,14 +230,14 @@ Denenmedi:
   iOS WKWebView'in kendisinde, telefondaki kabuğun kilidi ve köprünün taşımasıyla birlikte
   yalnızca derlendi; 2.3.0'daki Android köprü hatasının düzeltmesi de cihazda görülmedi. Yayından
   önce gerçek cihazda sınanmalıdır (bkz. [SECURITY.md](SECURITY.md), bilinen sınırlar).
+- **Gerçek bir doğrulama uygulaması.** İkinci adımın kodları RFC sınama vektörleriyle ve aynı
+  hesabı yapan bir betikle üretildi; panelin gösterdiği QR kodu bir telefondaki Google
+  Authenticator ya da benzeriyle okutulmadı.
 - **Parmak izi, yüz ve uygulama kilidi.** Cihazın kilidini soran bölüm yalnızca derlendi; sunucu
   tarafı ve SMS koduyla yeniden doğrulama ise uçtan uca denendi.
 - **Mağaza paketi.** EAS ile APK ya da mağaza paketi üretilmedi.
-- **`npm run db:up`.** Derleme ortamından Docker Hub'a erişilemediği için veritabanını Docker ile
-  başlatan komut çalıştırılamadı; dosyanın yapısı doğrulandı, denemeler doğrudan kurulu PostgreSQL 16
-  ile yapıldı.
-- **Canlı sunucu.** Docker Compose kurulumunun tamamı ve sertifika (certbot) adımları gerçek bir
-  sunucuda çalıştırılmadı.
+- **Canlı sunucu.** Compose dosyasının tamamı bu ortamda çalıştı ama gerçek bir sunucuda, gerçek
+  alan adı ve sertifikayla (certbot) kurulmadı.
 - **Windows.** Komutlar Windows'ta çalışacak biçimde yazıldı ama Windows'ta çalıştırılmadı.
 - **Yük.** Çok kullanıcılı yük testi yapılmadı; paket boyutu sınırı da gerçek cihazda açılış süresi
   ölçülerek belirlenmedi.

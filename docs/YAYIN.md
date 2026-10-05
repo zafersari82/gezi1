@@ -511,57 +511,48 @@ npm run miniapp:pack -- miniapps/appointment/dist    # randevu-1.0.0.zip
 
 ## Bu belgedeki adımların ne kadarı denendi
 
-- İki Dockerfile ile imajlar derlendi; API ve panel imajları canlı ortam ayarlarıyla çalıştırılıp
-  denendi (şema kurulumu, SMS aracı servisine kod iletimi, giriş, fotoğraf yükleme, iki API süreci
-  arasında Redis üzerinden mesaj, panel girişi, sağlık denetimleri, düzgün kapanış). Mini uygulama
-  paketi bir kaptan yüklendi, öteki kaptan onaylanıp kendi alt alan adıyla sunuldu (sarmalayıcı
-  belge, giriş belgesi ve dosyalar); dosyaların ortak birime salt okunur yazıldığı ve
-  `packages.js verify` komutunun imajın içinde çalıştığı görüldü. Derleme ortamından Docker Hub'a
-  erişilemediği için resmî `node:22-bookworm-slim` taban imajı yerine aynı Node.js sürümünü içeren
-  yerel bir taban imaj kullanıldı.
+2.4 için yinelenenler ve yeniler:
+
+- **`docker-compose.prod.yml` dosyasının tamamı `up` ile çalıştırıldı** (resmî `postgres:16-alpine`
+  ve `redis:7-alpine` imajlarıyla): `migrate` şemayı kurup çıktı, API ve panel sağlıklı açıldı,
+  sahip hesabı yokken API günlüğe uyarı yazdı. "İlk panel hesabı" bölümündeki
+  `run --rm api node dist/cli/admins.js create …` komutu aynen çalıştırıldı; geçici parolayla
+  panelde ilk giriş, ikinci adımın gerçek TOTP koduyla kurulumu ve parola değişikliği tarayıcıda
+  yapıldı. Panel ve API burada HTTPS'siz, yalnızca `127.0.0.1` üzerinden denendi.
+- İki Dockerfile ile imajlar derlendi. Taban imaj resmî `node:22-bookworm-slim`'dir; bu ortamın ağ
+  vekilinden geçebilmek için üzerine yalnızca vekilin kök sertifikası eklendi. API ve panel
+  imajları canlı ortam ayarlarıyla çalıştırılıp 28 denetimden geçti: ilk sahibin kabın içindeki
+  komutla açılması, ikinci adımın iki kap arasında kurulması, paketin bir kaptan yüklenip öteki
+  kaptan (başka bir hesapla) onaylanması ve alt alan adıyla sunulması, kaplar arası Redis, panelin
+  oturumsuz isteği giriş sayfasına göndermesi, eski panel değişkenleri tanımlıyken panelin 503
+  vermesi, sağlık denetimleri, düzgün kapanış.
 - **Nginx örneği gerçek bir Nginx (1.24, Ubuntu 24.04) ile çalıştırıldı**; isteğe bağlı alt alan
   adı blokları açıktı, sertifika kendinden imzalıydı. Arkasında derlenmiş API (canlı ayarlar, alt
-  alan adı kipi) ve canlı derlenmiş panel vardı. Gerçek bir tarayıcıyla, TLS üzerinden şunlar
-  denendi: panelden 3 MB'lık paket yükleme, inceleme, onay, yayın ve satıcı bağlama; SMS koduyla
-  giriş; gerçek zamanlı bağlantının WebSocket'e yükselmesi; mini uygulamanın kendi alt alan
-  adındaki sarmalayıcı belgeyle açılması, izin, ödeme; paketin API'ye ve başka bir kaydın alan
-  adına ulaşamaması; paketin başka bir adrese gitme girişiminin istek gönderilmeden engellenmesi;
-  sürümün panelden geri çekilmesiyle belgelerin, dosyaların ve kaydın hemen kapanması;
-  `/v1/admin/` yolunun dışarıdan 404 vermesi. Sarmalayıcı belgenin ve giriş belgesinin Nginx'ten
-  `no-cache` ile, diğer dosyaların `immutable` ile geçtiği görüldü. Sertifika adımları (certbot)
+  alan adı kipi) ve canlı derlenmiş panel vardı. Gerçek bir tarayıcıyla, TLS üzerinden: panelde
+  ilk giriş ve ikinci adımın kurulumu (çerez `Secure`, `HttpOnly`, `SameSite=Strict`), 3 MB'lık
+  paket yükleme, yükleyenin onaylayamaması ve ikinci hesabın onayı, yayın, SMS koduyla giriş,
+  WebSocket, mini uygulamanın kendi alt alan adındaki sarmalayıcı belgeyle açılması, izin, ödeme,
+  yalıtım, geri çekme; `/v1/admin/` yolunun dışarıdan 404 vermesi. Sertifika adımları (certbot)
   çalıştırılmadı.
+- **2.3.1'den 2.4'e geçiş gerçek süreçlerle denendi** (28 denetim): 2.3.1'in derlenmiş API'si canlı
+  ayarlarla veri üretti; 2.4 şema yükseltilmeden başlamadı, `migrate` iki dosyayı uyguladı; eski
+  panel girişi reddedildi; kullanıcı oturumu, mini uygulamanın adresi, izin özeti ve kullanıcı
+  kimliği değişmedi; ilk hesaplar komut satırından açıldı; eski kayıtlar korundu; incelemede
+  bekleyen eski sürüm yeniden gönderilip başka bir hesapça onaylandı; `verify` tutarlı dedi. Aynı
+  veritabanında 2.3.1 başladı ama incelemeye gönderme yapamadı: geri dönüş yedekten yapılır.
 - Çalışan iki API sürecinde veritabanı bağlantıları koparıldı, Redis kapatılıp yeniden başlatıldı:
   süreçler ayakta kaldı, bağlantılar kendiliğinden yenilendi, mesajlaşma ve paket sunumu sürdü.
-- **2.3.0'dan 2.3.1'e geçiş gerçek süreçlerle denendi.** 2.3.0'ın derlenmiş API'si canlı ortam
-  ayarıyla bir paket yükledi, onayladı ve yayınladı. 2.3.1 aynı veritabanı ve aynı paket deposuyla
-  başladı: şema komutu uygulanacak dosya bulmadı, 2.3.0'da açılan oturum geçerli kaldı, kayıt açık
-  kaldı ve adresi aynı sürümün sarmalayıcı belgesi oldu; kullanıcının mini uygulamadaki kimliği ve
-  izin özeti değişmedi; 2.3.0'ın adresi 404 verdi; `verify` tutarlı dedi. Yeni kitaplıkla derlenen
-  sürüm yüklenip toplu dağıtıldı. Ardından aynı veritabanında 2.3.0 yeniden başlatıldı ve çalıştı
-  (şema aynı olduğu için geri dönüş mümkündür). 2.3.0'ın web sürümü 2.3.1 sunucusuna bağlandığında
-  mini uygulamanın açılmadığı, uygulamanın geri kalanının çalıştığı görüldü.
-- **2.2'den geçiş 2.3.1 ile yinelendi.** 2.2'nin derlenmiş API'si canlı ortam ayarıyla adresle
-  açılan iki mini uygulama, bir satıcı, bir ödeme, bir mini uygulama kimliği ve basılı bir QR kodu
-  üretti. 2.3.1, aynı veritabanında şema yükseltilmeden başlamadı; `migrate` yalnızca yeni şema
-  dosyasını uyguladı. Yükseltmeden sonra kayıtların kullanıcılara kapandığı, panelde gerekçesiyle
-  göründüğü; paket aynı kayıtta yayınlanınca kaydın aynı kimlikle açıldığı (`openId` değişmedi,
-  eski QR kodu çalıştı, aynı satıcıya ödeme alındı) görüldü.
-- **Yedekten dönüş tatbikatı yapıldı.** Veritabanı ve paket deposu bu belgedeki komutlarla
-  yedeklendi, depo silindi, veritabanı dolu hâlinin üzerine geri yüklendi; `verify` tutarlı dedi ve
-  paket aynı içerikle sunuldu. Depo boşken `verify` eksik dosyaları listeledi, API o dosyaları
-  sunmadı. (`alpine` imajı indirilemediği için `tar` adımı yerel taban imajla çalıştırıldı.)
-- **Mini uygulama yalıtımı iki tarayıcı motorunda ölçüldü** (Chromium 141 ve WebKit 2.52;
-  ayrıntısı SECURITY.md, bilinen sınırlar). Android System WebView ve iOS WKWebView'de ölçülmedi.
-- Anahtar geçişi ([ANAHTARLAR.md](ANAHTARLAR.md)) 2.2 hazırlanırken gerçek süreçlerle denendi:
-  2.1'in ürettiği oturum, mini uygulama kimliği, QR kodları ve yoldaki doğrulama kodu 2.2'de
-  geçerli kaldı; anahtarlar değiştirildi, eskileri halkadan atıldı ve 2.1'e geri dönüldü. Anahtarın
-  belirlenen günde kendiliğinden devre dışı kalması yalnızca otomatik testlerde, saat ileri
-  alınarak denendi.
-- `docker-compose.prod.yml` dosyasının yapısı ve değişkenleri doğrulandı (`docker compose config`);
-  ancak resmî PostgreSQL ve Redis imajları indirilemediği için dosyanın tamamı `up` ile
-  çalıştırılmadı.
+- **Yedekten dönüş tatbikatı yapıldı** (12 denetim). Veritabanı ve paket deposu bu belgedeki
+  komutlarla yedeklendi, depo silindi, veritabanı dolu hâlinin üzerine geri yüklendi; `verify`
+  tutarlı dedi ve paket aynı içerikle sunuldu. Depo boşken `verify` eksik dosyaları listeledi, API
+  o dosyaları sunmadı.
+- `npm run db:up` (geliştirme veritabanı ve Redis) Docker ile çalıştırıldı.
+- **Mini uygulama yalıtımı iki tarayıcı motorunda ölçüldü** (2.3.1; Chromium 141 ve WebKit 2.52;
+  ayrıntısı SECURITY.md, bilinen sınırlar). 2.4 bu alana dokunmadı, ölçüm yinelenmedi. Android
+  System WebView ve iOS WKWebView'de ölçülmedi.
+- Önceki sürümlerde denenenler (bu sürümde yinelenmedi): 2.3.0'dan 2.3.1'e ve 2.2'den 2.3.1'e geçiş,
+  2.1'den anahtar geçişi ([ANAHTARLAR.md](ANAHTARLAR.md)).
 - **Gerçek telefonda hiçbir şey denenmedi.** EAS ile mobil paketleme de denenmedi; Android ve iOS
   için JavaScript paketleri derlendi. Mini uygulama paketlerinin telefondaki kabukta (Android
-  WebView, iOS WKWebView) açılması, köprünün sarmalayıcı üzerinden çalışması, gezinme kilidi ve
-  sarmalayıcının bıraktığı kenar boşlukları yalnızca derlendi; masaüstü tarayıcı motorlarında
-  denendi.
+  WebView, iOS WKWebView) açılması yalnızca derlendi; masaüstü tarayıcı motorlarında denendi.
+- **Gerçek bir sunucuda kurulum** (alan adı, certbot, güvenlik duvarı) denenmedi.

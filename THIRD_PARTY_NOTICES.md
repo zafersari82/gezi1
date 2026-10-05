@@ -44,6 +44,7 @@ derlenir. Tamamı MIT lisanslıdır.
 | `fastify`                                   | 5.12.5  | API                         |
 | `next`                                      | 16.3.8  | Panel                       |
 | `pg`                                        | 8.23.1  | API                         |
+| `qrcode`                                    | 1.5.4   | Panel                       |
 | `react`                                     | 19.2.3  | Mobil, panel, mini uygulama |
 | `react-dom`                                 | 19.2.3  | Mobil, panel, mini uygulama |
 | `react-native`                              | 0.86.3  | Mobil                       |
