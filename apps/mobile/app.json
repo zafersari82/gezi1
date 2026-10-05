@@ -3,7 +3,7 @@
     "name": "VADO",
     "slug": "vado",
     "scheme": "vado",
-    "version": "2.4.0",
+    "version": "2.5.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/icon.png",

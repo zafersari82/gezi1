@@ -124,6 +124,10 @@ Böylece şema değişikliği her zaman bilinçli bir adımdır (`migrate` servi
 - `admin_accounts`, `admin_sessions`, `admin_recovery_codes` panel hesaplarıdır; kullanıcılardan
   (`users`, `sessions`) tamamen ayrıdır. Hesap silinmez, kapatılır; son etkin sahip hesabını
   kaldıran güncellemeyi tetikleyici reddeder.
+- `admin_accounts.business_id` (2.5) işletme hesabının kapsamıdır: rol `business` ise dolu, değilse
+  boştur (kısıt); açıldıktan sonra değişmez (tetikleyici).
+- `push_tokens` (2.5) bildirim adresini oturuma bağlar: oturum kapanınca tetikleyici satırı siler,
+  adres yalnızca sahibinin açık oturumuna yazılabilir.
 - `package_versions` ve `package_files` yüklendikten sonra değişmez; bu, uygulama kodunda değil
   veritabanı tetikleyicilerinde de uygulanır (aşağıda, Mini uygulamalar bölümünde).
 - `mini_app_releases` yalnızca eklenir: bir uygulama kaydının her yayını, ayar değişikliği ve geri
@@ -143,12 +147,17 @@ Böylece şema değişikliği her zaman bilinçli bir adımdır (`migrate` servi
 
 ### İmza anahtarları
 
-- Sunucu üç şeyi gizli anahtarla imzalar: doğrulama kodunun özetini, QR kodunu ve mini uygulama
-  kimliğini. Üçünün anahtarı ayrıdır (`core/keys.ts`); biri sızarsa ya da değiştirilirse diğerleri
+- Sunucu dört şeyi gizli anahtarla imzalar: doğrulama kodunun özetini, QR kodunu, mini uygulama
+  kimliğini ve mini uygulama kimlik belirtecini (2.5). Her birinin anahtarı ayrıdır (`core/keys.ts`); biri sızarsa ya da değiştirilirse diğerleri
   etkilenmez. Servisler anahtarları `context.keys` üzerinden kullanır, ortam değişkenini okumaz.
 - Doğrulama kodu ve QR anahtarları halkadır: ilk anahtar imzalar, imza anahtarın kimliğini taşır,
   halkadaki eski anahtarlar belirlenen güne kadar yalnızca doğrular. Böylece anahtar, dolaşımdaki
   kodları geçersiz kılmadan değiştirilir.
+- Kimlik belirteci (`core/identity-tokens.ts`) bir JWT'dir ve Ed25519 ile imzalanır; doğrulayan
+  taraf (mini uygulamanın sunucusu) VADO'nun dışında olduğu için simetrik anahtar değil, açık
+  anahtarı yayımlanabilen bir imza seçildi. Halkanın 32 baytlık değerleri Ed25519 tohumudur; açık
+  anahtarlar `GET /v1/identity-keys` adresinden JWK olarak yayımlanır. Yeni bir kripto kitaplığı
+  eklenmedi; imza Node.js'in kendi `crypto` modülüyle atılır.
 - Mini uygulama kimliği anahtarı bilinçli olarak halka değildir. Kimlik saklanmaz, anahtardan
   hesaplanır; anahtarın değişmesi kimliğin değişmesi demektir. Bu yüzden tek ve uzun ömürlüdür.
 - Oturumların anahtarı yoktur: belirteç imzalı bir veri değil, rastgele bir değerdir ve
@@ -336,8 +345,10 @@ Paket platformu, yol haritasındaki adımlar kırılmadan eklenebilecek biçimde
 
 - **İnceleyen kimliği.** Yükleme, gönderme, karar ve yayın kayıtları "kim yaptı" bilgisini taşır;
   2.4'ten beri bu sütunlara panel hesabının kimliği yazılır (önceki kayıtlarda `admin`).
-- **Bağlantı parametreleri.** `app.getContext()` yanıtındaki `params` alanı, QR kodundan gelen
-  parametreler (masa numarası gibi) için ayrılmıştır; bu sürümde boştur.
+- **Bağlantı parametreleri.** 2.5'te dolduruldu: panelden üretilen QR kodunun imzalı parametreleri
+  `app.getContext().params` olarak gelir. Mobil uygulama parametreleri ekran adresine yazmaz;
+  taramadan sonra bellekte bir "açılış" kaydı tutar ve adrese yalnızca onun anahtarını koyar
+  (`features/miniapps/launch-params.ts`).
 - **Depo sağlayıcısı.** `PackageStore` arayüzü iki işlemden ibarettir (`put`, `read`); S3 uyumlu bir
   depoya koşullu yazma ve nesne kilidiyle taşınabilir.
 
@@ -362,7 +373,24 @@ kimliğini taşır; sunucu QR anahtarıyla imzalar. Anahtar kimliği, anahtar de
 eski kodların doğru anahtarla doğrulanmasını sağlar. Kişisel kodlar kısa ömürlüdür (varsayılan 10 dakika) ve ekranda
 kendiliğinden yenilenir; böylece bir ekran görüntüsü sonsuza kadar geçerli kalmaz. İşletme ve mini
 uygulama kodları süresizdir ama hedef kapatıldığında çalışmaz. Kod her zaman sunucuda çözülür;
-uygulama içeriğe güvenmez.
+uygulama içeriğe güvenmez. Panelden üretilen mini uygulama kodunun yükünde imzalı parametreler
+(`p`) de bulunabilir; parametresiz kodun yükü önceki sürümlerle birebir aynıdır.
+
+## Anlık bildirimler
+
+Sağlayıcı bir arayüzdür (`providers/push.ts`): `send(iletiler) → sonuçlar`. Geliştirmede `log`
+sağlayıcısı yalnızca günlüğe yazar, testler sahte sağlayıcı verir, canlıda `expo` sağlayıcısı
+Expo Push Service'e 100'lük gruplar halinde gönderir. Doğrudan FCM/APNs'e geçmek yalnızca yeni bir
+sağlayıcı yazmaktır.
+
+`modules/notifications` mesaj ve yeni cihaz olaylarında alıcıları tek sorguda bulur (sohbet üyeleri,
+açık oturumlarındaki adresler, kullanıcının ayarları) ve gönderimi arka planda yapar; isteği yapan
+kullanıcı beklemez, sağlayıcı hatası yanıta yansımaz. Sağlayıcı bir adresi geçersiz sayarsa adres
+silinir. Testler gönderimin bitmesini `notifications.idle()` ile bekler.
+
+Mobil uygulama oturum açıkken izni (cihazda bir kez) sorar, adresi `PUT /v1/me/push-token` ile
+yazar ve bildirime dokunulunca verisini sözleşme şemasıyla çözüp ilgili ekranı açar
+(`features/notifications`). Tarayıcı önizlemesinde bildirim yoktur (`push.web.ts`).
 
 ## Mobil uygulama
 
@@ -411,10 +439,14 @@ Tarayıcı ──(çerez: oturum belirteci)──► Panel sunucusu ──(anaht
   `collectAdminRoutes`, erişim bildirmeyen bir `/v1/admin/` ucunu kayıt sırasında reddeder;
   `adminGuard` anahtarı, oturumu ve izni ucun bildirdiğine göre denetler. Bildirilen erişimlerin
   listesi testlere açıktır: izin tablosu testi her ucu her rolle çağırır.
-- **Yetki ve kapsam ayrı düşünüldü.** Bu sürümde rol yalnızca "ne yapılabilir" sorusunu yanıtlar;
-  bütün hesaplar bütün kayıtlar üzerinde çalışır. İşletme sahiplerinin yalnızca kendi kaydını
-  yöneteceği hesaplar (2.5) hesaba bir kapsam alanı ve servislerde kapsam süzgeci ekleyerek gelir;
-  izin tablosu ve uçların izin bildirimi değişmez.
+- **Yetki ve kapsam ayrıdır.** Rol "ne yapılabilir" sorusunu yanıtlar, kapsam "hangi kayıtlar
+  üzerinde". VADO ekibinin hesaplarının kapsamı yoktur. İşletme hesabının (2.5) kapsamı bağlı
+  olduğu işletmedir; `adminGuard` bunu `AdminContext.businessId` olarak verir, kapsamı uygulayan
+  uçlar servise geçirir ve servis kayıtları süzer (`miniapp-admin.service.ts`, `scopeFilter`:
+  kayıt, işletmenin satıcı olarak bağlı olduğu kayıtsa kapsamdadır). Kapsamı uygulayan izinler
+  sözleşmede listelidir (`SCOPED_PERMISSIONS`); kapsamlı bir hesap bu listede olmayan bir izni
+  isteyen uca, rolünde o izin olsa bile giremez. Yeni bir uç kapsamlı rollere açılacaksa önce
+  servisine kapsam süzgeci yazılır, sonra izni listeye eklenir.
 - **Dört göz.** Paket sürümünü yükleyen (`uploaded_by`) ya da incelemeye gönderen
   (`submitted_by`) hesap onu onaylayamaz. Servis kuralı denetler; `package_versions_review_guard`
   tetikleyicisi aynı kuralı veritabanında uygular.

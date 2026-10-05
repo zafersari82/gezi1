@@ -31,6 +31,7 @@ Uygulamayı işleten şirket veri sorumlusudur.
 | Paylaşımlar, beğeniler, yorumlar                              | Anlar                                          | Hesap silinince                                       |
 | Oturum kayıtları (cihaz adı, cihaz kimliği, IP adresi, zaman) | Güvenlik, oturum yönetimi                      | Kapanan oturum 30 gün sonra                           |
 | Doğrulama kodu kayıtları (numara, IP)                         | Kötüye kullanımı sınırlama                     | 1 gün sonra                                           |
+| Bildirim adresi (cihazın push belirteci), bildirim ayarları   | Anlık bildirim (2.5)                           | Oturum kapanınca adres; hesap silinince ayarlar       |
 | Ödeme kayıtları                                               | İşlem geçmişi                                  | Silinmez                                              |
 | İşletme başvurusu (ad, vergi numarası)                        | İşletme hesabı                                 | Silinmez; hesap silinince işletme askıya alınır       |
 | Şikayetler, denetim kaydı                                     | Kötüye kullanımla mücadele, hesap verebilirlik | Silinmez                                              |
@@ -56,7 +57,8 @@ görev ekleyin; kodda bu kayıtlar için otomatik silme yoktur (bkz. [YOL_HARITA
   uygulama ve sunucu yalnızca sonucu öğrenir, biyometrik veri görmez ve saklamaz.
 - **Güvenlik.** Doğrulama kodları ve oturum belirteçleri veritabanında düz metin olarak durmaz.
   Sunucu günlüğüne istek gövdeleri ve adreslerin sorgu bölümü yazılmaz.
-- **Hesap verebilirlik.** Panelden yapılan her işlem denetim kaydına yazılır.
+- **Hesap verebilirlik.** Panelden yapılan her işlem denetim kaydına yazılır. İşletme hesapları
+  (2.5) yalnızca kendi kayıtlarını görür ve VADO ekibinin adlarını görmez.
 
 ### Sizde kalanlar
 
@@ -77,6 +79,10 @@ görev ekleyin; kodda bu kayıtlar için otomatik silme yoktur (bkz. [YOL_HARITA
   dışındaysa kişisel veri yurt dışına aktarılmış olur. 2024'te değişen kurallara göre yeterlilik
   kararı yoksa uygun güvence (ör. Kurul'un yayımladığı standart sözleşme; imzadan sonra 5 iş günü
   içinde Kurum'a bildirilir) gerekir. En sade yol sunucuyu Türkiye'de tutmaktır.
+  Anlık bildirimler (2.5) Expo (ABD) ve Google ya da Apple üzerinden gider; bildirim adresi ve
+  bildirimin metni bu sağlayıcılara aktarılır. Varsayılan olarak metin "Yeni mesajın var"dır;
+  kullanıcı önizlemeyi açarsa gönderenin adı ve mesajın başı da gider. Bildirimi açacaksanız bu
+  aktarımı aydınlatma metnine yazın ve güvencesini hukukçunuzla belirleyin.
   Dikkat: görüntülü görüşme düğmesi varsayılan olarak `meet.jit.si` adresindeki yurt dışı bir
   hizmeti açar. Yayından önce kendi Jitsi sunucunuzu kurup `EXPO_PUBLIC_JITSI_URL` ile bağlayın ya
   da bu durumu aydınlatma metnine yazın.

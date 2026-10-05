@@ -27,9 +27,12 @@ Bir mesajlaşma uygulamasından beklenip bu sürümde olmayanlar, önerilen sır
 
 ### Mesajlaşma
 
-1. **Anlık bildirim (push).** Uygulama kapalıyken yeni mesaj haber verilmez. Gereken: cihaz
-   belirteçlerini saklayan tablo, `expo-notifications`, mesaj geldiğinde çevrimdışı üyelere bildirim
-   gönderen bir sağlayıcı (`providers/push.ts`), bildirim ayarları ekranı.
+1. **Anlık bildirimin tamamlanması.** 2.5'te yeni mesaj ve yeni cihaz bildirimleri geldi; cihaz
+   tarafı denenmedi. Eksikler: gerçek telefonda sınama (YAYIN.md, "Cihazda deneme listesi"), Expo
+   teslim makbuzlarının (receipts) okunup geçersiz adreslerin onlardan da silinmesi, sohbeti sessize
+   alma, okunmamış sayısının uygulama simgesinde gösterilmesi, aynı sohbetten gelen bildirimlerin
+   telefonda gruplanması, gönderimin bir iş kuyruğuna taşınması (bugün API sürecinin içinde, arka
+   planda yapılır; süreç o anda kapanırsa bildirim kaybolur).
 2. **Mesaj işlemleri.** Silme, yanıtlama, iletme, sohbet içinde arama, sohbeti sessize alma ve
    sabitleme.
 3. **Sesli mesaj, video ve dosya.** Medya katmanı yalnızca fotoğraf kabul eder.
@@ -48,7 +51,7 @@ Bir mesajlaşma uygulamasından beklenip bu sürümde olmayanlar, önerilen sır
   anahtarla değiştirilmesi; root ve jailbreak denetimi.
 - Şüpheli giriş tespiti: alışılmadık konum ya da IP adresinden girişte ek doğrulama; oturum
   listesinde IP yerine yaklaşık konum.
-- Yeni cihaz uyarısının anlık bildirimle (push) ve SMS ile de gönderilmesi.
+- Yeni cihaz uyarısının SMS ile de gönderilmesi (anlık bildirimle 2.5'te gönderiliyor).
 - Mağaza incelemesi için deneme hesabı (yukarıda).
 - Telefon numarası değiştirme.
 - Hesap silmede geri alma süresi: şu an silme anında ve geri alınamaz biçimde yapılır.
@@ -91,15 +94,18 @@ engeller. Eksik kalanlar, önerilen sırayla:
 3. **Android'de kamera ve mikrofonun kabukta reddedilmesi.** Kullanılan WebView kitaplığı Android'de
    bu isteği reddetmeye izin vermiyor; bugün yalnızca sunucunun gönderdiği `Permissions-Policy`
    başlığı korur. Gereken: kitaplığa yama ya da izin isteğini reddeden küçük bir yerel modül.
-4. **Kimlik belirteci.** Mini uygulamanın kendi sunucusu kullanıcıyı VADO'dan doğrulayamaz; `openId`
-   yalnızca köprüden gelir. Gereken: VADO'nun imzaladığı, kısa ömürlü ve uygulama kaydına bağlı bir
-   belirteç ile mini uygulama sunucusunun onu doğrulayacağı açık anahtar.
-5. **Parametreli QR.** QR kodu yalnızca bir uygulama kaydını gösterir; masa ya da şube numarası
-   taşıyamaz. `app.getContext()` yanıtındaki `params` alanı bunun için ayrıldı ve şimdilik boştur.
+4. **Kimlik belirteci, parametreli QR ve işletme girişi** 2.5'te geldi. Kalanlar: belirteci geri
+   çağırma listesi (bugün sızan belirteç beş dakika geçerlidir); kendi kayıtlarının istatistiklerini
+   (açılış, ödeme) görmesi ve satıcı bilgisini kendisinin güncellemesi; bir kayda tek işletme
+   bağlanabilmesi kuralı (bugün birden çok işletmenin satıcısı bağlıysa her biri kaydı görür);
+   işletme hesabının panel yerine mobil uygulamadan da girebilmesi.
+5. **Paket boyutu ve QR parametreleri için gerçek kullanım ölçümü.** Beş parametre ve 64 karakter
+   sınırı masa/şube için seçildi; işletmelerden gelen ihtiyaca göre gözden geçirilmeli.
 6. **Mini uygulamadan bildirim.** Kullanıcının izniyle, randevu hatırlatması gibi şablonlu
-   bildirimler. Anlık bildirim (push) altyapısına bağlıdır.
-7. **İşletme girişi.** İşletme sahibinin kendi kaydının ayarlarını ve satıcısını panelden kendisinin
-   yönetmesi; şimdilik her şeyi VADO yöneticisi girer.
+   bildirimler. 2.5'teki anlık bildirim altyapısının üzerine kurulur; mini uygulamanın sunucusu
+   kullanıcıyı kimlik belirteciyle tanıdığı için hedef `openId` olabilir.
+7. **Geliştiricinin kendi kaydını yönetmesi.** İşletme hesabının kapsam modeli (2.5) geliştirici
+   hesaplarına da genişletilebilir (aşağıda, 9).
 8. **İncelemede önizleme.** İnceleyen sürümün dosyalarını, bulgularını ve farkını okur ama sürümü
    yayınlamadan çalışırken göremez. Gereken: incelemedeki sürümü yalnızca inceleyenin açabildiği
    bir deneme kaydı.
@@ -187,20 +193,21 @@ engeller. Eksik kalanlar, önerilen sırayla:
 
 2.2'de anahtar ayrımı ve anahtar değiştirme, 2.3'te paketli mini uygulama platformu, 2.3.1'de
 paketin sarmalayıcı belgeyle yalıtılması, 2.4'te panel hesapları, roller, iki adımlı doğrulama ve
-yükleyen ile onaylayanın ayrılması tamamlandı. Sıradakiler:
+yükleyen ile onaylayanın ayrılması, 2.5'te kimlik belirteci, parametreli QR, işletme hesabı ve
+anlık bildirim tamamlandı. 2.6, 2.7 ve 2.8'in her biri işe başlamadan önce bir sayfalık plan ve
+onay ister. Sıradakiler:
 
 | Sürüm | Konu                                                                                                                                                                     |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2.5   | Kimlik belirteci, parametreli QR, anlık bildirim, işletme girişi                                                                                                         |
+| 2.5   | Kimlik belirteci, parametreli QR, anlık bildirim, işletme girişi (tamamlandı)                                                                                            |
 | 2.6   | Rezervasyon motoru                                                                                                                                                       |
 | 2.7   | Sipariş motoru                                                                                                                                                           |
 | 2.8   | Kod yazmadan mini uygulama kurma aracı                                                                                                                                   |
 | 3.0   | Gerçek ödeme (lisanslı kuruluş), gerçek cihazda cihaz doğrulama (Play Integrity, App Attest) ve WebView için yerel güvenlik kodu (istek süzgeci, WebRTC'nin kapatılması) |
 
-2.5'teki işletme girişi 2.4'ün hesap ve rol altyapısına oturur: rol "ne yapılabilir" sorusunu
-yanıtlar, hesaba eklenecek bir kapsam alanı "hangi kayıtlar üzerinde" sorusunu yanıtlayacaktır
-(bkz. [MIMARI.md](MIMARI.md), "Hesaplar, oturum ve yetki"). Bağlantı parametreleri için köprüde alan
-ve depo için değiştirilebilir bir arayüz de hazırdır.
+2.6 ve 2.7'deki motorlar 2.5'in parçalarına dayanır: rezervasyon ve siparişte masa/şube parametreli
+QR'dan, kullanıcı kimlik belirtecinden, işletme ayarları işletme hesabından, hatırlatmalar anlık
+bildirimden gelir (bkz. [MIMARI.md](MIMARI.md)).
 
 ## Önerilen sıra
 
@@ -208,10 +215,9 @@ ve depo için değiştirilebilir bir arayüz de hazırdır.
 2. Sunucu kurulumu ve SMS
 3. Hukuk: metinler, şirket, BTK ve yaş kuralı değerlendirmesi
 4. İçerik kaldırma araçları ve mağaza için deneme hesabı
-5. Anlık bildirim
+5. Anlık bildirimin gerçek telefonda sınanması
 6. Mağaza başvurusu ve kapalı deneme (küçük bir kullanıcı grubuyla)
 7. Mesaj işlemleri, sesli mesaj
 8. Lisanslı ödeme kuruluşu entegrasyonu ve satıcı bildirimi
-9. Mini uygulamalar için kimlik belirteci ve parametreli QR; SDK'nın yayınlanması ve geliştirici
-   hesapları
+9. SDK'nın yayınlanması ve geliştirici hesapları
 10. Uygulama içi arama, uçtan uca şifreleme

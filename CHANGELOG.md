@@ -1,5 +1,92 @@
 # Değişiklikler
 
+## 2.5.0 (2026-10-05)
+
+Mini uygulamalar için sunucuda doğrulanabilen kimlik belirteci, panelden parametreli QR kodu,
+işletmelerin kendi kayıtlarını yönettiği panel hesabı ve anlık bildirimler. Giriş, sohbet, kişiler,
+Anlar, ödeme akışı ve mini uygulama yalıtımı değişmedi.
+
+### Yeni
+
+- **Mini uygulama kimlik belirteci.** `vado.identity.getToken()` beş dakikalık, Ed25519 ile
+  imzalı bir JWT verir (`alg: EdDSA`). İçinde `iss` (API adresi), `aud` (uygulama kaydı), `sub`
+  (`openId`), `iat`, `exp`, `jti` vardır; ad, telefon ve VADO kullanıcı kimliği yoktur. Mini
+  uygulamanın sunucusu belirteci `GET /v1/identity-keys` adresindeki açık anahtarlarla doğrular
+  (oturumsuz, 10 dakika önbelleklenebilir). Belirteç `identity.basic` yetkisine ve kullanıcının
+  aynı iznine bağlıdır. Doğrulama örneği:
+  [docs/MINI_UYGULAMA_GELISTIRME.md](docs/MINI_UYGULAMA_GELISTIRME.md#sunucunuzda-doğrulama).
+- **Dördüncü anahtar ailesi:** `VADO_IDENTITY_KEYS` (halka). `keys add identity` 2.4'ten
+  yükseltmede eksik halkayı üretir; `keys rotate identity` değiştirir, eski anahtar ertesi günün
+  sonuna kadar yayımlanır. Ayrıntı: [docs/ANAHTARLAR.md](docs/ANAHTARLAR.md).
+- **Parametreli QR.** Panel, kayıt sayfasındaki "QR kodu" bölümünden en fazla beş parametreli
+  (masa, şube gibi) süresiz kod üretir ve SVG olarak indirtir. Parametreler kodun imzasının
+  içindedir; mini uygulama onları `app.getContext().params` ile değiştirilmemiş olarak okur.
+  Kullanıcının ürettiği kod parametre taşımaz. Mobil uygulama parametreleri ekran adresine değil
+  belleğe yazar; bir bağlantı parametre uyduramaz. Kod üretimi denetim kaydına yazılır
+  (`miniapp.qr_issued`). Uç: `POST /v1/admin/miniapps/:id/qr`.
+- **İşletme hesabı.** Yeni rol: "İşletme". Hesap açılırken bir işletmeye bağlanır ve yalnızca o
+  işletmenin satıcı olarak bağlı olduğu uygulama kayıtlarını görür; başka kayıtlar ona "bulunamadı"
+  der. Yapabildikleri: kendi kayıtlarını görmek, işletme ayarlarını değiştirmek, QR kodu üretmek.
+  Vitrin, yayın, satıcılar, doğrulama ve kapatma VADO ekibinde kalır. Yayın geçmişinde ekibin
+  adları ona "VADO ekibi" olarak görünür. Hesabın işletmesi ve rolü sonradan değişmez (veritabanı
+  kısıtı ve tetikleyicisiyle). Panelde işletme hesabı girişte doğrudan "Mini uygulamalar"
+  sayfasına gider ve menüde yalnızca onu görür. Örnek veri bir işletme hesabı açar: `isletme`
+  (Kadıköy Berber).
+- **Anlık bildirimler.** Yeni mesaj ve yeni cihazdan giriş bildirimleri, Expo Push Service
+  üzerinden. Mesaj bildiriminin içeriği varsayılan olarak gizlidir ("Yeni mesajın var");
+  kullanıcı **Ben › Bildirimler** ekranından gönderenin ve metnin görünmesini açabilir ya da mesaj
+  bildirimlerini kapatabilir. Yeni cihaz bildirimi kapatılamaz. Bildirime dokununca sohbet ya da
+  oturumlar ekranı açılır. Bildirim adresi oturuma bağlıdır; çıkışta ve oturum kapatılınca
+  veritabanı onu siler. Sağlayıcının geçersiz dediği adres silinir. Gönderim isteği bekletmez.
+  Uçlar: `PUT`/`DELETE /v1/me/push-token`, `GET`/`PATCH /v1/me/notifications`.
+
+### Değişen
+
+- **İzin:** yeni `miniapps.configure` (işletme ayarları ve QR kodu). Ayar ucu
+  `PUT /v1/admin/miniapps/:id/config` artık bu izni ister. Sahip ve operatörde vardır; operatörün
+  yapabildikleri değişmedi.
+- **Panelin kayıt sayfası** hesabın izinlerine göre daralır: ayarları değiştiremeyen rol (inceleyen,
+  destek, denetçi) ayarları okur ama formu görmez; vitrin, satıcı, doğrulama ve yayın düğmeleri
+  yalnızca o izni olan rollere görünür. API her işlemi eskisi gibi ayrıca denetler.
+- **Hesap yanıtı:** `AdminAccount` nesnesine `business` (`{ id, name }` ya da `null`) eklendi;
+  `POST /v1/admin/accounts` gövdesi işletme rolünde `businessId` ister.
+- **QR yanıtı:** `POST /v1/qr/resolve`, `type: "miniapp"` için `params` alanını döndürür.
+- **Şema:** `0006_business_accounts.sql` (`admin_accounts.business_id`, rol ve işletme kısıtı,
+  kapsam tetikleyicisi) ve `0007_push_notifications.sql` (`push_tokens`, bildirim ayarları,
+  oturum kapanınca adresi silen tetikleyici). Eski şema dosyaları değişmedi.
+- **Mobil:** `expo-notifications` 57.0.21 eklendi (Expo SDK 57'nin sabitlediği sürüm).
+
+### Düzeltilen
+
+- API testlerinin ortak yardımcısı, paket ve kayıt kimliğini milisaniye ve süreç içi sayaçla
+  üretiyordu; aynı veritabanını kullanan iki test dosyası aynı anda aynı kimliği üretebiliyordu.
+  2.5 geliştirilirken temiz kopyada bir kez görüldü (`409`, paketler testi). Kimliğe rastgele bir
+  ek kondu; ürün kodu etkilenmez.
+
+### 2.4'ten geçiş
+
+1. **Yedek alın.**
+2. **Kimlik belirteci anahtarı.** `keys add identity --from infra/.env.production` (ya da Docker
+   ile, bkz. [docs/ANAHTARLAR.md](docs/ANAHTARLAR.md)) çıktısındaki satırı
+   `infra/.env.production` dosyasına ekleyin ve `keys check` ile denetleyin. Bu satır olmadan 2.5
+   canlıda başlamaz ve nedenini söyler.
+3. **Anlık bildirim (isteğe bağlı).** Bildirim istemiyorsanız bir şey yapmayın: sağlayıcı `log`
+   kalır, bildirim gönderilmez. İstiyorsanız [docs/YAYIN.md](docs/YAYIN.md#anlık-bildirim)
+   bölümündeki hesap ve anahtarları hazırlayın, `VADO_PUSH_PROVIDER=expo` yazın ve mobil uygulamanın
+   yeni sürümünü yayınlayın.
+4. **Güncelleyin.** `docker compose … up -d --build`; `migrate` servisi `0006` ve `0007`
+   dosyalarını uygular.
+5. **İşletme hesapları** "Panel hesapları" sayfasından, rol "İşletme" seçilip işletme seçilerek
+   açılır (ya da `admins.js create … --role business --business <işletme kimliği>`). İşletme
+   hesabı yalnızca satıcı olarak bağlı olduğu kayıtları görür; kayıtta satıcıyı işletmeye
+   bağlamayı unutmayın.
+6. **Mini uygulamalar** değişmeden çalışır. `identity.getToken()` ve QR parametreleri için mini
+   uygulamanın 2.5 SDK'sıyla derlenmesi ve kullanıcının mobil uygulamasının 2.5 olması gerekir;
+   eski mobil uygulamada `getToken()` "bilinmeyen metot" hatası verir, `params` boş gelir.
+7. **Geri dönüş.** 2.4 yükseltilmiş veritabanında çalışır; önce işletme hesaplarını kapatın (2.4
+   bu rolü tanımaz). `VADO_IDENTITY_KEYS` satırını 2.4 yok sayar. Bildirim adresleri ve ayarları
+   2.4'te kullanılmaz.
+
 ## 2.4.0 (2026-10-05)
 
 Yönetim panelinde kişisel hesaplar, roller ve iki adımlı doğrulama; paketi yükleyen ile onaylayanın

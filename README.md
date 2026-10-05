@@ -104,13 +104,17 @@ Yönetim paneli `http://localhost:3000` adresindedir. Örnek veri üç yönetici
   başka cihazın oturumunu kapatma, kimlik yakın zamanda kanıtlanmadıysa yeniden doğrulama ister:
   tanınan cihazda parmak izi, yüz ya da cihaz şifresi, yeni cihazda SMS ile gelen ayrı bir kod.
   İsteğe bağlı uygulama kilidi vardır.
-- **Bağımsız anahtarlar:** doğrulama kodu, QR ve mini uygulama kimliği ayrı anahtarlarla korunur.
+- **Bağımsız anahtarlar:** doğrulama kodu, QR, mini uygulama kimliği ve mini uygulama kimlik
+  belirteci ayrı anahtarlarla korunur.
   Doğrulama kodu ve QR anahtarı sistem çalışırken, eski kodları geçersiz kılmadan değiştirilebilir;
   mini uygulamaların tanıdığı kullanıcı kimlikleri bundan etkilenmez.
 - **Kişiler:** VADO kimliği, telefon numarası veya QR kodla bulma; istek gönderme, kabul etme,
   engelleme.
 - **Sohbet:** birebir ve grup; metin ve fotoğraf; okundu bilgisi, "yazıyor" göstergesi; bağlantı
   kopsa da mesaj çoğalmadan yeniden gönderilir.
+- **Anlık bildirim:** yeni mesaj ve yeni cihazdan giriş bildirimi (Expo Push Service). Mesajın
+  içeriği varsayılan olarak bildirimde görünmez; kullanıcı açabilir ya da mesaj bildirimini
+  kapatabilir. Cihaz tarafı denenmedi (aşağıda).
 - **Anlar:** yalnızca kişilerin gördüğü paylaşımlar; fotoğraf, beğeni, yorum.
 - **Mini uygulamalar:** uygulama içinde, yalıtılmış çalışan web uygulamaları. Kod, paket olarak
   VADO'ya yüklenir; panelde incelenir (yetkiler, bağlanacağı adresler, önceki sürüme göre fark),
@@ -122,13 +126,19 @@ Yönetim paneli `http://localhost:3000` adresindedir. Örnek veri üç yönetici
 - **Yayın denetimi:** sürüm yayınlama, toplu dağıtım, geri alma, tek kaydı ya da bir sürümü
   kullanan bütün kayıtları acil kapatma. Yeni sürüm yetkileri ya da bağlandığı adresleri
   değiştirirse kullanıcıya izin yeniden sorulur.
+- **Mini uygulama kimlik belirteci:** mini uygulamanın sunucusu kullanıcıyı VADO'nun imzaladığı
+  beş dakikalık bir belirteçle (JWT, Ed25519) doğrular; belirteçte ad ve telefon yoktur.
+- **Parametreli QR:** panelden masa ya da şube gibi parametreler taşıyan, imzalı QR kodu; mini
+  uygulama parametreleri değiştirilmemiş olarak okur.
 - **Ödeme:** mini uygulama tutarı ister, onay VADO'nun kendi ekranında verilir. Kart bilgisi VADO'ya
   ve mini uygulamaya hiç girmez. Bu sürümde yalnızca deneme ödemesi vardır (aşağıya bakın).
 - **İşletme hesapları:** başvuru, panelden onay, Keşfet'te listeleme, mini uygulamaya bağlama.
 - **Şikayet:** kullanıcı, mesaj, paylaşım, işletme ve mini uygulama şikayet edilebilir; şikayetler
   panele düşer.
 - **Panel hesapları:** her yönetici kendi hesabıyla, parola ve iki adımlı doğrulamayla (doğrulama
-  uygulaması ya da kurtarma kodu) girer. Beş rol: sahip, inceleyen, operatör, destek, denetçi.
+  uygulaması ya da kurtarma kodu) girer. Beş ekip rolü (sahip, inceleyen, operatör, destek,
+  denetçi) ve işletme rolü: işletme hesabı yalnızca kendi mini uygulamalarını görür, ayarlarını
+  değiştirir ve QR kodu üretir.
   Yetki her uçta sunucuda denetlenir; paketi yükleyen ya da incelemeye gönderen onu onaylayamaz.
   Oturumlar listelenir ve uzaktan kapatılır; denetim kaydında işlemi yapan adıyla görünür.
 - **Yönetim paneli:** bekleyen işler, kullanıcı askıya alma, işletme onayı, paket yükleme ve
@@ -143,16 +153,16 @@ Dürüst bir liste; ayrıntısı ve önerilen sıra [docs/YOL_HARITASI.md](docs/
   sözleşme yapıp onun ödeme sayfasını bağlaması gerekir. O zamana kadar `sandbox` kipi çalışır.
 - **SMS gönderimi hazır değil.** Kodlar, sizin SMS firmanıza bağlayacağınız küçük bir aracı servise
   iletilir (bkz. [docs/YAYIN.md](docs/YAYIN.md)). Demo modunda SMS gerekmez.
-- **Anlık bildirim (push), sesli mesaj, uygulama içi sesli/görüntülü arama yok.** Görüntülü görüşme
-  düğmesi sohbete bir Jitsi bağlantısı gönderir.
+- **Sesli mesaj, uygulama içi sesli/görüntülü arama yok.** Görüntülü görüşme düğmesi sohbete bir
+  Jitsi bağlantısı gönderir. Anlık bildirim var ama gerçek telefonda denenmedi; açmak için sizin
+  Expo, Firebase ve Apple hesaplarınız gerekir (bkz. [docs/YAYIN.md](docs/YAYIN.md#anlık-bildirim)).
 - **Uçtan uca şifreleme yok.** Mesajlar aktarımda TLS ile korunur, sunucuda düz metin saklanır.
 - **İçerik kaldırma ve yaş doğrulama yok.** Şikayet edilen mesaj ya da paylaşım panelden
   kaldırılamaz, yalnızca hesap askıya alınabilir. Kayıtta yaş doğrulanmaz.
-- **Geliştirici ve işletme hesapları yok.** Panel hesapları VADO yöneticileri içindir; paketleri
-  geliştiricinin kendisi yükleyemez, işletme sahibi kendi kaydını yönetemez (işletme girişi 2.5'in
-  işi). Paket geliştirici anahtarıyla imzalanmaz.
-- **Mini uygulamaya kimlik belirteci, parametreli QR ve bildirim yok.** Mini uygulamanın kendi
-  sunucusu kullanıcıyı VADO'dan doğrulayamaz; QR kodu masa numarası gibi bir parametre taşıyamaz.
+- **Geliştirici hesapları yok.** Paketleri geliştiricinin kendisi yükleyemez; paket geliştirici
+  anahtarıyla imzalanmaz. İşletme hesabı vitrini, satıcıyı ve yayını değiştiremez; onlar VADO
+  ekibindedir.
+- **Mini uygulamadan bildirim yok.** Mini uygulama kullanıcıya hatırlatma gönderemez.
 - **Mini uygulamalarda WebRTC kapatılamıyor.** Tarayıcılar WebRTC bağlantılarını güvenlik
   politikasına bağlamıyor: kötü niyetli bir paket, bildirmediği bir sunucuya veri gönderebilir.
   Yükleme incelemesi bunu yalnızca işaretler; kalıcı çözüm yerel kod gerektirir

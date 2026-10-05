@@ -65,14 +65,17 @@ vereceği belirlenmelidir; bu sürümde tanımlı bir adres yoktur.
 
 ### Anahtarlar
 
-- Doğrulama kodu özeti, QR imzası ve mini uygulama kimliği üç bağımsız anahtar ailesiyle korunur.
-  Biri sızarsa ya da değiştirilirse diğer ikisi etkilenmez.
+- Doğrulama kodu özeti, QR imzası, mini uygulama kimliği ve mini uygulama kimlik belirteci (2.5)
+  dört bağımsız anahtar ailesiyle korunur. Biri sızarsa ya da değiştirilirse diğerleri etkilenmez.
 - Doğrulama kodu ve QR anahtarları sürümlüdür: imza, anahtarın kimliğini taşır. Anahtar
   değiştirildiğinde yenisi imzalar, eskisi belirlenen güne kadar yalnızca doğrular; süresi dolan
   anahtar kendiliğinden devre dışı kalır.
 - Mini uygulama kimliği anahtarı tek ve uzun ömürlüdür; diğer anahtarların değişmesi kimlikleri
   değiştirmez.
-- Canlı ortamda üç aile de açıkça tanımlı, en az 256 bit, rastgele üretilmiş ve birbirinden farklı
+- Kimlik belirteci Ed25519 ile imzalanır; gizli anahtar yalnızca API'dedir, mini uygulamaların
+  sunucuları belirteci yayımlanan açık anahtarla doğrular. Anahtar halkadır: değiştirildiğinde
+  eskisi ertesi günün sonuna kadar yayımlanır.
+- Canlı ortamda dört aile de açıkça tanımlı, en az 256 bit, rastgele üretilmiş ve birbirinden farklı
   değilse API başlamaz. Geliştirme anahtarı canlı ortamda kabul edilmez.
 - 2.1 ve öncesinden geçişte kimlikler ve basılmış QR kodları korunur; anahtarlar yanlışlıkla
   sıfırdan üretilmişse API bunu başlangıçta yakalar ve başlamaz.
@@ -195,9 +198,24 @@ yollar "Bilinen sınırlar" bölümündedir.
   gösterilir.
 - Onay yalnızca VADO'nun kendi ekranında verilir; aynı sipariş için ikinci oturum açılmaz.
 
+### Mini uygulama kimlik belirteci
+
+- Belirteç yalnızca kaydı açık, `identity.basic` yetkisi olan ve kullanıcının kimlik iznini verdiği
+  mini uygulamaya verilir. Beş dakika geçerlidir.
+- İçinde kullanıcının o kayda özgü takma kimliği (`sub` = `openId`), kaydın kimliği (`aud`) ve
+  API'nin adresi (`iss`) vardır; ad, telefon ve VADO kullanıcı kimliği yoktur. Bir kayda verilen
+  belirteç başka bir kaydın sunucusunda `aud` tutmadığı için geçmez.
+- Her belirtecin rastgele bir `jti` değeri vardır; tek kullanım isteyen sunucu bunu saklayarak
+  yeniden gönderilen belirteci reddedebilir. VADO belirteci geri çağıramaz: sızan bir belirteç
+  süresi dolana kadar (en fazla beş dakika) geçerlidir.
+
 ### QR kodlar
 
 - Kodlar sunucu tarafından imzalanır; sahte kod üretilemez. Kişisel kodlar kısa ömürlüdür.
+- Panelden üretilen mini uygulama kodu en fazla beş parametre taşıyabilir (2.5). Parametreler
+  imzanın içindedir: değiştirilen kod okunmaz. Kullanıcıların ürettiği kod parametre taşımaz.
+  Mobil uygulama parametreleri ekran adresine yazmaz, bellekte tutar; bir bağlantı ya da başka
+  bir uygulama mini uygulamaya parametre veremez. Kod üretimi denetim kaydına yazılır.
 - Kod, imzalayan anahtarın kimliğini taşır. Anahtar değiştirildiğinde eski kodlar belirlenen güne
   kadar okunur; eski anahtarla okutulan her kod günlüğe düşer.
 - Kod her zaman sunucuda çözülür ve hedefin hâlâ geçerli olduğu yeniden denetlenir.
@@ -240,13 +258,45 @@ yollar "Bilinen sınırlar" bölümündedir.
 - Panelden yapılan her değişiklik, girişler, başarısız girişler, hatalı ikinci adım kodları,
   ikinci adımın kurulması ve sıfırlanması, parola ve rol değişiklikleri denetim kaydına hesabın
   kimliğiyle yazılır.
+- **İşletme hesapları (2.5)** bir işletmeye bağlıdır ve yalnızca o işletmenin satıcı olarak bağlı
+  olduğu uygulama kayıtlarını görür; başka bir kayıt için "bulunamadı" (404) alır, kaydın var
+  olduğunu öğrenemez. Yapabildiği yalnızca okumak, işletme ayarlarını değiştirmek ve QR kodu
+  üretmektir. Kapsam iki katmanlıdır: kapsamı uygulayan uçlar kayıtları süzer; ayrıca kapsamlı bir
+  hesap, rol tablosu yanlışlıkla genişletilse bile kapsamı uygulamayan bir uca giremez (test, rol
+  tablosunu bilerek genişletip bunu sınar). Hesabın işletmesi ve rolü sonradan değişmez; kural
+  veritabanında da (kısıt ve tetikleyici) durur. İşletme hesabına yayın geçmişinde VADO ekibinin
+  adları gösterilmez.
 - Canlı ortamda demo modu açılamaz; bu yüzden demo modundaki `000000` ikinci adım kolaylığı canlıya
   sızmaz. Paylaşılan eski panel değişkenleri (`VADO_PORTAL_USER`, `VADO_PORTAL_PASSWORD`) canlı
   panelde hâlâ tanımlıysa panel açılmaz.
 
+### Anlık bildirimler
+
+- Bildirim adresi (Expo push belirteci) oturuma bağlıdır ve yalnızca o oturumun sahibine
+  yazılabilir; çıkışta, oturum uzaktan kapatılınca ve hesap askıya alınınca veritabanı adresi siler
+  (tetikleyici). Aynı adres başka bir hesapla kaydedilince önceki hesaptan alınır: telefonu
+  devralan kişi önceki hesabın bildirimlerini görmez.
+- Mesaj bildiriminin içeriği varsayılan olarak gizlidir ("Yeni mesajın var"); gönderen ve metin
+  yalnızca kullanıcı açarsa, en fazla 120 karakter olarak gönderilir. Fotoğrafın kendisi
+  gönderilmez.
+- Yeni cihazdan giriş bildirimi kullanıcının diğer cihazlarına her zaman gider ve kapatılamaz.
+- Bildirim gönderimi isteği bekletmez; Expo'ya ulaşılamaması mesaj gönderimini etkilemez.
+- Bildirimin verisi yalnızca sohbetin kimliğini taşır; mobil uygulama tanımadığı veriyle hiçbir
+  ekran açmaz.
+
 ## Bilinen sınırlar
 
 Bunlar hata değil, bu sürümün bilinçli sınırlarıdır; yayın kararını verirken hesaba katın.
+
+- **Anlık bildirimler üçüncü taraflardan geçer.** Bildirim Expo'ya, oradan Google'a (FCM) ya da
+  Apple'a (APNs) gider. Önizleme açıksa gönderenin adı ve mesajın ilk 120 karakteri bu
+  sağlayıcıların sunucularından geçer (KVKK açısından yurt dışına aktarım; bkz.
+  [docs/TURKIYE_UYUM.md](docs/TURKIYE_UYUM.md)). Önizleme kapalıyken yalnızca "Yeni mesajın var"
+  ve sohbetin kimliği gider. Expo'nun teslim makbuzları (receipts) okunmaz; geçersiz adres yalnızca
+  gönderim anındaki yanıtta "DeviceNotRegistered" dönerse silinir. **Cihaz tarafı denenmedi.**
+- **İşletme hesabının kapsamı satıcı bağlantısına dayanır.** Bir kayda birden çok işletmenin
+  satıcısı bağlıysa her biri o kaydı görür ve ayarlarını değiştirebilir (ayarlardaki satıcı
+  seçimi dahil). Kayıt başına tek işletme önerilir.
 
 - **Uçtan uca şifreleme yoktur.** Mesajlar aktarımda TLS ile korunur, sunucuda düz metin saklanır.
   Sunucuya ya da veritabanına erişen kişi mesajları okuyabilir.

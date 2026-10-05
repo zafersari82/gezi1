@@ -38,7 +38,7 @@ import { createRealtime } from "./realtime/realtime";
 import { registerRoutes } from "./routes";
 import { createServices, type Services } from "./services";
 
-export const API_VERSION = "2.4.0";
+export const API_VERSION = "2.5.0";
 
 const JSON_BODY_LIMIT_BYTES = 100_000;
 

@@ -46,6 +46,7 @@ nano infra/.env.production
 | `VADO_OTP_KEYS`              | Doğrulama kodu anahtarı; dosyadaki örnek komutla üretilir       |
 | `VADO_QR_KEYS`               | QR kodu anahtarı; dosyadaki örnek komutla üretilir              |
 | `VADO_OPENID_KEY`            | Mini uygulama kimliği anahtarı; üretin ve ayrıca yedekleyin     |
+| `VADO_IDENTITY_KEYS`         | Mini uygulama kimlik belirteci anahtarı (2.5); örnek komutla    |
 | `VADO_ADMIN_API_KEY`         | En az 32 karakter rastgele değer: `openssl rand -hex 32`        |
 | `VADO_SMS_WEBHOOK_URL`       | SMS aracı servisinizin adresi                                   |
 | `VADO_SMS_WEBHOOK_SECRET`    | Aracı servisle paylaşılan gizli değer                           |
@@ -53,8 +54,10 @@ nano infra/.env.production
 | `VADO_RATE_LIMIT_PER_MINUTE` | IP başına dakikadaki istek sınırı; kullanıcı arttıkça yükseltin |
 | `VADO_PACKAGE_MAX_MB`        | Yüklenebilecek mini uygulama paketinin en büyük boyutu (1-50)   |
 | `VADO_APPS_ORIGIN`           | İsteğe bağlı: `https://{app}.mini.ornek.com` (aşağıda)          |
+| `VADO_PUSH_PROVIDER`         | `log` (bildirim yok) ya da `expo` (bkz. "Anlık bildirim")       |
+| `VADO_EXPO_ACCESS_TOKEN`     | İsteğe bağlı: Expo'da gelişmiş push güvenliği açıksa            |
 
-Üç imza anahtarı birbirinden bağımsızdır. `VADO_OPENID_KEY` değiştirilmez: değişirse mini
+Dört imza anahtarı birbirinden bağımsızdır. `VADO_OPENID_KEY` değiştirilmez: değişirse mini
 uygulamaların gördüğü kullanıcı kimlikleri (`openId`) değişir. Doğrulama kodu ve QR anahtarları ise
 sistem çalışırken, eski kodları geçersiz kılmadan değiştirilebilir. Anahtarların biçimi, denetimi
 ve değiştirme adımları [ANAHTARLAR.md](ANAHTARLAR.md) belgesindedir.
@@ -178,6 +181,28 @@ giderilene kadar kapalı kalır; `.env.production` dosyasındaki değişiklikler
 **2.1 ve öncesinden yükseltirken** önce imza anahtarlarını yeni düzene geçirin:
 [ANAHTARLAR.md](ANAHTARLAR.md#21-ve-öncesinden-geçiş). Geçiş yapılmadan yukarıdaki komut eksik
 değişkeni söyleyip durur; çalışan sürüme dokunmaz.
+
+### 2.4'ten 2.5'e geçiş
+
+2.5 iki şema dosyası (`0006`, `0007`) ve bir anahtar ailesi ekler. Panel, Nginx ayarı ve mini
+uygulama paketleri değişmeden çalışır.
+
+1. **Yedek alın** (aşağıda, "Yedek").
+2. **Kimlik belirteci anahtarını ekleyin.** Sunucuda:
+
+   ```bash
+   docker run --rm -i vado-api node dist/cli/keys.js add identity --from - < infra/.env.production
+   ```
+
+   (imajı önce yeni sürümle derleyin: `docker build -f apps/api/Dockerfile -t vado-api .`).
+   Yazdırılan `VADO_IDENTITY_KEYS=…` satırını `infra/.env.production` dosyasına ekleyin ve
+   `keys check` ile denetleyin ([ANAHTARLAR.md](ANAHTARLAR.md)). Satır yoksa 2.5 başlamaz ve
+   nedenini söyler; çalışan 2.4'e dokunulmaz.
+
+3. **Güncelleyin:** `docker compose … up -d --build`. `migrate` servisi iki dosyayı uygular.
+4. **Anlık bildirim** isteğe bağlıdır; açmak için aşağıdaki "Anlık bildirim" bölümü.
+5. **Geri dönüş:** 2.4 yükseltilmiş veritabanında çalışır. Önce varsa işletme hesaplarını kapatın;
+   2.4 bu rolü tanımaz.
 
 ### 2.3.1'den 2.4'e geçiş
 
@@ -434,6 +459,52 @@ Sürüm numarasını yükseltirken `package.json` dosyalarındaki ve `app.json` 
 olmalıdır; `npm run conventions` paketler arasındaki farkı yakalar. Derleme numaralarını
 (`versionCode`, `buildNumber`) EAS kendisi artırır.
 
+### Anlık bildirim
+
+Bildirimler Expo Push Service üzerinden gider: API bildirimi Expo'ya, Expo da Google'a (FCM) ve
+Apple'a (APNs) iletir. Sunucu tarafı bu depoda sahte bir sağlayıcıyla sınandı; **gerçek bir
+telefona bildirim gönderilmedi, cihaz tarafı denenmedi.** Gerekenler sizin hesaplarınızdır; bu
+anahtarlar depoya ve `.env` dosyasına girmez, EAS'ta durur.
+
+1. **Expo hesabı ve proje.** `eas init` (yukarıda, "Hazırlık") `app.json` dosyasına
+   `extra.eas.projectId` yazar. Bu değer olmadan uygulama bildirim adresi alamaz; Ben ›
+   Bildirimler ekranı "anlık bildirim yapılandırılmamış" der.
+2. **Android (FCM v1).** [Firebase](https://console.firebase.google.com) üzerinde bir proje açın,
+   `android.package` değerinizle bir Android uygulaması ekleyin ve `google-services.json`
+   dosyasını indirin. Dosyayı `apps/mobile/` klasörüne koyun ve `app.json` içinde
+   `"android": { "googleServicesFile": "./google-services.json" }` yazın. Firebase'de "Service
+   accounts" bölümünden bir özel anahtar (JSON) üretin ve `eas credentials` → Android → "Google
+   Service Account Key for FCM V1" adımıyla EAS'a yükleyin. Bu JSON dosyasını depoya koymayın.
+3. **iOS (APNs).** Apple Developer hesabında "Keys" bölümünden "Apple Push Notifications service"
+   yetkili bir anahtar (`.p8`) oluşturun ve `eas credentials` → iOS → "Push Notifications" adımıyla
+   EAS'a yükleyin (EAS isterse kendisi de oluşturur).
+4. **Sunucu.** `infra/.env.production` dosyasında `VADO_PUSH_PROVIDER=expo`. Expo hesabınızda
+   "Enhanced push security" açıksa expo.dev'de bir erişim belirteci üretip
+   `VADO_EXPO_ACCESS_TOKEN` olarak yazın. Yeniden başlatın.
+5. **Mobil sürüm.** Yeni bir derleme alın (`eas build`); bildirim izni ve adres yalnızca 2.5 ile
+   derlenmiş uygulamada vardır.
+
+**Cihazda deneme listesi** (her biri hem Android hem iPhone için; iki telefon ve iki hesap
+gerekir):
+
+- [ ] İlk girişte bildirim izni soruluyor; izin verince veritabanında o oturum için
+      `push_tokens` satırı oluşuyor.
+- [ ] B telefonu kilitliyken A mesaj gönderiyor: B'de "VADO — Yeni mesajın var" görünüyor;
+      gönderen ve metin görünmüyor.
+- [ ] B, Ben › Bildirimler'de "Mesajın içeriğini göster"i açıyor: sonraki bildirimde gönderen ve
+      metin görünüyor; grup mesajında "Ad · Grup adı".
+- [ ] Bildirime dokununca ilgili sohbet açılıyor; uygulama kapalıyken de.
+- [ ] Uygulama açıkken gelen mesajda afiş çıkmıyor, mesaj sohbette görünüyor.
+- [ ] "Yeni mesaj bildirimi" kapatılınca mesaj bildirimi gelmiyor.
+- [ ] B hesabıyla üçüncü bir cihazda giriş yapılıyor: B'nin telefonuna "Yeni cihazdan giriş"
+      geliyor; dokununca Oturumlar ekranı açılıyor.
+- [ ] B çıkış yapıyor: A'nın mesajı B'nin telefonuna bildirim olarak gelmiyor.
+- [ ] Telefonun ayarlarından VADO bildirimleri kapatılıyor: Ben › Bildirimler "izin verilmedi"
+      diyor ve ayarlara götürüyor.
+- [ ] Uygulama silinip yeniden kuruluyor: eski adrese giden ilk bildirimden sonra API günlüğünde
+      "Geçersiz bildirim adresleri silindi" kaydı görülüyor (Expo bunu hemen değil, bir süre
+      sonra bildirebilir).
+
 ### Web sürümü
 
 `npm run build -w @vado/mobile` komutu uygulamanın tarayıcı sürümünü `apps/mobile/dist` klasörüne
@@ -503,6 +574,10 @@ npm run miniapp:pack -- miniapps/appointment/dist    # randevu-1.0.0.zip
       kendi sayfasının dışına çıkamıyor (bkz. [SECURITY.md](../SECURITY.md), bilinen sınırlar).
 - [ ] Genel bakışta "Mini uygulama geliştirme kipi: Kapalı" yazıyor ve adresle açılan kayıt
       kalmadı ya da kapalı kalmaları kabul edildi.
+- [ ] Anlık bildirim açılacaksa "Cihazda deneme listesi" iki platformda tamamlandı; açılmayacaksa
+      `VADO_PUSH_PROVIDER=log`.
+- [ ] İşletme hesapları açıldıysa her biri yalnızca kendi kaydını görüyor (işletme hesabıyla
+      girip "Mini uygulamalar" listesine bakın).
 - [ ] Kullanım Koşulları ve KVKK Aydınlatma Metni hukukçu tarafından yazıldı ve uygulamaya kondu
       (`apps/mobile/src/features/legal/documents.ts`, ardından `TERMS_VERSION` artırıldı).
 - [ ] TURKIYE_UYUM.md içindeki maddeler bir hukukçuyla gözden geçirildi.
