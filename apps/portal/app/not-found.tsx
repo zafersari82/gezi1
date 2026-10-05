@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <>
+    <main className="auth">
       <header className="page-header">
         <div>
           <h1>Sayfa bulunamadı</h1>
@@ -12,6 +12,6 @@ export default function NotFound() {
       <Link href="/" className="button">
         Genel bakışa dön
       </Link>
-    </>
+    </main>
   );
 }

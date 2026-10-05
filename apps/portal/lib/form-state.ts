@@ -84,3 +84,36 @@ export const EMPTY_NOTE: NoteFormValues = { note: "" };
 
 /** Ayar formunda her alanın yazıldığı haliyle değeri: alan anahtarı → metin. */
 export type ConfigFormValues = Record<string, string>;
+
+export interface LoginFormValues {
+  username: string;
+}
+
+/** Bir kez gösterilen gizli bilgi: kurtarma kodları ya da geçici parola. */
+export interface RevealedSecret {
+  /** Gösterilecek değerler; gönderim başarılı olana kadar boştur. */
+  secrets: string[];
+}
+
+export const NO_SECRET: RevealedSecret = { secrets: [] };
+
+export interface AccountFormValues {
+  username: string;
+  displayName: string;
+  role: string;
+  /** Hesap açıldığında bir kez gösterilen geçici parola. */
+  temporaryPassword: string | null;
+}
+
+export const EMPTY_ACCOUNT: AccountFormValues = {
+  username: "",
+  displayName: "",
+  role: "operator",
+  temporaryPassword: null,
+};
+
+/** İkinci adımın kurulumunda gösterilen sır ve onun QR kodu (SVG, veri adresi olarak). */
+export interface TotpSetupView {
+  secret: string;
+  qrDataUrl: string;
+}

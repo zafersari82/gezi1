@@ -1,14 +1,28 @@
 "use server";
 
 import {
+  adminAccountSchema,
   adminApproveBodySchema,
+  adminChangePasswordBodySchema,
+  adminCreateAccountBodySchema,
+  adminLoginBodySchema,
+  adminLoginResultSchema,
   adminMiniAppSchema,
   adminPackageVersionSchema,
+  adminRecoveryCodesSchema,
   adminReviewBodySchema,
+  type AdminRole,
+  adminRoleSchema,
   adminRolloutResultSchema,
   adminSaveMerchantBodySchema,
   adminSaveMiniAppBodySchema,
   adminSavePackageBodySchema,
+  adminSecondFactorBodySchema,
+  adminSessionResultSchema,
+  adminTemporaryPasswordSchema,
+  adminTotpConfirmBodySchema,
+  adminTotpSetupSchema,
+  type AdminUpdateAccountBody,
   type AdminUpdateBusinessBody,
   type AdminUpdateMiniAppBody,
   type AdminUpdateUserBody,
@@ -24,6 +38,7 @@ import {
 } from "@vado/contracts";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { toString as qrSvg } from "qrcode";
 import type { z } from "zod";
 
 import { AdminApiError, adminCall, adminGet, adminSend, getOverview } from "./api";
@@ -34,21 +49,26 @@ import {
   toConfigInput,
 } from "./config-values";
 import {
+  type AccountFormValues,
   type ConfigFormValues,
   EMPTY_MERCHANT,
   EMPTY_NOTE,
   type FormState,
+  type LoginFormValues,
   type MerchantFormValues,
   type MiniAppFormValues,
   type NoteFormValues,
   type PackageFormValues,
+  type RevealedSecret,
+  type TotpSetupView,
 } from "./form-state";
 import { packageTooLargeMessage } from "./format";
+import { clearToken, PENDING_COOKIE, SESSION_COOKIE, writeToken } from "./session";
 
 /*
- * Panelin tüm değişiklikleri bu dosyadaki sunucu işlevlerinden geçer. Yetki, her işlevin çağırdığı
- * `adminSend` içinde doğrulanır. İşlevlere bağlanan kimlikler tarayıcıdan geldiği için API yoluna
- * yazılmadan önce burada da biçimce doğrulanır.
+ * Panelin tüm değişiklikleri bu dosyadaki sunucu işlevlerinden geçer. Her çağrı, oturum çerezindeki
+ * belirteci API'ye taşır; hesabı ve izni API doğrular. İşlevlere bağlanan kimlikler tarayıcıdan
+ * geldiği için API yoluna yazılmadan önce burada da biçimce doğrulanır.
  */
 
 const FIELD_LABELS: Record<string, string> = {
@@ -65,6 +85,10 @@ const FIELD_LABELS: Record<string, string> = {
   displayName: "Görünen ad",
   businessId: "İşletme",
   note: "Gerekçe",
+  username: "Kullanıcı adı",
+  role: "Rol",
+  newPassword: "Yeni parola",
+  currentPassword: "Mevcut parola",
 };
 
 const ID_RULE = "Kimlik 3-40 karakter olmalı; yalnızca küçük harf, rakam ve tire içerebilir.";
@@ -94,6 +118,280 @@ const miniAppPath = (miniAppId: string) => `/v1/admin/miniapps/${miniAppIdSchema
 const packagePath = (packageId: string) => `/v1/admin/packages/${packageIdSchema.parse(packageId)}`;
 const versionPath = (packageId: string, version: string) =>
   `${packagePath(packageId)}/versions/${versionSchema.parse(version)}`;
+
+// -- Giriş ve iki adımlı doğrulama ---------------------------------------------
+
+/**
+ * Kullanıcı adı ve parolayı doğrular. Geçerse yarım oturum çereze yazılır ve ikinci adıma (ya da
+ * ilk girişte ikinci adımın kurulumuna) geçilir.
+ */
+export async function login(
+  _previous: FormState<LoginFormValues>,
+  formData: FormData,
+): Promise<FormState<LoginFormValues>> {
+  const values: LoginFormValues = { username: text(formData, "username") };
+  const body = adminLoginBodySchema.safeParse({
+    username: values.username,
+    password: formData.get("password"),
+  });
+  if (!body.success) return { error: "Kullanıcı adını ve parolanı yaz.", saved: false, values };
+
+  let next: "totp" | "totp_setup";
+  try {
+    const result = await adminCall(
+      adminLoginResultSchema,
+      "POST",
+      "/v1/admin/auth/login",
+      body.data,
+      "none",
+    );
+    await writeToken(PENDING_COOKIE, result.token);
+    next = result.next;
+  } catch (error) {
+    return { error: messageOf(error), saved: false, values };
+  }
+  redirect(next === "totp" ? "/login/verify" : "/login/setup");
+}
+
+/** İkinci adım: uygulamadaki kod ya da kurtarma kodu. Geçerse oturum açılır. */
+export async function verifySecondFactor(
+  _previous: FormState<null>,
+  formData: FormData,
+): Promise<FormState<null>> {
+  const code = text(formData, "code").replaceAll(" ", "");
+  const recoveryCode = text(formData, "recoveryCode");
+  const body = adminSecondFactorBodySchema.safeParse(
+    recoveryCode === "" ? { code } : { recoveryCode },
+  );
+  if (!body.success) {
+    return {
+      error: "Uygulamadaki 6 haneli kodu ya da bir kurtarma kodunu yaz.",
+      saved: false,
+      values: null,
+    };
+  }
+  try {
+    const session = await adminCall(
+      adminSessionResultSchema,
+      "POST",
+      "/v1/admin/auth/second-factor",
+      body.data,
+      "pending",
+    );
+    await writeToken(SESSION_COOKIE, session.token);
+    await clearToken(PENDING_COOKIE);
+  } catch (error) {
+    return { error: messageOf(error), saved: false, values: null };
+  }
+  redirect("/");
+}
+
+/**
+ * İkinci adımın kurulumunu başlatır: API yeni bir sır üretir; doğrulama uygulamasına okutulacak
+ * QR kodu burada çizilir. Kurulum doğrulanana kadar sır geçerli değildir.
+ */
+export async function startTotpSetup(): Promise<TotpSetupView> {
+  const setup = await adminCall(
+    adminTotpSetupSchema,
+    "POST",
+    "/v1/admin/auth/totp-setup",
+    undefined,
+    "pending",
+  );
+  const svg = await qrSvg(setup.uri, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+  return {
+    secret: setup.secret,
+    qrDataUrl: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`,
+  };
+}
+
+/**
+ * İkinci adımın kurulumunu uygulamadaki ilk kodla doğrular ve oturumu açar. Kurtarma kodları
+ * yalnızca bu yanıtta döner ve formda bir kez gösterilir.
+ */
+export async function confirmTotpSetup(
+  _previous: FormState<RevealedSecret>,
+  formData: FormData,
+): Promise<FormState<RevealedSecret>> {
+  const body = adminTotpConfirmBodySchema.safeParse({
+    code: text(formData, "code").replaceAll(" ", ""),
+  });
+  const failed = (error: string) => ({ error, saved: false, values: { secrets: [] } });
+  if (!body.success) return failed("Uygulamadaki 6 haneli kodu yaz.");
+  try {
+    const session = await adminCall(
+      adminSessionResultSchema,
+      "POST",
+      "/v1/admin/auth/totp-setup/confirm",
+      body.data,
+      "pending",
+    );
+    await writeToken(SESSION_COOKIE, session.token);
+    await clearToken(PENDING_COOKIE);
+    return { error: null, saved: true, values: { secrets: session.recoveryCodes ?? [] } };
+  } catch (error) {
+    return failed(messageOf(error));
+  }
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await adminSend("POST", "/v1/admin/auth/logout");
+  } finally {
+    await clearToken(SESSION_COOKIE);
+  }
+  redirect("/login");
+}
+
+// -- Kendi hesabım -------------------------------------------------------------
+
+/** Parolayı değiştirir; API hesabın diğer oturumlarını kapatır. */
+export async function changePassword(
+  _previous: FormState<null>,
+  formData: FormData,
+): Promise<FormState<null>> {
+  const failed = (error: string) => ({ error, saved: false, values: null });
+  const newPassword = formData.get("newPassword");
+  if (newPassword !== formData.get("repeatPassword")) {
+    return failed("Yeni parola ile tekrarı aynı değil.");
+  }
+  const body = adminChangePasswordBodySchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword,
+  });
+  if (!body.success) return failed(body.error.issues[0]?.message ?? describeIssues(body.error));
+  try {
+    await adminSend("PUT", "/v1/admin/me/password", body.data);
+  } catch (error) {
+    return failed(messageOf(error));
+  }
+  refresh();
+  return { error: null, saved: true, values: null };
+}
+
+/** Hesabın başka bir tarayıcıdaki oturumunu kapatır. */
+export async function revokeSession(sessionId: string): Promise<FormState<unknown>> {
+  try {
+    await adminSend("DELETE", `/v1/admin/me/sessions/${idSchema.parse(sessionId)}`);
+  } catch (error) {
+    return { error: messageOf(error), saved: false, values: null };
+  }
+  refresh();
+  return { error: null, saved: true, values: null };
+}
+
+/** Kurtarma kodlarını yeniler; yeni kodlar formda bir kez gösterilir. */
+export async function regenerateRecoveryCodes(
+  _previous: FormState<RevealedSecret>,
+  formData: FormData,
+): Promise<FormState<RevealedSecret>> {
+  const failed = (error: string) => ({ error, saved: false, values: { secrets: [] } });
+  const body = adminTotpConfirmBodySchema.safeParse({
+    code: text(formData, "code").replaceAll(" ", ""),
+  });
+  if (!body.success) return failed("Uygulamadaki 6 haneli kodu yaz.");
+  try {
+    const result = await adminCall(
+      adminRecoveryCodesSchema,
+      "POST",
+      "/v1/admin/me/recovery-codes",
+      body.data,
+    );
+    return { error: null, saved: true, values: { secrets: result.recoveryCodes } };
+  } catch (error) {
+    return failed(messageOf(error));
+  }
+}
+
+// -- Hesap yönetimi ------------------------------------------------------------
+
+const accountPath = (accountId: string) => `/v1/admin/accounts/${idSchema.parse(accountId)}`;
+
+/** Yeni panel hesabı açar; geçici parola formda bir kez gösterilir. */
+export async function createAccount(
+  _previous: FormState<AccountFormValues>,
+  formData: FormData,
+): Promise<FormState<AccountFormValues>> {
+  const values: AccountFormValues = {
+    username: text(formData, "username"),
+    displayName: text(formData, "displayName"),
+    role: text(formData, "role"),
+    temporaryPassword: null,
+  };
+  const failed = (error: string) => ({ error, saved: false, values });
+  const body = adminCreateAccountBodySchema.safeParse(values);
+  if (!body.success) return failed(describeIssues(body.error));
+  try {
+    const created = await adminCall(
+      adminTemporaryPasswordSchema,
+      "POST",
+      "/v1/admin/accounts",
+      body.data,
+    );
+    refresh();
+    return {
+      error: null,
+      saved: true,
+      values: { ...values, temporaryPassword: created.temporaryPassword },
+    };
+  } catch (error) {
+    return failed(messageOf(error));
+  }
+}
+
+/** Rolü ya da durumu değiştirir; API hesabın açık oturumlarını kapatır. */
+export async function updateAccount(
+  accountId: string,
+  change: AdminUpdateAccountBody,
+): Promise<FormState<unknown>> {
+  try {
+    await adminCall(adminAccountSchema, "PATCH", accountPath(accountId), change);
+  } catch (error) {
+    return { error: messageOf(error), saved: false, values: null };
+  }
+  refresh();
+  return { error: null, saved: true, values: null };
+}
+
+/** Rol seçim formundan gelen rolü uygular. */
+export async function changeRole(
+  accountId: string,
+  _previous: FormState<unknown>,
+  formData: FormData,
+): Promise<FormState<unknown>> {
+  const role = adminRoleSchema.safeParse(formData.get("role"));
+  if (!role.success) return { error: "Bir rol seç.", saved: false, values: null };
+  const body: AdminUpdateAccountBody = { role: role.data satisfies AdminRole };
+  return updateAccount(accountId, body);
+}
+
+/** Parolayı sıfırlar; geçici parola formda bir kez gösterilir. */
+export async function resetAccountPassword(
+  accountId: string,
+  _previous: FormState<RevealedSecret>,
+): Promise<FormState<RevealedSecret>> {
+  try {
+    const reset = await adminCall(
+      adminTemporaryPasswordSchema,
+      "POST",
+      `${accountPath(accountId)}/password-reset`,
+    );
+    refresh();
+    return { error: null, saved: true, values: { secrets: [reset.temporaryPassword] } };
+  } catch (error) {
+    return { error: messageOf(error), saved: false, values: { secrets: [] } };
+  }
+}
+
+export async function resetAccountTotp(accountId: string): Promise<FormState<unknown>> {
+  try {
+    await adminCall(adminAccountSchema, "POST", `${accountPath(accountId)}/totp-reset`);
+  } catch (error) {
+    return { error: messageOf(error), saved: false, values: null };
+  }
+  refresh();
+  return { error: null, saved: true, values: null };
+}
 
 // -- Kullanıcılar, işletmeler, şikayetler -------------------------------------
 

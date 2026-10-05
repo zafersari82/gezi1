@@ -119,10 +119,25 @@ export const AUDIT_TARGET_LABELS: Record<string, string> = {
   package: "Paket",
   payment: "Ödeme",
   report: "Şikayet",
+  admin_account: "Panel hesabı",
+  admin_session: "Panel oturumu",
 };
 
 /** Denetim kaydındaki işlem adlarının okunur karşılıkları; bilinmeyen ad olduğu gibi gösterilir. */
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  "admin.login": "Panele giriş",
+  "admin.login_recovery_code": "Panele kurtarma koduyla giriş",
+  "admin.login_failed": "Başarısız panel girişi",
+  "admin.second_factor_failed": "Hatalı ikinci adım kodu",
+  "admin.totp_enabled": "İki adımlı doğrulama kuruldu",
+  "admin.totp_reset": "İki adımlı doğrulama sıfırlandı",
+  "admin.password_changed": "Parola değiştirildi",
+  "admin.password_reset": "Parola sıfırlandı",
+  "admin.recovery_codes_regenerated": "Kurtarma kodları yenilendi",
+  "admin.session_revoked": "Panel oturumu kapatıldı",
+  "admin.account_created": "Panel hesabı açıldı",
+  "admin.account_updated": "Panel hesabı güncellendi",
+  "admin.role_changed": "Panel hesabının rolü değişti",
   "auth.new_device": "Yeni cihazdan giriş",
   "business.created": "İşletme başvurusu yapıldı",
   "business.updated": "İşletme güncellendi",
@@ -135,6 +150,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "package.saved": "Paket kaydedildi",
   "package.version_uploaded": "Paket sürümü yüklendi",
   "package.version_submitted": "Sürüm incelemeye gönderildi",
+  "package.version_resubmitted": "Sürüm yeniden incelemeye gönderildi",
   "package.version_approved": "Sürüm onaylandı",
   "package.version_rejected": "Sürüm reddedildi",
   "package.version_withdrawn": "Sürümden vazgeçildi",

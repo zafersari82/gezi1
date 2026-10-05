@@ -94,8 +94,6 @@ services:
     environment:
       VADO_API_INTERNAL_URL: http://api:4000
       VADO_ADMIN_API_KEY: ${VADO_ADMIN_API_KEY:?}
-      VADO_PORTAL_USER: ${VADO_PORTAL_USER:?}
-      VADO_PORTAL_PASSWORD: ${VADO_PORTAL_PASSWORD:?}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

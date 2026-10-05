@@ -1,30 +1,36 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { isAuthorized, portalAccess } from "./lib/credentials";
+import { env, isProduction } from "./lib/env";
+import { SESSION_COOKIE } from "./lib/session";
 
 const HEALTH_PATH = "/healthz";
+const LOGIN_PATH = "/login";
 
 /**
- * Panelin tamamı (sayfalar, sunucu işlevleri, statik dosyalar) HTTP Basic girişinin arkasındadır.
- * Yetki, sunucu işlevlerinde ayrıca doğrulanır (bkz. lib/operator.ts); burası tarayıcıya giriş
- * penceresini açtıran ilk katmandır.
+ * Oturum çerezi olmayan isteği giriş sayfasına gönderir. Bu yalnızca yönlendirmedir: çerezdeki
+ * oturumun geçerliliğine ve hesabın yetkisine API, panelin yaptığı her çağrıda ayrıca bakar.
  */
 export function proxy(request: NextRequest): NextResponse {
-  // Sağlık denetimi (Docker, yük dengeleyici) giriş bilgisi taşımaz.
-  if (request.nextUrl.pathname === HEALTH_PATH) return NextResponse.next();
+  const { pathname } = request.nextUrl;
+  // Sağlık denetimi (Docker, yük dengeleyici) oturum taşımaz.
+  if (pathname === HEALTH_PATH) return NextResponse.next();
 
-  const access = portalAccess();
-  if (access.kind === "open") return NextResponse.next();
-  if (access.kind === "unconfigured") {
+  // 2.3'ün paylaşılan panel girişi kalktı. Değişkenler hâlâ tanımlıysa yükseltme yarım kalmıştır;
+  // canlı panel, yöneticinin bunu fark etmesi için açılmaz.
+  if (isProduction && (env("VADO_PORTAL_USER") ?? env("VADO_PORTAL_PASSWORD")) !== undefined) {
     return new NextResponse(
-      "Panel girişi yapılandırılmamış. VADO_PORTAL_USER ve VADO_PORTAL_PASSWORD tanımlanmalı.",
+      "Panelin ortak kullanıcı adı ve şifresi 2.4'te kaldırıldı; her yönetici kendi hesabıyla " +
+        "girer. VADO_PORTAL_USER ve VADO_PORTAL_PASSWORD değişkenlerini kaldırın (bkz. docs/YAYIN.md).",
       { status: 503 },
     );
   }
-  if (isAuthorized(request.headers.get("authorization"), access)) return NextResponse.next();
 
-  return new NextResponse("Bu sayfa için giriş yapmalısın.", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="VADO Control", charset="UTF-8"' },
-  });
+  if (pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`)) return NextResponse.next();
+  if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
 }
+
+export const config = {
+  // Next.js'in kendi dosyaları ve panelin simgesi oturumsuz sunulur.
+  matcher: ["/((?!_next/|icon.png).*)"],
+};

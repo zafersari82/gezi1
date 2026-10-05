@@ -1,6 +1,8 @@
 import {
+  type AdminMe,
   type AdminPackageVersion,
   adminPackageVersionSchema,
+  type AdminPermission,
   CAPABILITY_LABELS,
   type ConfigField,
   packageIdSchema,
@@ -15,7 +17,7 @@ import { DecisionForm } from "@/components/decision-form";
 import { PageHeader } from "@/components/page-header";
 import { Tag } from "@/components/tag";
 import { moveVersion, rolloutVersion } from "@/lib/actions";
-import { AdminApiError, adminGet } from "@/lib/api";
+import { AdminApiError, adminGet, getMe } from "@/lib/api";
 import {
   FINDING_LEVELS,
   formatBytes,
@@ -88,9 +90,26 @@ function ChangeList({
   );
 }
 
-function Decisions({ item }: { item: AdminPackageVersion }) {
+const NOTHING_TO_DO = <p className="muted">Bu sürüm için rolünün yapabileceği bir işlem yok.</p>;
+
+/**
+ * Sürümün durumuna ve hesabın iznine göre yapılabilecek kararlar. Düğmeyi gizlemek yetki değildir:
+ * her işlemi API ayrıca denetler; burada yalnızca yapılamayacak işlem gösterilmez.
+ */
+function Decisions({ item, me }: { item: AdminPackageVersion; me: AdminMe }) {
   const { packageId, version, status } = item;
+  const can = (permission: AdminPermission) => me.permissions.includes(permission);
+  const withdraw = can("packages.upload") && (
+    <ActionForm
+      action={moveVersion.bind(null, packageId, version, "withdraw")}
+      label="Bu sürümden vazgeç"
+      confirm={`${version} sürümünden vazgeçilsin mi? Sürüm numarası yeniden kullanılamaz.`}
+      saved="Sürümden vazgeçildi."
+    />
+  );
+
   if (status === "draft") {
+    if (!can("packages.upload")) return NOTHING_TO_DO;
     return (
       <div className="decisions">
         <ActionForm
@@ -99,48 +118,80 @@ function Decisions({ item }: { item: AdminPackageVersion }) {
           variant="primary"
           saved="İncelemeye gönderildi."
         />
-        <ActionForm
-          action={moveVersion.bind(null, packageId, version, "withdraw")}
-          label="Bu sürümden vazgeç"
-          confirm={`${version} sürümünden vazgeçilsin mi? Sürüm numarası yeniden kullanılamaz.`}
-          saved="Sürümden vazgeçildi."
-        />
+        {withdraw}
       </div>
     );
   }
   if (status === "in_review") {
+    // Dört göz ilkesi: yükleyen ya da gönderen onaylayamaz (API ve veritabanı da reddeder).
+    const ownVersion = [item.uploadedBy.id, item.submittedBy?.id].includes(me.account.id);
+    if (item.submittedBy === null) {
+      return (
+        <>
+          <p className="notice">
+            Bu sürüm 2.4'ten önce incelemeye gönderildi; gönderen bilinmiyor. Onaylanabilmesi için
+            önce bir hesabın onu yeniden incelemeye göndermesi, sonra başka bir hesabın onaylaması
+            gerekir.
+          </p>
+          <div className="decisions">
+            {can("packages.upload") && (
+              <ActionForm
+                action={moveVersion.bind(null, packageId, version, "submit")}
+                label="Yeniden incelemeye gönder"
+                variant="primary"
+                saved="Gönderildi; onayı başka bir hesap verir."
+              />
+            )}
+            {can("packages.review") && (
+              <DecisionForm packageId={packageId} version={version} decision="reject" />
+            )}
+          </div>
+          {withdraw}
+        </>
+      );
+    }
     return (
       <>
-        <div className="decisions">
-          <DecisionForm packageId={packageId} version={version} decision="approve" />
-          <DecisionForm packageId={packageId} version={version} decision="reject" />
-        </div>
-        <ActionForm
-          action={moveVersion.bind(null, packageId, version, "withdraw")}
-          label="Bu sürümden vazgeç"
-          confirm={`${version} sürümünden vazgeçilsin mi? Sürüm numarası yeniden kullanılamaz.`}
-          saved="Sürümden vazgeçildi."
-        />
+        {can("packages.review") && ownVersion && (
+          <p className="notice">
+            Bu sürümü sen yükledin ya da incelemeye gönderdin; onayı başka bir hesap verir.
+          </p>
+        )}
+        {can("packages.review") && (
+          <div className="decisions">
+            {!ownVersion && (
+              <DecisionForm packageId={packageId} version={version} decision="approve" />
+            )}
+            <DecisionForm packageId={packageId} version={version} decision="reject" />
+          </div>
+        )}
+        {withdraw}
+        {!can("packages.review") && !can("packages.upload") && NOTHING_TO_DO}
       </>
     );
   }
   if (status === "approved") {
+    if (!can("packages.rollout") && !can("emergency.disable")) return NOTHING_TO_DO;
     return (
       <div className="decisions">
-        <div className="decision">
-          <h3>Dağıt</h3>
-          <p className="hint">
-            Paketin daha eski bir sürümünü yayınlayan bütün kayıtlar bu sürüme geçirilir. Ayarları
-            bu sürümün alanlarıyla eşleşmeyen kayıtlar atlanır ve listelenir.
-          </p>
-          <ActionForm
-            action={rolloutVersion.bind(null, packageId, version)}
-            label="Eski sürümdeki kayıtlara dağıt"
-            confirm={`${version} sürümü, eski sürümdeki bütün kayıtlarda yayınlansın mı?`}
-            saved="Dağıtım tamamlandı; atlanan kayıt varsa aşağıda listelenir."
-          />
-        </div>
-        <DecisionForm packageId={packageId} version={version} decision="revoke" />
+        {can("packages.rollout") && (
+          <div className="decision">
+            <h3>Dağıt</h3>
+            <p className="hint">
+              Paketin daha eski bir sürümünü yayınlayan bütün kayıtlar bu sürüme geçirilir. Ayarları
+              bu sürümün alanlarıyla eşleşmeyen kayıtlar atlanır ve listelenir.
+            </p>
+            <ActionForm
+              action={rolloutVersion.bind(null, packageId, version)}
+              label="Eski sürümdeki kayıtlara dağıt"
+              confirm={`${version} sürümü, eski sürümdeki bütün kayıtlarda yayınlansın mı?`}
+              saved="Dağıtım tamamlandı; atlanan kayıt varsa aşağıda listelenir."
+            />
+          </div>
+        )}
+        {can("emergency.disable") && (
+          <DecisionForm packageId={packageId} version={version} decision="revoke" />
+        )}
       </div>
     );
   }
@@ -155,7 +206,7 @@ export default async function PackageVersionPage({
   params,
 }: PageProps<"/packages/[id]/[version]">) {
   const { id, version } = await params;
-  const item = await loadVersion(id, version);
+  const [item, me] = await Promise.all([loadVersion(id, version), getMe()]);
   const { diff } = item;
   const status = packageStatus(item.status);
 
@@ -176,7 +227,7 @@ export default async function PackageVersionPage({
 
       <section aria-labelledby="decision-title">
         <h2 id="decision-title">Karar</h2>
-        <Decisions item={item} />
+        <Decisions item={item} me={me} />
       </section>
 
       <section aria-labelledby="access-title">
