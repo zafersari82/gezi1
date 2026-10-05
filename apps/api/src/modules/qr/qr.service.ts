@@ -12,7 +12,7 @@ import { recordAudit } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { AppError } from "../../core/errors";
 import type { BusinessService } from "../businesses/businesses.service";
-import type { MiniAppAdminService } from "../miniapps/miniapp-admin.service";
+import type { AdminScope, MiniAppAdminService } from "../miniapps/miniapp-admin.service";
 import type { MiniAppService } from "../miniapps/miniapps.service";
 import type { UserService } from "../users/users.service";
 
@@ -110,8 +110,9 @@ export function createQrService(
     actor: string,
     miniAppId: string,
     params: QrParams,
+    scope: AdminScope,
   ): Promise<IssuedQr> {
-    await miniAppAdmin.get(miniAppId);
+    await miniAppAdmin.get(miniAppId, scope);
     const hasParams = Object.keys(params).length > 0;
     const issued = encode({
       t: "miniapp",

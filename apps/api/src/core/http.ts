@@ -31,6 +31,11 @@ export interface AdminContext {
   accountId: string;
   sessionId: string;
   role: AdminRole;
+  /**
+   * Hesabın kapsamı: işletme hesabında bağlı olduğu işletme, VADO ekibinin hesaplarında `null`.
+   * Kapsamı uygulayan uçlar (bkz. `SCOPED_PERMISSIONS`) kayıtları buna göre süzer.
+   */
+  businessId: string | null;
   mustChangePassword: boolean;
 }
 

@@ -1,4 +1,10 @@
-import { ADMIN_ROLE_LABELS, adminAccountSchema, listOf } from "@vado/contracts";
+import {
+  ADMIN_ROLE_LABELS,
+  adminAccountSchema,
+  adminBusinessSchema,
+  isScopedRole,
+  listOf,
+} from "@vado/contracts";
 import type { Metadata } from "next";
 
 import { AccountForm } from "@/components/account-form";
@@ -14,10 +20,14 @@ import { formatDateTime } from "@/lib/format";
 export const metadata: Metadata = { title: "Panel hesapları" };
 
 export default async function AccountsPage() {
-  const [me, { items: accounts }] = await Promise.all([
+  const [me, { items: accounts }, { items: businesses }] = await Promise.all([
     getMe(),
     adminGet(listOf(adminAccountSchema), "/v1/admin/accounts"),
+    adminGet(listOf(adminBusinessSchema), "/v1/admin/businesses"),
   ]);
+  const activeBusinesses = businesses
+    .filter((business) => business.status === "active")
+    .map(({ id, name }) => ({ id, name }));
 
   return (
     <>
@@ -51,10 +61,13 @@ export default async function AccountsPage() {
                     <span className="cell-sub mono">{account.username}</span>
                   </td>
                   <td>
-                    {account.status === "active" ? (
+                    {account.status === "active" && !isScopedRole(account.role) ? (
                       <RoleForm accountId={account.id} role={account.role} />
                     ) : (
                       ADMIN_ROLE_LABELS[account.role]
+                    )}
+                    {account.business !== null && (
+                      <span className="cell-sub">{account.business.name}</span>
                     )}
                   </td>
                   <td>
@@ -109,7 +122,7 @@ export default async function AccountsPage() {
 
       <section>
         <h2>Yeni hesap</h2>
-        <AccountForm />
+        <AccountForm businesses={activeBusinesses} />
       </section>
     </>
   );

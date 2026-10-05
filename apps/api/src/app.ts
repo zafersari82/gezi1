@@ -9,6 +9,7 @@ import {
   ADMIN_KEY_HEADER,
   MEDIA_MAX_BYTES,
   roleHasPermission,
+  SCOPED_PERMISSIONS,
 } from "@vado/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 
@@ -160,6 +161,11 @@ export async function buildApp({ config, db, sms, log }: AppOptions): Promise<Ap
     if (access === "session" || access === "second_factor") return context;
     if (context.mustChangePassword) throw new AppError("admin_password_change_required");
     if (!roleHasPermission(context.role, access)) throw new AppError("forbidden");
+    // Kapsamlı hesap yalnızca kapsamı uygulayan uçlara girer; rol tablosu yanlışlıkla
+    // genişletilse bile bütün kayıtları gösteren bir uca erişemez.
+    if (context.businessId !== null && !SCOPED_PERMISSIONS.includes(access)) {
+      throw new AppError("forbidden");
+    }
     return context;
   };
   function requireAdminKey(key: unknown): void {

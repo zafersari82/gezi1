@@ -6,6 +6,7 @@ import {
   ADMIN_ROLES,
   adminSecondFactorBodySchema,
   adminUsernameSchema,
+  isScopedRole,
   recoveryCodeSchema,
   roleHasPermission,
 } from "../src";
@@ -36,9 +37,9 @@ describe("roller ve izinler", () => {
     expect(rolesWith("emergency.disable")).toEqual(["owner", "reviewer", "operator"]);
   });
 
-  it("her rol genel bakışı görür; tablodaki her izin tanımlı izin listesindendir", () => {
+  it("ekip rolleri genel bakışı görür, işletme rolü görmez; tablodaki her izin tanımlıdır", () => {
     for (const role of ADMIN_ROLES) {
-      expect(roleHasPermission(role, "overview.read")).toBe(true);
+      expect(roleHasPermission(role, "overview.read")).toBe(!isScopedRole(role));
       for (const permission of ADMIN_ROLE_PERMISSIONS[role]) {
         expect(ADMIN_PERMISSIONS).toContain(permission);
       }

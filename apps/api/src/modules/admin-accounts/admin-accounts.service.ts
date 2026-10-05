@@ -17,6 +17,7 @@ import {
   type AdminTemporaryPassword,
   type AdminTotpSetup,
   type AdminUpdateAccountBody,
+  isScopedRole,
   RECOVERY_CODE_COUNT,
 } from "@vado/contracts";
 
@@ -48,6 +49,8 @@ interface AccountRow {
   username: string;
   display_name: string;
   role: AdminRole;
+  business_id: string | null;
+  business_name: string | null;
   status: AdminAccountStatus;
   must_change_password: boolean;
   totp_enabled_at: Date | null;
@@ -57,7 +60,9 @@ interface AccountRow {
 }
 
 const ACCOUNT_COLUMNS = sql`
-  a.id, a.username, a.display_name, a.role, a.status, a.must_change_password, a.totp_enabled_at,
+  a.id, a.username, a.display_name, a.role, a.business_id,
+  (select b.name from businesses b where b.id = a.business_id) as business_name,
+  a.status, a.must_change_password, a.totp_enabled_at,
   case when a.locked_until > now() then a.locked_until end as locked_until,
   a.last_login_at, a.created_at
 `;
@@ -77,6 +82,8 @@ function toAccount(row: AccountRow): AdminAccount {
     username: row.username,
     displayName: row.display_name,
     role: row.role,
+    business:
+      row.business_id === null ? null : { id: row.business_id, name: row.business_name ?? "" },
     status: row.status,
     totpEnabled: row.totp_enabled_at !== null,
     mustChangePassword: row.must_change_password,
@@ -391,6 +398,7 @@ export function createAdminAccountService({ config, db }: Pick<AppContext, "conf
       session_id: string;
       account_id: string;
       role: AdminRole;
+      business_id: string | null;
       must_change_password: boolean;
       stale: boolean;
     }>(sql`
@@ -398,6 +406,7 @@ export function createAdminAccountService({ config, db }: Pick<AppContext, "conf
         s.id as session_id,
         a.id as account_id,
         a.role,
+        a.business_id,
         a.must_change_password,
         s.last_seen_at < now() - make_interval(secs => ${SESSION_TOUCH_SECONDS}) as stale
       from admin_sessions s
@@ -420,6 +429,7 @@ export function createAdminAccountService({ config, db }: Pick<AppContext, "conf
       accountId: row.account_id,
       sessionId: row.session_id,
       role: row.role,
+      businessId: row.business_id,
       mustChangePassword: row.must_change_password,
     };
   }
@@ -555,11 +565,18 @@ export function createAdminAccountService({ config, db }: Pick<AppContext, "conf
   ): Promise<AdminTemporaryPassword> {
     const temporaryPassword = generateTemporaryPassword();
     const hash = await hashPassword(temporaryPassword);
+    const businessId = body.businessId ?? null;
     try {
       const account = await db.transaction(async (tx) => {
+        if (businessId !== null) {
+          const business = await tx.maybeOne(
+            sql`select 1 from businesses where id = ${businessId}`,
+          );
+          if (business === null) throw new AppError("business_not_found");
+        }
         const { id } = await tx.one<{ id: string }>(sql`
-          insert into admin_accounts (username, display_name, role, password_hash)
-          values (${body.username}, ${body.displayName}, ${body.role}, ${hash})
+          insert into admin_accounts (username, display_name, role, business_id, password_hash)
+          values (${body.username}, ${body.displayName}, ${body.role}, ${businessId}, ${hash})
           returning id
         `);
         await recordAudit(tx, {
@@ -567,7 +584,11 @@ export function createAdminAccountService({ config, db }: Pick<AppContext, "conf
           action: "admin.account_created",
           targetType: "admin_account",
           targetId: id,
-          metadata: { username: body.username, role: body.role },
+          metadata: {
+            username: body.username,
+            role: body.role,
+            ...(businessId === null ? {} : { businessId }),
+          },
         });
         return findAccount(tx, id);
       });
@@ -597,6 +618,10 @@ export function createAdminAccountService({ config, db }: Pick<AppContext, "conf
       if (before === null) throw new AppError("admin_account_not_found");
       const role = body.role ?? before.role;
       const status = body.status ?? before.status;
+      // Kapsam açılışta belirlenir; işletme hesabı başka role, ekip hesabı işletme rolüne geçemez.
+      if (isScopedRole(role) || isScopedRole(before.role)) {
+        if (role !== before.role) throw new AppError("admin_scope_change_forbidden");
+      }
       if (
         before.role === "owner" &&
         before.status === "active" &&

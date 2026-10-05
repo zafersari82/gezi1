@@ -16,8 +16,13 @@ const INITIAL_STATE: FormState<AccountFormValues> = {
   values: EMPTY_ACCOUNT,
 };
 
+interface BusinessOption {
+  id: string;
+  name: string;
+}
+
 /** Yeni panel hesabı. Geçici parola bir kez gösterilir; hesap ilk girişte kendi parolasını seçer. */
-export function AccountForm() {
+export function AccountForm({ businesses }: { businesses: BusinessOption[] }) {
   const [state, formAction] = useActionState(createAccount, INITIAL_STATE);
   const values = state.saved ? EMPTY_ACCOUNT : state.values;
   const { temporaryPassword } = state.values;
@@ -74,6 +79,21 @@ export function AccountForm() {
           ))}
         </div>
       </fieldset>
+      <div className="field">
+        <label htmlFor="businessId">İşletme (yalnızca İşletme rolünde)</label>
+        <select id="businessId" name="businessId" defaultValue={values.businessId}>
+          <option value="">İşletme seç</option>
+          {businesses.map((business) => (
+            <option key={business.id} value={business.id}>
+              {business.name}
+            </option>
+          ))}
+        </select>
+        <p className="hint">
+          İşletme hesabı yalnızca bu işletmenin satıcı olarak bağlı olduğu mini uygulamaları görür.
+          İşletmesi ve rolü sonradan değiştirilemez.
+        </p>
+      </div>
       <div className="form-footer">
         <SubmitButton variant="primary">Hesabı aç</SubmitButton>
         <FormFeedback state={state} saved="Hesap açıldı." />

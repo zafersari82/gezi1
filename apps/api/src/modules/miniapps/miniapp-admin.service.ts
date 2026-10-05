@@ -126,6 +126,23 @@ function carryOverConfig(fields: readonly ConfigField[], current: ConfigValues) 
 }
 
 /**
+ * Panel hesabının kapsamı: işletme hesabında bağlı olduğu işletmenin kimliği, VADO ekibinin
+ * hesaplarında `null` (bütün kayıtlar). İşletme, satıcı olarak bağlı olduğu kayıtları görür.
+ */
+export type AdminScope = string | null;
+
+/** Kapsam dışındaki kayıt "yok" sayılır; işletme başka kayıtların varlığını öğrenemez. */
+function scopeFilter(scope: AdminScope): SqlFragment {
+  if (scope === null) return sql`true`;
+  return sql`exists (
+    select 1 from mini_app_merchants m where m.mini_app_id = a.id and m.business_id = ${scope}
+  )`;
+}
+
+/** Kapsamlı hesaba başka işletmelerin satıcıları ve VADO ekibinin adları gösterilmez. */
+const TEAM_ACTOR: Actor = { id: "vado", name: "VADO ekibi" };
+
+/**
  * Uygulama kayıtlarının yönetimi. Uygulama kaydı bir işletmenin vitrinidir; çalıştırdığı kod,
  * yayınladığı paket sürümünden gelir. Kayıt başına kod incelemesi yapılmaz: onaylı bir sürüm,
  * onu yayınlayan bütün kayıtlarda aynıdır.
@@ -179,15 +196,50 @@ export function createMiniAppAdminService({ config, db }: AppContext) {
     return rows.map((row) => toSummary(row, merchants));
   }
 
-  function list(query?: string): Promise<AdminMiniAppSummary[]> {
-    if (query === undefined || query === "") return summaries(sql`true`);
-    const pattern = containsPattern(query);
-    return summaries(sql`(a.id like ${pattern} or a.name ilike ${pattern})`);
+  /** Kapsamlı hesapta kayıtların yalnızca o işletmeye ait satıcıları kalır. */
+  function scoped(summary: AdminMiniAppSummary, scope: AdminScope): AdminMiniAppSummary {
+    if (scope === null) return summary;
+    return {
+      ...summary,
+      merchants: summary.merchants.filter((merchant) => merchant.businessId === scope),
+    };
   }
 
-  async function get(miniAppId: string): Promise<AdminMiniApp> {
-    const [summary] = await summaries(sql`a.id = ${miniAppId}`);
-    if (summary === undefined) throw new AppError("miniapp_not_found");
+  async function list(query?: string, scope: AdminScope = null): Promise<AdminMiniAppSummary[]> {
+    const search =
+      query === undefined || query === ""
+        ? sql`true`
+        : sql`(a.id like ${containsPattern(query)} or a.name ilike ${containsPattern(query)})`;
+    const items = await summaries(sql`${search} and ${scopeFilter(scope)}`);
+    return items.map((item) => scoped(item, scope));
+  }
+
+  /** Kapsamlı hesabın işlem yapmak istediği kayıt kapsamında değilse "bulunamadı" der. */
+  async function requireInScope(tx: Database, miniAppId: string, scope: AdminScope) {
+    if (scope === null) return;
+    const found = await tx.maybeOne(
+      sql`select 1 from mini_apps a where a.id = ${miniAppId} and ${scopeFilter(scope)}`,
+    );
+    if (found === null) throw new AppError("miniapp_not_found");
+  }
+
+  /** Kapsamlı hesapta yayın geçmişinde yalnızca o işletmenin hesaplarının adı görünür. */
+  async function scopedActors(
+    scope: AdminScope,
+    actorOf: (actor: string) => Actor,
+  ): Promise<(actor: string) => Actor> {
+    if (scope === null) return actorOf;
+    const own = await db.many<{ id: string }>(
+      sql`select id::text as id from admin_accounts where business_id = ${scope}`,
+    );
+    const ids = new Set(own.map((row) => row.id));
+    return (actor) => (ids.has(actor) ? actorOf(actor) : TEAM_ACTOR);
+  }
+
+  async function get(miniAppId: string, scope: AdminScope = null): Promise<AdminMiniApp> {
+    const [found] = await summaries(sql`a.id = ${miniAppId} and ${scopeFilter(scope)}`);
+    if (found === undefined) throw new AppError("miniapp_not_found");
+    const summary = scoped(found, scope);
     const releases = await db.many<ReleaseRow>(sql`
       select seq, package_id, version, action, config, actor, created_at
       from mini_app_releases
@@ -195,9 +247,12 @@ export function createMiniAppAdminService({ config, db }: AppContext) {
       order by seq desc
       limit ${RELEASES_SHOWN}
     `);
-    const actorOf = await resolveActors(
-      db,
-      releases.map((release) => release.actor),
+    const actorOf = await scopedActors(
+      scope,
+      await resolveActors(
+        db,
+        releases.map((release) => release.actor),
+      ),
     );
     return { ...summary, releases: releases.map((release) => toRelease(release, actorOf)) };
   }
@@ -428,9 +483,11 @@ export function createMiniAppAdminService({ config, db }: AppContext) {
     actor: string,
     miniAppId: string,
     input: Record<string, unknown>,
+    scope: AdminScope = null,
   ): Promise<AdminMiniApp> {
     await db.transaction(async (tx) => {
       const app = await lockApp(tx, miniAppId);
+      await requireInScope(tx, miniAppId, scope);
 
       if (app.package_id === null || app.package_version === null) {
         // Yayınlanmış bir sürüm yokken doğrulanacak alan da yoktur: adresle açılan geliştirme
@@ -461,7 +518,7 @@ export function createMiniAppAdminService({ config, db }: AppContext) {
         targetId: miniAppId,
       });
     });
-    return get(miniAppId);
+    return get(miniAppId, scope);
   }
 
   /**

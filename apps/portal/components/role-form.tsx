@@ -1,6 +1,6 @@
 "use client";
 
-import { ADMIN_ROLE_LABELS, ADMIN_ROLES, type AdminRole } from "@vado/contracts";
+import { ADMIN_ROLE_LABELS, ADMIN_ROLES, type AdminRole, isScopedRole } from "@vado/contracts";
 import { useActionState } from "react";
 
 import { changeRole } from "@/lib/actions";
@@ -11,7 +11,10 @@ import { SubmitButton } from "./submit-button";
 
 const INITIAL_STATE: FormState<unknown> = { error: null, saved: false, values: null };
 
-/** Hesabın rolünü değiştirir; hesabın açık oturumları kapanır. */
+/**
+ * Hesabın rolünü değiştirir; hesabın açık oturumları kapanır. İşletme rolü burada seçilemez:
+ * işletme hesabı açılırken işletmesiyle birlikte belirlenir ve sonradan değişmez.
+ */
 export function RoleForm({ accountId, role }: { accountId: string; role: AdminRole }) {
   const [state, formAction] = useActionState(changeRole.bind(null, accountId), INITIAL_STATE);
 
@@ -21,7 +24,7 @@ export function RoleForm({ accountId, role }: { accountId: string; role: AdminRo
         Rol
       </label>
       <select id={`role-${accountId}`} name="role" defaultValue={role}>
-        {ADMIN_ROLES.map((option) => (
+        {ADMIN_ROLES.filter((option) => !isScopedRole(option)).map((option) => (
           <option key={option} value={option}>
             {ADMIN_ROLE_LABELS[option]}
           </option>

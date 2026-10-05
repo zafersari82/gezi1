@@ -101,6 +101,8 @@ export interface AccountFormValues {
   username: string;
   displayName: string;
   role: string;
+  /** Yalnızca işletme rolünde: hesabın bağlı olacağı işletme. */
+  businessId: string;
   /** Hesap açıldığında bir kez gösterilen geçici parola. */
   temporaryPassword: string | null;
 }
@@ -109,6 +111,7 @@ export const EMPTY_ACCOUNT: AccountFormValues = {
   username: "",
   displayName: "",
   role: "operator",
+  businessId: "",
   temporaryPassword: null,
 };
 

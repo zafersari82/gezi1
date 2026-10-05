@@ -24,16 +24,17 @@ export function miniAppAdminRoutes(
 ): void {
   const { miniAppAdmin, qr } = services;
 
+  // Okuma, ayar ve QR uçları kapsamı uygular: işletme hesabı yalnızca kendi kayıtlarını görür.
   server.get("/v1/admin/miniapps", adminAccess("miniapps.read"), async (request) => {
-    await adminGuard(request);
+    const { businessId } = await adminGuard(request);
     const { q } = parse(adminSearchQuerySchema, request.query);
-    return { items: await miniAppAdmin.list(q) };
+    return { items: await miniAppAdmin.list(q, businessId) };
   });
 
   server.get("/v1/admin/miniapps/:id", adminAccess("miniapps.read"), async (request) => {
-    await adminGuard(request);
+    const { businessId } = await adminGuard(request);
     const { id } = parse(miniAppParamsSchema, request.params);
-    return miniAppAdmin.get(id);
+    return miniAppAdmin.get(id, businessId);
   });
 
   server.put("/v1/admin/miniapps/:id", adminAccess("miniapps.manage"), async (request) => {
@@ -85,19 +86,23 @@ export function miniAppAdminRoutes(
     },
   );
 
-  server.put("/v1/admin/miniapps/:id/config", adminAccess("miniapps.manage"), async (request) => {
-    const { actor } = await adminGuard(request);
-    const { id } = parse(miniAppParamsSchema, request.params);
-    const body = parse(adminSaveMiniAppConfigBodySchema, request.body);
-    return miniAppAdmin.saveConfig(actor, id, body.config);
-  });
+  server.put(
+    "/v1/admin/miniapps/:id/config",
+    adminAccess("miniapps.configure"),
+    async (request) => {
+      const { actor, businessId } = await adminGuard(request);
+      const { id } = parse(miniAppParamsSchema, request.params);
+      const body = parse(adminSaveMiniAppConfigBodySchema, request.body);
+      return miniAppAdmin.saveConfig(actor, id, body.config, businessId);
+    },
+  );
 
   // Parametreli kod (masa, şube): parametreler imzanın içindedir, mini uygulama onlara güvenebilir.
-  server.post("/v1/admin/miniapps/:id/qr", adminAccess("miniapps.manage"), async (request) => {
-    const { actor } = await adminGuard(request);
+  server.post("/v1/admin/miniapps/:id/qr", adminAccess("miniapps.configure"), async (request) => {
+    const { actor, businessId } = await adminGuard(request);
     const { id } = parse(miniAppParamsSchema, request.params);
     const body = parse(adminIssueMiniAppQrBodySchema, request.body);
-    return qr.issueMiniAppQr(actor, id, body.params);
+    return qr.issueMiniAppQr(actor, id, body.params, businessId);
   });
 
   server.put(

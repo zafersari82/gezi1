@@ -10,13 +10,14 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { SearchForm } from "@/components/search-form";
 import { Tag } from "@/components/tag";
-import { adminGet } from "@/lib/api";
+import { adminGet, getMe } from "@/lib/api";
 import { formatDate, miniAppStatus } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Mini uygulamalar" };
 
 export default async function MiniAppsPage({ searchParams }: PageProps<"/miniapps">) {
   const { q = "" } = adminSearchQuerySchema.parse(await searchParams);
+  const me = await getMe();
   const { items: miniApps } = await adminGet(
     listOf(adminMiniAppSummarySchema),
     `/v1/admin/miniapps?q=${encodeURIComponent(q)}`,
@@ -30,9 +31,11 @@ export default async function MiniAppsPage({ searchParams }: PageProps<"/miniapp
       >
         <div className="header-actions">
           <SearchForm label="Ad ya da kimlik" query={q} />
-          <Link href="/miniapps/new" className="button button-primary">
-            Yeni kayıt
-          </Link>
+          {me.permissions.includes("miniapps.manage") && (
+            <Link href="/miniapps/new" className="button button-primary">
+              Yeni kayıt
+            </Link>
+          )}
         </div>
       </PageHeader>
 

@@ -83,6 +83,7 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   admin_password_reused: 400,
   admin_totp_already_enabled: 409,
   admin_username_taken: 409,
+  admin_scope_change_forbidden: 409,
   admin_account_not_found: 404,
   admin_last_owner: 409,
   report_not_found: 404,

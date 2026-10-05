@@ -6,13 +6,20 @@ import { idSchema, timestampSchema } from "./common";
  * Yönetim panelinin hesapları, rolleri ve izinleri.
  *
  * Yetki iki ayrı sorudur: hesabın rolü hangi işleri yapabilir (izin) ve bu işleri hangi kayıtlar
- * üzerinde yapabilir (kapsam). Bu sürümde bütün hesaplar bütün kayıtlar üzerinde çalışır; işletme
- * sahiplerinin yalnızca kendi kaydını yöneteceği hesaplar ileride kapsamla eklenecektir. İzin
- * listesi ve rol-izin tablosu tek yerde, burada durur: API her uçta bu tabloya bakar, panel menüyü
- * bu tabloya göre çizer.
+ * üzerinde yapabilir (kapsam). VADO ekibinin hesapları bütün kayıtlar üzerinde çalışır. İşletme
+ * hesabı (2.5) bir işletmeye bağlıdır ve yalnızca o işletmenin satıcı olarak bağlı olduğu uygulama
+ * kayıtlarını görür. İzin listesi ve rol-izin tablosu tek yerde, burada durur: API her uçta bu
+ * tabloya bakar, panel menüyü bu tabloya göre çizer.
  */
 
-export const ADMIN_ROLES = ["owner", "reviewer", "operator", "support", "auditor"] as const;
+export const ADMIN_ROLES = [
+  "owner",
+  "reviewer",
+  "operator",
+  "support",
+  "auditor",
+  "business",
+] as const;
 export const adminRoleSchema = z.enum(ADMIN_ROLES);
 export type AdminRole = z.infer<typeof adminRoleSchema>;
 
@@ -22,6 +29,7 @@ export const ADMIN_ROLE_LABELS: Record<AdminRole, string> = {
   operator: "Operatör",
   support: "Destek",
   auditor: "Denetçi",
+  business: "İşletme",
 };
 
 /** Rolün panelde, hesap oluşturulurken gösterilen kısa açıklaması. */
@@ -31,6 +39,8 @@ export const ADMIN_ROLE_DESCRIPTIONS: Record<AdminRole, string> = {
   operator: "Paket yükler, uygulama kayıtlarını yönetir ve yayınlar, işletmeleri onaylar.",
   support: "Kullanıcıları askıya alır, şikayetleri sonuçlandırır.",
   auditor: "Her şeyi okur, hiçbir şeyi değiştiremez.",
+  business:
+    "Bir işletmenin hesabı: yalnızca kendi mini uygulamalarını görür, ayarlarını değiştirir ve QR kodu üretir.",
 };
 
 export const ADMIN_PERMISSIONS = [
@@ -48,6 +58,8 @@ export const ADMIN_PERMISSIONS = [
   "packages.rollout",
   "miniapps.read",
   "miniapps.manage",
+  /** Uygulama kaydının işletme ayarlarını değiştirmek ve QR kodu üretmek (2.5). */
+  "miniapps.configure",
   "miniapps.publish",
   /** Acil kapatma: uygulama kaydını kapatmak ya da onaylı sürümü geri çekmek. */
   "emergency.disable",
@@ -80,6 +92,7 @@ export const ADMIN_ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[
     "packages.rollout",
     "miniapps.read",
     "miniapps.manage",
+    "miniapps.configure",
     "miniapps.publish",
     "emergency.disable",
   ],
@@ -93,7 +106,25 @@ export const ADMIN_ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[
     "miniapps.read",
   ],
   auditor: READ_ALL,
+  business: ["miniapps.read", "miniapps.configure"],
 };
+
+/** Bir işletmeye bağlı, kapsamlı roller. Bu rollerin hesapları bir işletme olmadan açılamaz. */
+export const SCOPED_ROLES: readonly AdminRole[] = ["business"];
+
+/**
+ * Uçları kapsamı uygulayan izinler: bu izinleri isteyen uçlar, kapsamlı hesaba yalnızca kendi
+ * işletmesinin kayıtlarını gösterir. Kapsamlı bir hesap bu listede olmayan bir izni isteyen uca
+ * erişemez; rol tablosu yanlışlıkla genişletilse bile API reddeder.
+ */
+export const SCOPED_PERMISSIONS: readonly AdminPermission[] = [
+  "miniapps.read",
+  "miniapps.configure",
+];
+
+export function isScopedRole(role: AdminRole): boolean {
+  return SCOPED_ROLES.includes(role);
+}
 
 /**
  * Hesap olmayan işlem yapanlar ve panelde görünen adları. `admin`, 2.4'ten önceki ortak panel
@@ -158,6 +189,8 @@ export const adminAccountSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   role: adminRoleSchema,
+  /** Kapsamlı hesabın bağlı olduğu işletme; VADO ekibinin hesaplarında boştur. */
+  business: z.object({ id: idSchema, name: z.string() }).nullable(),
   status: adminAccountStatusSchema,
   /** İki adımlı doğrulama kurulmuş mu? Kurulmamışsa bir sonraki girişte kurulur. */
   totpEnabled: z.boolean(),
@@ -252,11 +285,18 @@ export type AdminRecoveryCodes = z.infer<typeof adminRecoveryCodesSchema>;
 
 export const adminDisplayNameSchema = z.string().trim().min(2).max(60);
 
-export const adminCreateAccountBodySchema = z.object({
-  username: adminUsernameSchema,
-  displayName: adminDisplayNameSchema,
-  role: adminRoleSchema,
-});
+export const adminCreateAccountBodySchema = z
+  .object({
+    username: adminUsernameSchema,
+    displayName: adminDisplayNameSchema,
+    role: adminRoleSchema,
+    /** Kapsamlı rollerde zorunlu, diğerlerinde yazılmaz. */
+    businessId: idSchema.optional(),
+  })
+  .refine((body) => isScopedRole(body.role) === (body.businessId !== undefined), {
+    error: "İşletme hesabı bir işletmeye bağlanmalı; diğer roller bağlanmaz.",
+    path: ["businessId"],
+  });
 export type AdminCreateAccountBody = z.infer<typeof adminCreateAccountBodySchema>;
 
 export const adminUpdateAccountBodySchema = z

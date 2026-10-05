@@ -30,6 +30,7 @@ import { createServices } from "../services";
  */
 const USAGE = `Kullanım:
   npm run admins -- create --username <ad> --name "<görünen ad>" --role <rol>
+                          [--business <işletme kimliği>]   (business rolünde zorunlu)
   npm run admins -- list
   npm run admins -- reset-password --username <ad>
   npm run admins -- reset-2fa --username <ad>
@@ -39,7 +40,8 @@ Canlı ortamda: node dist/cli/admins.js <komut> …`;
 
 function printTemporaryPassword({ account, temporaryPassword }: AdminTemporaryPassword): void {
   console.log(
-    `Hesap: ${account.username} (${account.displayName}, ${ADMIN_ROLE_LABELS[account.role]})`,
+    `Hesap: ${account.username} (${account.displayName}, ${ADMIN_ROLE_LABELS[account.role]}` +
+      `${account.business === null ? "" : `: ${account.business.name}`})`,
   );
   console.log(`Geçici parola: ${temporaryPassword}`);
   console.log(
@@ -55,6 +57,7 @@ async function main(): Promise<void> {
       username: { type: "string" },
       name: { type: "string" },
       role: { type: "string" },
+      business: { type: "string" },
     },
   });
   const [command] = positionals;
@@ -92,7 +95,12 @@ async function main(): Promise<void> {
     switch (command) {
       case "create": {
         const body = adminCreateAccountBodySchema.safeParse(
-          { username: values.username, displayName: values.name, role: values.role },
+          {
+            username: values.username,
+            displayName: values.name,
+            role: values.role,
+            businessId: values.business,
+          },
           { error: turkishErrors },
         );
         if (!body.success) {
@@ -109,6 +117,7 @@ async function main(): Promise<void> {
         if (accounts.length === 0) console.log("Henüz panel hesabı yok.");
         for (const item of accounts) {
           const notes = [
+            item.business === null ? null : `işletme: ${item.business.name}`,
             item.status === "disabled" ? "kapalı" : null,
             item.totpEnabled ? null : "ikinci adım kurulmadı",
             item.lockedUntil === null ? null : `kilitli: ${item.lockedUntil}`,

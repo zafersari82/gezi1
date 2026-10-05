@@ -5,7 +5,9 @@ import {
   adminPackageSchema,
   type AdminPackageVersion,
   adminPackageVersionSchema,
+  type AdminPermission,
   CAPABILITY_LABELS,
+  type ConfigValues,
   listOf,
   MINI_APP_RELEASE_ACTION_LABELS,
   miniAppIdSchema,
@@ -58,6 +60,22 @@ const OFFLINE_NOTICES: Record<NonNullable<AdminMiniApp["offlineReason"]>, string
     "Bu kayıt geliştiricinin sunucusundan açılıyor ve bu ortamda çalışmaz. Aşağıdan onaylı bir paket sürümü yayınlandığında, aynı kimlikle ve kullanıcı kimlikleri korunarak açılır.",
 };
 
+/** Ayarları değiştiremeyen hesaba kaydın ayarları okunur biçimde gösterilir. */
+function ConfigFacts({ config }: { config: ConfigValues }) {
+  const entries = Object.entries(config);
+  if (entries.length === 0) return <p className="empty">Bu kayıtta ayar yok.</p>;
+  return (
+    <dl className="facts">
+      {entries.map(([key, value]) => (
+        <div key={key}>
+          <dt className="mono">{key}</dt>
+          <dd>{String(value)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 async function loadMiniApp(id: string): Promise<AdminMiniApp> {
   if (!miniAppIdSchema.safeParse(id).success) notFound();
   try {
@@ -103,19 +121,33 @@ function toFormValues(miniApp: AdminMiniApp): MiniAppFormValues {
 export default async function MiniAppPage({ params, searchParams }: PageProps<"/miniapps/[id]">) {
   const { id } = await params;
   const query = querySchema.parse(await searchParams);
-  const [miniApp, businesses, packages, candidate, me] = await Promise.all([
+  const me = await getMe();
+  // Düğmeyi gizlemek yetki değildir: her işlemi API ayrıca denetler. Burada yalnızca hesabın
+  // yapamayacağı işlem gösterilmez ve okuyamayacağı veri istenmez.
+  const can = (permission: AdminPermission) => me.permissions.includes(permission);
+  const canManage = can("miniapps.manage");
+  const canPublish = can("miniapps.publish");
+  const canConfigure = can("miniapps.configure");
+  const [miniApp, businesses, packages, candidate] = await Promise.all([
     loadMiniApp(id),
-    adminGet(listOf(adminBusinessSchema), "/v1/admin/businesses"),
-    adminGet(listOf(adminPackageSchema), "/v1/admin/packages"),
-    loadCandidate(query.package, query.version),
-    getMe(),
+    can("businesses.read")
+      ? adminGet(listOf(adminBusinessSchema), "/v1/admin/businesses").then(({ items }) => items)
+      : [],
+    canPublish
+      ? adminGet(listOf(adminPackageSchema), "/v1/admin/packages").then(({ items }) => items)
+      : [],
+    canPublish ? loadCandidate(query.package, query.version) : null,
   ]);
-  const activeBusinesses = businesses.items.filter((business) => business.status === "active");
-  const businessNames = new Map(businesses.items.map((business) => [business.id, business.name]));
+  const activeBusinesses = businesses.filter((business) => business.status === "active");
+  const businessNames = new Map(businesses.map((business) => [business.id, business.name]));
+  // İşletme hesabı işletmeler listesini okuyamaz; kendi satıcılarının işletmesi kendisidir.
+  if (me.account.business !== null) {
+    businessNames.set(me.account.business.id, me.account.business.name);
+  }
   const { release } = miniApp;
 
   // Bir kayıt ilk yayınından sonra başka bir pakete geçirilemez; seçenekler buna göre daralır.
-  const publishable = packages.items
+  const publishable = packages
     .filter((item) => release === null || item.id === release.packageId)
     .flatMap((item) =>
       item.versions
@@ -130,35 +162,37 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
         Mini uygulamalar
       </Link>
       <PageHeader title={miniApp.name}>
-        <div className="header-actions">
-          {miniApp.verified ? (
-            <form action={updateMiniApp.bind(null, miniApp.id, { verified: false })}>
-              <SubmitButton
-                confirm={`${miniApp.name} kaydının doğrulaması kaldırılsın mı? Kullanıcılara kapanır.`}
-              >
-                Doğrulamayı kaldır
-              </SubmitButton>
-            </form>
-          ) : (
-            <form action={updateMiniApp.bind(null, miniApp.id, { verified: true })}>
-              <SubmitButton variant="primary">Kaydı doğrula</SubmitButton>
-            </form>
-          )}
-          {miniApp.enabled ? (
-            <form action={updateMiniApp.bind(null, miniApp.id, { enabled: false })}>
-              <SubmitButton
-                variant="danger"
-                confirm={`${miniApp.name} kullanıma kapatılsın mı? Hemen kapanır; QR kodları da çalışmaz.`}
-              >
-                Kullanıma kapat
-              </SubmitButton>
-            </form>
-          ) : (
-            <form action={updateMiniApp.bind(null, miniApp.id, { enabled: true })}>
-              <SubmitButton>Kullanıma aç</SubmitButton>
-            </form>
-          )}
-        </div>
+        {canManage && (
+          <div className="header-actions">
+            {miniApp.verified ? (
+              <form action={updateMiniApp.bind(null, miniApp.id, { verified: false })}>
+                <SubmitButton
+                  confirm={`${miniApp.name} kaydının doğrulaması kaldırılsın mı? Kullanıcılara kapanır.`}
+                >
+                  Doğrulamayı kaldır
+                </SubmitButton>
+              </form>
+            ) : (
+              <form action={updateMiniApp.bind(null, miniApp.id, { verified: true })}>
+                <SubmitButton variant="primary">Kaydı doğrula</SubmitButton>
+              </form>
+            )}
+            {miniApp.enabled ? (
+              <form action={updateMiniApp.bind(null, miniApp.id, { enabled: false })}>
+                <SubmitButton
+                  variant="danger"
+                  confirm={`${miniApp.name} kullanıma kapatılsın mı? Hemen kapanır; QR kodları da çalışmaz.`}
+                >
+                  Kullanıma kapat
+                </SubmitButton>
+              </form>
+            ) : (
+              <form action={updateMiniApp.bind(null, miniApp.id, { enabled: true })}>
+                <SubmitButton>Kullanıma aç</SubmitButton>
+              </form>
+            )}
+          </div>
+        )}
       </PageHeader>
 
       <p className="status-line">
@@ -183,9 +217,15 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
               <div>
                 <dt>Yayındaki sürüm</dt>
                 <dd>
-                  <Link href={`/packages/${release.packageId}/${release.version}`}>
-                    {release.packageName} <span className="mono">{release.version}</span>
-                  </Link>{" "}
+                  {can("packages.read") ? (
+                    <Link href={`/packages/${release.packageId}/${release.version}`}>
+                      {release.packageName} <span className="mono">{release.version}</span>
+                    </Link>
+                  ) : (
+                    <span>
+                      {release.packageName} <span className="mono">{release.version}</span>
+                    </span>
+                  )}{" "}
                   <Tag {...packageStatus(release.status)} />
                   <span className="note mono">özet {shortDigest(release.digest)}</span>
                 </dd>
@@ -270,7 +310,7 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
               </table>
             </div>
           )}
-          {candidate === null && publishable.length === 0 && (
+          {canPublish && candidate === null && publishable.length === 0 && (
             <p className="pager muted">
               Yayınlanabilecek başka bir onaylı sürüm yok. Sürümler{" "}
               <Link href="/packages">Paketler</Link> bölümünden yüklenir ve onaylanır.
@@ -282,7 +322,9 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
       <section aria-labelledby="config-title">
         <h2 id="config-title">İşletme ayarları</h2>
         <div className="panel">
-          {release !== null ? (
+          {!canConfigure ? (
+            <ConfigFacts config={miniApp.config} />
+          ) : release !== null ? (
             <ConfigForm
               action={saveConfig.bind(null, miniApp.id)}
               fields={release.configFields}
@@ -329,28 +371,32 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
                 </tbody>
               </table>
             </div>
-            <div className="pager">
-              <ActionForm
-                action={rollbackMiniApp.bind(null, miniApp.id)}
-                label="Son yayını geri al"
-                confirm={`${miniApp.name} bir önceki yayınına döndürülsün mü?`}
-                saved="Önceki yayına dönüldü."
-              />
-            </div>
+            {canPublish && (
+              <div className="pager">
+                <ActionForm
+                  action={rollbackMiniApp.bind(null, miniApp.id)}
+                  label="Son yayını geri al"
+                  confirm={`${miniApp.name} bir önceki yayınına döndürülsün mü?`}
+                  saved="Önceki yayına dönüldü."
+                />
+              </div>
+            )}
           </div>
         </section>
       )}
 
-      <section aria-labelledby="record-title">
-        <h2 id="record-title">Vitrin</h2>
-        <MiniAppForm
-          mode="edit"
-          kind={miniApp.source === "url" ? "development" : "showcase"}
-          initial={toFormValues(miniApp)}
-        />
-      </section>
+      {canManage && (
+        <section aria-labelledby="record-title">
+          <h2 id="record-title">Vitrin</h2>
+          <MiniAppForm
+            mode="edit"
+            kind={miniApp.source === "url" ? "development" : "showcase"}
+            initial={toFormValues(miniApp)}
+          />
+        </section>
+      )}
 
-      {me.permissions.includes("miniapps.manage") && (
+      {canConfigure && (
         <section aria-labelledby="qr-title">
           <h2 id="qr-title">QR kodu</h2>
           <div className="panel">
@@ -403,18 +449,20 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
                         )}
                       </td>
                       <td className="actions">
-                        <form
-                          action={setMerchantActive.bind(
-                            null,
-                            miniApp.id,
-                            merchant,
-                            !merchant.active,
-                          )}
-                        >
-                          <SubmitButton variant={merchant.active ? "danger" : "default"}>
-                            {merchant.active ? "Ödemeyi durdur" : "Ödemeyi aç"}
-                          </SubmitButton>
-                        </form>
+                        {canManage && (
+                          <form
+                            action={setMerchantActive.bind(
+                              null,
+                              miniApp.id,
+                              merchant,
+                              !merchant.active,
+                            )}
+                          >
+                            <SubmitButton variant={merchant.active ? "danger" : "default"}>
+                              {merchant.active ? "Ödemeyi durdur" : "Ödemeyi aç"}
+                            </SubmitButton>
+                          </form>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -422,13 +470,15 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
               </table>
             </div>
           )}
-          <MerchantForm
-            miniAppId={miniApp.id}
-            businesses={activeBusinesses.map(({ id: businessId, name }) => ({
-              id: businessId,
-              name,
-            }))}
-          />
+          {canManage && (
+            <MerchantForm
+              miniAppId={miniApp.id}
+              businesses={activeBusinesses.map(({ id: businessId, name }) => ({
+                id: businessId,
+                name,
+              }))}
+            />
+          )}
         </div>
       </section>
     </>

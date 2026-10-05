@@ -10,6 +10,7 @@ import {
   type ApiErrorBody,
   apiErrorBodySchema,
   type ErrorCode,
+  isScopedRole,
 } from "@vado/contracts";
 import { expect, inject } from "vitest";
 import type { z } from "zod";
@@ -43,6 +44,8 @@ export interface TestApp extends App {
   logs: LogEntry[];
   /** Her rolden, oturumu açık birer panel hesabı (bkz. `asAdmin`). */
   admins: Record<AdminRole, TestAdmin>;
+  /** `admins.business` hesabının bağlı olduğu işletme. */
+  adminBusinessId: string;
   stop: () => Promise<void>;
 }
 
@@ -125,8 +128,13 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
     log: { info: record("info"), warn: record("warn"), error: record("error") },
   });
 
+  const adminBusinessId = await createBusiness(db, "Sınama İşletmesi");
   const admins = {} as Record<AdminRole, TestAdmin>;
-  for (const role of ADMIN_ROLES) admins[role] = await createAdmin(db, role);
+  for (const role of ADMIN_ROLES) {
+    admins[role] = await createAdmin(db, role, {
+      businessId: isScopedRole(role) ? adminBusinessId : null,
+    });
+  }
 
   return {
     ...app,
@@ -135,6 +143,7 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
     sentSms,
     logs,
     admins,
+    adminBusinessId,
     async stop() {
       await app.close();
       await db.close();
@@ -159,18 +168,18 @@ export function randomPhone(): string {
 export async function createAdmin(
   db: DatabasePool,
   role: AdminRole,
-  options: { mustChangePassword?: boolean } = {},
+  options: { mustChangePassword?: boolean; businessId?: string | null } = {},
 ): Promise<TestAdmin> {
   const username = `${role}-${randomInt(0, 1_000_000_000)}`;
   const token = randomToken();
   const account = await db.one<{ id: string }>(sql`
     insert into admin_accounts (
-      username, display_name, role, password_hash, must_change_password, totp_secret,
-      totp_enabled_at
+      username, display_name, role, business_id, password_hash, must_change_password,
+      totp_secret, totp_enabled_at
     )
     values (
-      ${username}, ${`Sınama ${role}`}, ${role}, 'parolasiz', ${options.mustChangePassword ?? false},
-      'JBSWY3DPEHPK3PXP', now()
+      ${username}, ${`Sınama ${role}`}, ${role}, ${options.businessId ?? null}, 'parolasiz',
+      ${options.mustChangePassword ?? false}, 'JBSWY3DPEHPK3PXP', now()
     )
     returning id
   `);
@@ -180,6 +189,24 @@ export async function createAdmin(
     returning id
   `);
   return { id: account.id, username, token, sessionId: session.id };
+}
+
+/** Sahibiyle birlikte, yayında bir işletme oluşturur ve kimliğini döndürür. */
+export async function createBusiness(db: DatabasePool, name: string): Promise<string> {
+  const owner = await db.one<{ id: string }>(sql`
+    insert into users (phone, display_name, terms_version, terms_accepted_at)
+    values (${randomPhone()}, ${`${name} sahibi`}, 'test', now())
+    returning id
+  `);
+  const business = await db.one<{ id: string }>(sql`
+    insert into businesses (owner_id, name, slug, category, city, verified, status)
+    values (
+      ${owner.id}, ${name}, ${`isletme-${randomToken().slice(0, 12).toLowerCase()}`}, 'food',
+      'İstanbul', true, 'active'
+    )
+    returning id
+  `);
+  return business.id;
 }
 
 /** SMS doğrulamasına girmeden, adı ve az önce açılmış oturumu olan bir kullanıcı oluşturur. */

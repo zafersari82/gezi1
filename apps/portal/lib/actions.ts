@@ -322,10 +322,19 @@ export async function createAccount(
     username: text(formData, "username"),
     displayName: text(formData, "displayName"),
     role: text(formData, "role"),
+    businessId: text(formData, "businessId"),
     temporaryPassword: null,
   };
   const failed = (error: string) => ({ error, saved: false, values });
-  const body = adminCreateAccountBodySchema.safeParse(values);
+  // İşletme seçimi yalnızca işletme rolünde gönderilir; diğer rollerde formda kalmış seçim yok sayılır.
+  const scoped = values.role === "business";
+  if (scoped && values.businessId === "") return failed("İşletme hesabı için işletmeyi seç.");
+  const body = adminCreateAccountBodySchema.safeParse({
+    username: values.username,
+    displayName: values.displayName,
+    role: values.role,
+    ...(scoped ? { businessId: values.businessId } : {}),
+  });
   if (!body.success) return failed(describeIssues(body.error));
   try {
     const created = await adminCall(

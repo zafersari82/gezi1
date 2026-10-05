@@ -105,6 +105,8 @@ export const ERROR_MESSAGES = {
   admin_username_taken: "Bu kullanıcı adı başka bir hesapta kullanılıyor.",
   admin_account_not_found: "Yönetici hesabı bulunamadı.",
   admin_last_owner: "En az bir etkin sahip hesabı kalmalı.",
+  admin_scope_change_forbidden:
+    "İşletme hesabının rolü değiştirilemez, bir hesap da işletme hesabına çevrilemez. Hesabı kapatıp yenisini aç.",
   report_not_found: "Şikayet bulunamadı.",
 } as const;
 

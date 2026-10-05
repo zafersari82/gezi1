@@ -1,8 +1,9 @@
 import type { Route } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
-import { getOverview } from "@/lib/api";
+import { getMe, getOverview } from "@/lib/api";
 import { formatBytes, formatNumber } from "@/lib/format";
 
 interface QueueItem {
@@ -15,6 +16,10 @@ interface QueueItem {
 const SECONDS_PER_MINUTE = 60;
 
 export default async function OverviewPage() {
+  // Genel bakış bütün kayıtların sayılarını gösterir; işletme hesabı doğrudan kendi mini
+  // uygulamalarına gider.
+  const me = await getMe();
+  if (!me.permissions.includes("overview.read")) redirect("/miniapps");
   const overview = await getOverview();
   const { config } = overview;
 

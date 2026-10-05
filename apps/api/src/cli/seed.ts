@@ -30,7 +30,8 @@ import { createServices } from "../services";
  *
  * Panel için üç örnek yönetici açılır (sahip, inceleyen, operatör); parolaları aşağıda,
  * ikinci adımları kuruludur ve demo modunda ikinci adımda 000000 kodu geçer. Örnek paketi
- * operatör yükler, inceleyen onaylar: yükleyen kendi yüklediğini onaylayamaz.
+ * operatör yükler, inceleyen onaylar: yükleyen kendi yüklediğini onaylayamaz. Kadıköy Berber için
+ * bir de işletme hesabı (`isletme`) açılır: yalnızca o işletmenin kaydını görür.
  *
  * Örnek mini uygulama (Randevu) derlenmiş klasöründen paketlenir, yüklenir, onaylanır ve iki
  * işletmenin uygulama kaydında ayrı ayarlarla yayınlanır: aynı paket, iki ayrı vitrin. Üçüncü bir
@@ -121,6 +122,29 @@ async function ensureAdmins(db: Database): Promise<Record<AdminKey, string>> {
     ids[admin.key] = row.id;
   }
   return ids;
+}
+
+/** Örnek işletme hesabı: Kadıköy Berber'in sahibi, yalnızca kendi kaydını görür. */
+const BUSINESS_ADMIN = { username: "isletme", name: "Mehmet Demir" } as const;
+
+/** İşletme hesabını açar (varsa dokunmaz). İşletme henüz yoksa açılmaz. */
+async function ensureBusinessAdmin(db: Database): Promise<boolean> {
+  const business = await db.maybeOne<{ id: string }>(sql`
+    select id from businesses where slug = ${MERCHANT_ID}
+  `);
+  if (business === null) return false;
+  await db.execute(sql`
+    insert into admin_accounts (
+      username, display_name, role, business_id, password_hash, must_change_password,
+      totp_secret, totp_enabled_at
+    )
+    values (
+      ${BUSINESS_ADMIN.username}, ${BUSINESS_ADMIN.name}, 'business', ${business.id},
+      ${await hashPassword(ADMIN_DEMO_PASSWORD)}, false, ${generateTotpSecret()}, now()
+    )
+    on conflict (username) do nothing
+  `);
+  return true;
 }
 
 async function createPeople(db: Database): Promise<Record<PersonKey, string>> {
@@ -382,6 +406,12 @@ async function main(): Promise<void> {
       console.log("Örnek kullanıcılar ve içerik yüklendi.");
     } else {
       console.log("Örnek kullanıcılar zaten yüklü; içerik değiştirilmedi.");
+    }
+
+    if (await ensureBusinessAdmin(db)) {
+      console.log(
+        `Örnek işletme hesabı: ${BUSINESS_ADMIN.username} (Kadıköy Berber), aynı parola ve kod.`,
+      );
     }
 
     const version = await seedPackagedMiniApps(context, admins, directory);
