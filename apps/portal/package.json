@@ -1,0 +1,27 @@
+{
+  "name": "@vado/portal",
+  "version": "2.3.1",
+  "private": true,
+  "description": "VADO Control: işletme, mini uygulama, şikayet ve kullanıcı yönetim paneli",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typegen": "next typegen",
+    "typecheck": "npm run typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@vado/contracts": "*",
+    "next": "16.3.8",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "~19.2.2"
+  }
+}

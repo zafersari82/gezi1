@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "VADO",
+    "slug": "vado",
+    "scheme": "vado",
+    "version": "2.3.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.vado.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.vado.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#155E63"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1B6F72",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "VADO, QR kodlarını okutabilmen için kamerayı kullanır.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "VADO, seçtiğin fotoğrafları sohbetlerde ve Anlar'da paylaşabilmen için galerine erişir.",
+          "cameraPermission": "VADO, fotoğraf çekip paylaşabilmen için kamerayı kullanır.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "VADO, konumunu yalnızca izin verdiğin mini uygulamalarla paylaşır."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "VADO, ödeme ve hesap işlemlerinde kimliğini doğrulamak için Face ID kullanır."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

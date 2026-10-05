@@ -1,0 +1,38 @@
+{
+  "name": "@vado/api",
+  "version": "2.3.1",
+  "private": true,
+  "description": "VADO API: REST uç noktaları ve gerçek zamanlı bildirim katmanı",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts",
+    "keys": "tsx src/cli/keys.ts",
+    "pack": "tsx src/cli/pack.ts",
+    "packages": "tsx src/cli/packages.ts",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/multipart": "^10.1.2",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.5",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "@vado/contracts": "*",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.1",
+    "redis": "^6.3.0",
+    "socket.io": "^4.8.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "socket.io-client": "^4.8.4"
+  }
+}

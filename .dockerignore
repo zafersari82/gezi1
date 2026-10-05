@@ -1,0 +1,21 @@
+# Docker imajlarına girmeyen dosyalar. Derleme bağlamı depo köküdür.
+**/node_modules
+**/dist
+**/.next
+**/.expo
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+docs
+apps/api/storage
+apps/api/package-store
+apps/api/test
+apps/mobile/src
+apps/mobile/assets
+apps/mobile/test
+miniapps/*/src
+miniapps/*/public

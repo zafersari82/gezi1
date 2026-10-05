@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+.expo
+coverage
+package-lock.json
+expo-env.d.ts
+next-env.d.ts
+apps/api/storage

@@ -1,0 +1,874 @@
+/*
+ * VADO Control görsel dili. Renkler mobil uygulamadaki belirteçlerle aynıdır
+ * (bkz. apps/mobile/src/theme/tokens.ts); panelde başka renk kullanılmaz.
+ */
+:root {
+  --teal: #155e63;
+  --teal-deep: #0e4347;
+  --teal-soft: #dcefec;
+  --surface: #ffffff;
+  --mist: #f2f5f5;
+  --line: #e3e9e8;
+  --ink: #152524;
+  --muted: #5e6f6e;
+  --faint: #93a3a1;
+  --coral: #d2382b;
+  --coral-soft: #fbe9e6;
+  --amber: #8a5a00;
+  --amber-soft: #fff1cc;
+
+  --rail-width: 232px;
+  --radius: 10px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  min-height: 100vh;
+  margin: 0;
+  background: var(--mist);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+p,
+dl,
+dd,
+ul,
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+a {
+  color: var(--teal);
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* --- Kenar çubuğu ------------------------------------------------------- */
+
+.rail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--teal-deep);
+  color: #ffffff;
+}
+
+.brand {
+  position: relative;
+  display: block;
+  padding: 28px 20px 24px;
+  overflow: hidden;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.brand .lattice {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: #ffffff;
+  opacity: 0.13;
+}
+
+.brand-name {
+  position: relative;
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+.brand-role {
+  position: relative;
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+}
+
+.nav a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.nav a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.nav a:focus-visible,
+.brand:focus-visible {
+  outline-color: #ffffff;
+  outline-offset: -2px;
+}
+
+.count {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: var(--coral);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+.rail-notes {
+  padding: 16px 20px 20px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.rail-notes li + li {
+  margin-top: 4px;
+}
+
+.rail-notes .alert {
+  color: #ffd98a;
+}
+
+/* --- İçerik ------------------------------------------------------------- */
+
+main {
+  min-width: 0;
+  max-width: 1160px;
+  padding: 40px 48px 72px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.lead {
+  max-width: 68ch;
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+section + section {
+  margin-top: 40px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.empty {
+  padding: 28px 20px;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.digest {
+  margin-top: 16px;
+}
+
+/* Özet gibi uzun, boşluksuz değerler dar ekranda satır sonunda bölünür. */
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+.status-line {
+  margin: -12px 0 20px;
+}
+
+/* Yalnızca ekran okuyuculara görünen metin. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Bekleyen işler ----------------------------------------------------- */
+
+.queue li {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 20px;
+}
+
+.queue li + li {
+  border-top: 1px solid var(--line);
+}
+
+.queue-count {
+  min-width: 2ch;
+  color: var(--coral);
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  line-height: 1;
+  text-align: right;
+}
+
+.queue-text {
+  flex: 1;
+  font-size: 16px;
+}
+
+/* --- Sayılar ------------------------------------------------------------ */
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.figures div {
+  padding: 18px 20px;
+  border-left: 1px solid var(--line);
+}
+
+.figures div:first-child {
+  border-left: 0;
+}
+
+.figures dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.figures dd {
+  margin-top: 2px;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* --- Ad–değer listesi --------------------------------------------------- */
+
+.facts div {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px 20px;
+}
+
+.facts div + div {
+  border-top: 1px solid var(--line);
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts .note {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* --- Tablolar ----------------------------------------------------------- */
+
+.table-scroll {
+  /* Konumlandırma, taşan sütunlardaki gizli başlık metinlerinin sayfayı genişletmesini önler. */
+  position: relative;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  /* Dar ekranda sütunlar sıkışmaz; tablo kendi kabının içinde yatay kaydırılır. */
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+tbody tr + tr td {
+  border-top: 1px solid var(--line);
+}
+
+td.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.actions form {
+  display: inline-block;
+}
+
+td.actions form + form {
+  margin-left: 8px;
+}
+
+.cell-title {
+  display: block;
+  font-weight: 600;
+}
+
+.cell-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* --- Etiketler ---------------------------------------------------------- */
+
+.tag {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.tag + .tag,
+a + .tag {
+  margin-left: 6px;
+}
+
+.tag-positive {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.tag-warning {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.tag-danger {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.tag-neutral {
+  background: var(--mist);
+  color: var(--muted);
+}
+
+/* --- Düğmeler ----------------------------------------------------------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--faint);
+}
+
+.button-primary {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.button-primary:hover {
+  border-color: var(--teal-deep);
+  background: var(--teal-deep);
+}
+
+.button-danger {
+  color: var(--coral);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* --- Formlar ------------------------------------------------------------ */
+
+.search {
+  display: flex;
+  gap: 8px;
+}
+
+.search input {
+  width: min(320px, 60vw);
+}
+
+input[type="text"],
+input[type="search"],
+input[type="url"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--teal);
+  outline-offset: 0;
+}
+
+input[readonly] {
+  background: var(--mist);
+  color: var(--muted);
+}
+
+.form {
+  display: grid;
+  gap: 20px;
+  max-width: 720px;
+  padding: 24px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.field label,
+.field legend {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.field .hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+fieldset.field {
+  border: 0;
+}
+
+.checks {
+  display: grid;
+  gap: 8px;
+}
+
+.checks label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.checks input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--teal);
+}
+
+.checks small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.form-error {
+  color: var(--coral);
+  font-weight: 550;
+}
+
+.form-saved {
+  color: var(--teal);
+  font-weight: 550;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  gap: 16px;
+  padding: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.inline-form .form-error,
+.inline-form .form-saved {
+  grid-column: 1 / -1;
+}
+
+.notice {
+  max-width: 720px;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* --- Form sonuçları ----------------------------------------------------- */
+
+.feedback:empty {
+  display: none;
+}
+
+.problems {
+  margin-top: 6px;
+  padding-left: 18px;
+  color: var(--coral);
+  font-size: 14px;
+  list-style: disc;
+}
+
+.problems li + li {
+  margin-top: 2px;
+}
+
+.action-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.optional {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+input[type="file"] {
+  width: 100%;
+  font: inherit;
+}
+
+/* --- Paket incelemesi --------------------------------------------------- */
+
+.decisions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.decision {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.decision .hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.split > div {
+  padding: 20px;
+}
+
+.split > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.change-list li,
+.findings li,
+.links li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.change-list li + li,
+.links li + li {
+  border-top: 1px solid var(--line);
+}
+
+.change-list .removed span:first-child {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.findings li {
+  justify-content: flex-start;
+  padding: 12px 20px;
+}
+
+.findings li + li {
+  border-top: 1px solid var(--line);
+}
+
+.findings .tag {
+  flex: none;
+  min-width: 78px;
+  text-align: center;
+}
+
+.links {
+  padding: 8px 20px;
+}
+
+.file-name {
+  display: block;
+}
+
+.code {
+  max-height: 70vh;
+  margin: 0;
+  padding: 16px 20px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.candidate {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid var(--line);
+  background: var(--mist);
+}
+
+.candidate .form {
+  padding: 0;
+}
+
+.candidate .hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.candidate > .button {
+  justify-self: start;
+}
+
+.bordered {
+  border-top: 1px solid var(--line);
+}
+
+.header-actions form {
+  display: inline-block;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.pager {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* --- Dar ekran ---------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  body {
+    display: block;
+  }
+
+  .rail {
+    position: static;
+    height: auto;
+  }
+
+  .brand {
+    padding: 18px 16px 14px;
+  }
+
+  .nav {
+    flex-direction: row;
+    gap: 4px;
+    padding: 0 8px 10px;
+    overflow-x: auto;
+  }
+
+  .nav a {
+    flex: none;
+  }
+
+  .rail-notes {
+    display: none;
+  }
+
+  main {
+    padding: 24px 16px 56px;
+  }
+
+  .facts div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .queue li {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .figures div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .figures div:first-child {
+    border-top: 0;
+  }
+
+  .split > div + div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .button,
+  .nav a {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+}

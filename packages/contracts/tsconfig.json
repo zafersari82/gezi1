@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Paket platformdan bağımsızdır; DOM kitaplığı yalnızca `URL` sınıfının tipi için eklenir.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src", "test"]
+}

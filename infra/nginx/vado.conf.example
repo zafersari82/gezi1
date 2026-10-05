@@ -1,0 +1,108 @@
+# Nginx ters vekil örneği. Alan adlarını ve sertifika yollarını kendi kurulumunuza göre değiştirin.
+# API ve panel, docker-compose.prod.yml ile yalnızca 127.0.0.1 üzerinde dinler.
+#
+# Dosya, Nginx'in http bloğuna eklenir (örneğin /etc/nginx/sites-available/vado.conf; adımlar
+# docs/YAYIN.md belgesindedir) ve `nginx -t` ile denetlenir.
+#
+# `listen 443 ssl http2;` yazımı dağıtımlarla gelen sürümlerde (1.18-1.24) çalışır. Nginx 1.25.1
+# ve sonrası aynı satır için uyarı verir; orada `listen 443 ssl;` ve ayrı bir satırda `http2 on;`
+# yazın.
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ""      close;
+}
+
+# --- API: mobil uygulamanın konuştuğu, mini uygulama paketlerinin sunulduğu adres ---------------
+server {
+    listen 443 ssl http2;
+    server_name api.ornek.com;
+
+    ssl_certificate     /etc/letsencrypt/live/api.ornek.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.ornek.com/privkey.pem;
+
+    # Fotoğraf yükleme sınırı API'de 8 MB'tır; vekil biraz pay bırakır.
+    client_max_body_size 10m;
+
+    # Mini uygulamalar da bu adresten, /apps/<kayıt>/ yolunun altından sunulur: kabuğun açtığı
+    # sarmalayıcı belge ve paketin dosyaları. Paketin tarayıcıdaki sınırlarını API'nin gönderdiği
+    # başlıklar çizer (Content-Security-Policy, Permissions-Policy): bu sunucu bloğuna add_header
+    # ile güvenlik başlığı eklemeyin, proxy_hide_header ile de API'nin başlıklarını gizlemeyin;
+    # bu yolun altında yönlendirme de yapmayın.
+    location / {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Gerçek zamanlı bağlantı (Socket.IO) WebSocket'e yükseltilir.
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 75s;
+    }
+
+    # Yönetim uç noktaları internete açılmaz; panel onlara sunucu içinden ulaşır.
+    location /v1/admin/ {
+        return 404;
+    }
+}
+
+# --- Yönetim paneli -----------------------------------------------------------------------------
+server {
+    listen 443 ssl http2;
+    server_name panel.ornek.com;
+
+    ssl_certificate     /etc/letsencrypt/live/panel.ornek.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/panel.ornek.com/privkey.pem;
+
+    # Mümkünse paneli yalnızca ofis veya VPN adreslerine açın.
+    # allow 203.0.113.0/24;
+    # deny all;
+
+    # Mini uygulama paketleri panelden yüklenir. Sınır, VADO_PACKAGE_MAX_MB değerinden (varsayılan
+    # 5) büyük olmalıdır; Nginx'in varsayılanı 1 MB'tır ve daha büyük paketleri 413 ile geri çevirir.
+    client_max_body_size 8m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name api.ornek.com panel.ornek.com;
+    return 301 https://$host$request_uri;
+}
+
+# --- İsteğe bağlı: her uygulama kaydı kendi alt alan adında -------------------------------------
+# VADO_APPS_ORIGIN=https://{app}.mini.ornek.com ayarlandığında paketler API'nin adresinden değil,
+# kayda özel alt alan adından sunulur: tarayıcı, kayıtları kaynak (origin) düzeyinde de ayırır.
+# Bunun için *.mini.ornek.com adına joker DNS kaydı ve joker sertifika gerekir. İstek, alan adı
+# değiştirilmeden API'ye iletilir; API kaydı alan adından bulur ve bu adreslerden kaydın
+# sarmalayıcı belgesi ile paket dosyalarından başka hiçbir şey sunmaz. Ayrıntılar: docs/YAYIN.md
+#
+# server {
+#     listen 443 ssl http2;
+#     server_name *.mini.ornek.com;
+#
+#     ssl_certificate     /etc/letsencrypt/live/mini.ornek.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/mini.ornek.com/privkey.pem;
+#
+#     location / {
+#         proxy_pass http://127.0.0.1:4000;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Forwarded-For $remote_addr;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+# }
+#
+# server {
+#     listen 80;
+#     server_name *.mini.ornek.com;
+#     return 301 https://$host$request_uri;
+# }

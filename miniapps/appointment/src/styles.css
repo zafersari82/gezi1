@@ -1,0 +1,284 @@
+:root {
+  --surface: #ffffff;
+  --mist: #f2f5f5;
+  --line: #e3e9e8;
+  --ink: #152524;
+  --muted: #5e6f6e;
+  --accent: #27408b;
+  --accent-soft: #e8edfa;
+  --danger: #b3261e;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2,
+p,
+dl,
+dd {
+  margin: 0;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 20px 0;
+}
+
+.intro h1,
+.confirmation h1 {
+  font-size: 1.625rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.notice,
+.upcoming {
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+}
+
+.notice {
+  background: var(--mist);
+  color: var(--muted);
+}
+
+.upcoming {
+  background: var(--accent-soft);
+}
+
+.upcoming h2 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.upcoming .hint {
+  margin-top: 0;
+}
+
+/* Seçim grupları */
+
+.group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.group legend {
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.service {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.service:first-of-type {
+  border-top: 1px solid var(--line);
+}
+
+.service input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.service-name {
+  flex: 1;
+}
+
+.service-name small {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.service-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.days {
+  display: flex;
+  gap: 8px;
+  margin: 0 -20px;
+  padding: 0 20px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.chip {
+  flex: none;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.chip:disabled {
+  color: var(--muted);
+  background: var(--mist);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.error {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fdecea;
+  color: var(--danger);
+  font-size: 0.9375rem;
+}
+
+/* Alt çubuk ve düğmeler */
+
+.checkout {
+  position: sticky;
+  bottom: 0;
+  margin: auto -20px 0;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  text-align: center;
+}
+
+.button {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/* Etiket solda, tutar sağda */
+.button span:first-child:not(:only-child) {
+  margin-right: auto;
+}
+
+.button span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.button-secondary {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.button:disabled {
+  background: var(--mist);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.chip:focus-visible,
+.button:focus-visible,
+.service input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Onay ekranı */
+
+.confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: auto 0;
+  padding-bottom: 24px;
+}
+
+.receipt {
+  margin: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.receipt div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.receipt dt {
+  color: var(--muted);
+}
+
+.receipt dd {
+  font-weight: 600;
+  text-align: right;
+}

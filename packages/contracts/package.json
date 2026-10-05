@@ -1,0 +1,17 @@
+{
+  "name": "@vado/contracts",
+  "version": "2.3.1",
+  "private": true,
+  "description": "VADO API, gerçek zamanlı olay ve mini uygulama köprüsü sözleşmeleri",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

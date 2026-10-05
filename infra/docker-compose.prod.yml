@@ -1,0 +1,109 @@
+# Canlı ortam için örnek kurulum. Ayrıntılar ve adım adım anlatım: docs/YAYIN.md
+#
+#   cp infra/.env.production.example infra/.env.production   (değerleri doldurun)
+#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d --build
+#
+# API ve panel yalnızca sunucunun kendisinden (127.0.0.1) erişilir; dış dünyaya TLS sonlandıran
+# bir ters vekil (bkz. infra/nginx/vado.conf.example) üzerinden açılır.
+name: vado
+
+x-api-environment: &api-environment
+  NODE_ENV: production
+  DATABASE_URL: postgres://vado:${POSTGRES_PASSWORD:?}@postgres:5432/vado
+  REDIS_URL: redis://redis:6379
+  VADO_PUBLIC_URL: ${VADO_PUBLIC_URL:?}
+  VADO_CORS_ORIGINS: ${VADO_CORS_ORIGINS:?}
+  # İmza anahtarları. Üretme, eski sürümden geçiş ve değiştirme adımları: docs/ANAHTARLAR.md
+  VADO_OTP_KEYS: ${VADO_OTP_KEYS:?bkz. docs/ANAHTARLAR.md}
+  VADO_QR_KEYS: ${VADO_QR_KEYS:?bkz. docs/ANAHTARLAR.md}
+  VADO_OPENID_KEY: ${VADO_OPENID_KEY:?bkz. docs/ANAHTARLAR.md}
+  # Yalnızca 2.1 ve öncesinden geçişte: tanımlıysa API, yeni anahtarların onunla uyumunu doğrular.
+  VADO_APP_SECRET: ${VADO_APP_SECRET:-}
+  VADO_ADMIN_API_KEY: ${VADO_ADMIN_API_KEY:?}
+  VADO_DEMO_MODE: "false"
+  VADO_TRUST_PROXY: "true"
+  VADO_PAYMENT_MODE: ${VADO_PAYMENT_MODE:-sandbox}
+  VADO_SMS_PROVIDER: webhook
+  VADO_SMS_WEBHOOK_URL: ${VADO_SMS_WEBHOOK_URL:?}
+  VADO_SMS_WEBHOOK_SECRET: ${VADO_SMS_WEBHOOK_SECRET:?}
+  VADO_RATE_LIMIT_PER_MINUTE: ${VADO_RATE_LIMIT_PER_MINUTE:-600}
+  # Mini uygulama paketleri. Canlı ortamda yalnızca yüklenmiş ve onaylanmış paketler çalışır.
+  VADO_MINIAPP_DEV_MODE: "false"
+  VADO_PACKAGE_MAX_MB: ${VADO_PACKAGE_MAX_MB:-5}
+  VADO_APPS_ORIGIN: ${VADO_APPS_ORIGIN:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vado
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: vado
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vado -d vado"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Şema değişikliklerini uygular ve çıkar. API, bekleyen şema değişikliği varken başlamaz.
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    command: ["node", "dist/cli/migrate.js"]
+    restart: "no"
+    environment: *api-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - media:/repo/apps/api/storage
+      - packages:/repo/apps/api/package-store
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  portal:
+    build:
+      context: ..
+      dockerfile: apps/portal/Dockerfile
+    restart: unless-stopped
+    environment:
+      VADO_API_INTERNAL_URL: http://api:4000
+      VADO_ADMIN_API_KEY: ${VADO_ADMIN_API_KEY:?}
+      VADO_PORTAL_USER: ${VADO_PORTAL_USER:?}
+      VADO_PORTAL_PASSWORD: ${VADO_PORTAL_PASSWORD:?}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  media:
+  # Onaylı paket sürümlerinin dosyaları. Veritabanıyla birlikte yedeklenmelidir.
+  packages:

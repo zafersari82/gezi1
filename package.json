@@ -1,0 +1,52 @@
+{
+  "name": "vado",
+  "version": "2.3.1",
+  "private": true,
+  "description": "VADO: Türkiye için mesajlaşma, mini uygulama ve ödeme platformu",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "miniapps/*"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "concurrently --names api,panel,mini --prefix-colors cyan,blue,magenta \"npm run dev -w @vado/api\" \"npm run dev -w @vado/portal\" \"npm run dev -w @vado/miniapp-appointment\"",
+    "mobile": "npm run start -w @vado/mobile",
+    "web": "npm run web -w @vado/mobile",
+    "lan": "node scripts/use-lan.mjs",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d --wait",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:migrate": "npm run migrate -w @vado/api",
+    "db:seed": "npm run build -w @vado/miniapp-appointment && npm run seed -w @vado/api -- --package miniapps/appointment/dist",
+    "keys": "npm run keys -w @vado/api --",
+    "miniapp:pack": "npm run pack -w @vado/api --",
+    "packages:verify": "npm run packages -w @vado/api -- verify",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typegen": "npm run typegen --workspaces --if-present",
+    "lint": "npm run typegen && eslint .",
+    "conventions": "node scripts/check-conventions.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run format:check && npm run lint && npm run conventions && npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}

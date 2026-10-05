@@ -1,0 +1,39 @@
+{
+  "manifest": 1,
+  "id": "randevu",
+  "version": "1.0.0",
+  "name": "VADO Randevu",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "permissions": ["identity.basic", "payment.request", "storage.local", "share.native"],
+  "network": [],
+  "config": [
+    {
+      "key": "businessName",
+      "label": "İşletme adı",
+      "type": "text",
+      "required": true,
+      "maxLength": 60,
+      "help": "Mini uygulamanın başlığında ve paylaşılan randevuda görünür."
+    },
+    {
+      "key": "merchantId",
+      "label": "Satıcı kimliği",
+      "type": "text",
+      "required": true,
+      "maxLength": 40,
+      "help": "Ödemeyi alacak satıcı. Bu uygulama kaydına bağlı satıcılardan biri olmalı."
+    },
+    {
+      "key": "services",
+      "label": "Hizmet listesi",
+      "type": "select",
+      "required": true,
+      "default": "berber",
+      "options": [
+        { "value": "berber", "label": "Berber" },
+        { "value": "guzellik", "label": "Güzellik salonu" }
+      ]
+    }
+  ]
+}
