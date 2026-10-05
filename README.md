@@ -259,6 +259,8 @@ Denenmedi:
 
 - [Kurulum](docs/KURULUM.md): Windows, macOS ve Linux için adım adım
 - [Mimari](docs/MIMARI.md): parçalar nasıl birleşiyor, kararlar ve gerekçeleri
+- [Uygulama platformu mimarisi](docs/PLATFORM_MIMARISI.md): motorlar, yetenek paketleri, sektör
+  ürünleri ve PRO kalite şartı
 - [Kod standartları](docs/KOD_STANDARTLARI.md): "tek elden çıkmış" kod için kurallar
 - [API](docs/API.md): uç noktalar, hata biçimi, gerçek zamanlı olaylar
 - [Mini uygulama geliştirme](docs/MINI_UYGULAMA_GELISTIRME.md): paket, bildirim dosyası, işletme
