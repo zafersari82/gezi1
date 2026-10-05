@@ -1,8 +1,8 @@
 # Anahtarlar
 
-VADO üç şeyi gizli anahtarla imzalar: doğrulama kodlarının veritabanındaki özetini, QR kodlarını ve
-mini uygulamalara verilen kullanıcı kimliklerini (`openId`). 2.2'den itibaren bu üç işin anahtarı
-birbirinden bağımsızdır. Bu belge eski sistemle farkı, anahtarların nasıl üretildiğini, 2.1'den
+VADO dört şeyi gizli anahtarla imzalar: doğrulama kodlarının veritabanındaki özetini, QR kodlarını,
+mini uygulamalara verilen kullanıcı kimliklerini (`openId`) ve 2.5'ten itibaren mini uygulamaların
+sunucularına verilen kimlik belirteçlerini. Bu işlerin anahtarları birbirinden bağımsızdır. Bu belge eski sistemle farkı, anahtarların nasıl üretildiğini, 2.1'den
 nasıl geçildiğini ve bir anahtarın nasıl değiştirildiğini anlatır.
 
 Geliştirmede hiçbir şey yapmanız gerekmez: anahtar tanımlanmamışsa API sabit bir geliştirme
@@ -19,20 +19,22 @@ anahtarıyla çalışır ve önceki sürümle üretilmiş kimlikler değişmez. 
 | Canlıda başlangıç denetimi | `VADO_APP_SECRET` en az 32 karakter olmalı.                                                          | Üç aile de tanımlı, en az 256 bit, rastgele ve birbirinden farklı olmalı; değilse API başlamaz.                            |
 | Oturumlar                  | Rastgele belirteç; veritabanında yalnızca özeti durur.                                               | Aynı. Oturumlar imza anahtarı kullanmaz; değiştirilecek bir oturum anahtarı yoktur.                                        |
 
-## Üç aile
+## Dört aile
 
-| Değişken          | Neyi korur                                   | Değiştirilir mi                                       |
-| ----------------- | -------------------------------------------- | ----------------------------------------------------- |
-| `VADO_OTP_KEYS`   | Doğrulama kodlarının veritabanındaki özeti   | Evet, istendiğinde. Kullanıcı fark etmez.             |
-| `VADO_QR_KEYS`    | QR kodlarının imzası                         | Evet. Eski kodlar belirlediğiniz süre boyunca okunur. |
-| `VADO_OPENID_KEY` | Mini uygulamaların gördüğü kullanıcı kimliği | Hayır. Değişirse bütün kimlikler değişir.             |
+| Değişken             | Neyi korur                                         | Değiştirilir mi                                       |
+| -------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| `VADO_OTP_KEYS`      | Doğrulama kodlarının veritabanındaki özeti         | Evet, istendiğinde. Kullanıcı fark etmez.             |
+| `VADO_QR_KEYS`       | QR kodlarının imzası                               | Evet. Eski kodlar belirlediğiniz süre boyunca okunur. |
+| `VADO_OPENID_KEY`    | Mini uygulamaların gördüğü kullanıcı kimliği       | Hayır. Değişirse bütün kimlikler değişir.             |
+| `VADO_IDENTITY_KEYS` | Mini uygulama kimlik belirtecinin imzası (Ed25519) | Evet, istendiğinde. Mini uygulamalar fark etmez.      |
 
-İlk ikisi **halkadır**: virgülle ayrılmış anahtarlar. Üçüncüsü tek anahtardır.
+`VADO_OPENID_KEY` tek anahtardır; diğerleri **halkadır**: virgülle ayrılmış anahtarlar.
 
 ```bash
 VADO_OTP_KEYS=k1:9f2c…
 VADO_QR_KEYS=k2:51ab…,k1:c07e…:2027-01-31,legacy:3b00…
 VADO_OPENID_KEY=784b…
+VADO_IDENTITY_KEYS=k1:a41d…
 ```
 
 - Her anahtar `kimlik:anahtar` biçimindedir. Anahtar 64 hex karakterdir (`openssl rand -hex 32`).
@@ -68,16 +70,17 @@ docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production
   run --rm --no-deps api node dist/cli/keys.js check
 ```
 
-| Komut                    | Ne yapar                                                                                                                                  |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `generate`               | Yeni kurulum için üç ailenin anahtarlarını üretir.                                                                                        |
-| `migrate`                | `VADO_APP_SECRET` kullanan kurulumu yeni anahtarlara geçirir.                                                                             |
-| `rotate otp`/`rotate qr` | Halkaya yeni bir imza anahtarı ekler; eskisi doğrulamayı sürdürür.                                                                        |
-| `check`                  | Anahtarları canlı ortamın kurallarıyla denetler; kimin imzaladığını, kimin ne zamana kadar doğruladığını gösterir. Anahtarları yazdırmaz. |
+| Komut           | Ne yapar                                                                                                                                  |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate`      | Yeni kurulum için dört ailenin anahtarlarını üretir.                                                                                      |
+| `migrate`       | `VADO_APP_SECRET` kullanan kurulumu yeni anahtarlara geçirir.                                                                             |
+| `add identity`  | 2.4 ve öncesinden yükseltmede eksik olan kimlik belirteci halkasını üretir.                                                               |
+| `rotate <aile>` | `otp`, `qr` ya da `identity` halkasına yeni bir imza anahtarı ekler; eskisi doğrulamayı sürdürür.                                         |
+| `check`         | Anahtarları canlı ortamın kurallarıyla denetler; kimin imzaladığını, kimin ne zamana kadar doğruladığını gösterir. Anahtarları yazdırmaz. |
 
 ## Yeni kurulum
 
-`generate` çıktısındaki üç satırı `infra/.env.production` dosyasına yazın. Komut olmadan da
+`generate` çıktısındaki dört satırı `infra/.env.production` dosyasına yazın. Komut olmadan da
 üretilebilir; satırlar o dosyanın örneğinde yazılıdır. `VADO_OPENID_KEY` değerini ayrıca güvenli bir
 yerde yedekleyin: kaybolursa mini uygulamalar kullanıcılarını tanıyamaz.
 
@@ -89,7 +92,7 @@ kodu geçer.
 
 1. Yeni sürümün dosyalarını alın. Sunucuda imajı derleyin (`docker build …`, yukarıda); çalışan API
    bundan etkilenmez.
-2. `migrate` komutunu çalıştırın ve yazdırdığı üç satırı `infra/.env.production` dosyasına ekleyin.
+2. `migrate` komutunu çalıştırın ve yazdırdığı dört satırı `infra/.env.production` dosyasına ekleyin.
    `VADO_APP_SECRET` satırı şimdilik kalsın.
 3. `check` komutunu çalıştırın. Şu iki satırı görmelisiniz:
 
@@ -169,12 +172,35 @@ Kodlar beş dakika yaşar; eski anahtar ertesi günün sonuna kadar halkada kal�
 devre dışı kalır. Kullanıcılar bir şey fark etmez; QR kodları ve mini uygulama kimlikleri
 etkilenmez.
 
+### Kimlik belirteci anahtarı
+
+```bash
+keys rotate identity
+```
+
+Mini uygulamaların sunucuları belirteci `GET /v1/identity-keys` adresinde yayımlanan açık
+anahtarlarla doğrular. Eski anahtar ertesi günün sonuna kadar yayımlanmaya devam eder; belirteçler
+beş dakika yaşadığı ve açık anahtar listesi en fazla on dakika önbellekte tutulduğu için doğrulayan
+taraf kesinti görmez. Gizli anahtar yalnızca API'dedir; açık anahtarlar gizli değildir.
+
+### 2.4 ve öncesinden 2.5'e
+
+2.5 dördüncü aileyi getirir; o tanımlı değilse canlıda API başlamaz ve şunu söyler:
+"VADO_IDENTITY_KEYS tanımlı değil. 2.4 ve öncesinden yükseltmede `keys add identity` çıktısını
+ekleyin". `keys add identity` komutunun yazdırdığı satırı `infra/.env.production` dosyasına ekleyin,
+`check` ile denetleyin, sonra güncelleyin. Diğer aileler değişmez. 2.4'e geri dönerseniz satır
+yok sayılır.
+
 ### Anahtar sızdıysa
 
 ```bash
 keys rotate qr --drop-old
 keys rotate otp --drop-old
+keys rotate identity --drop-old
 ```
+
+Kimlik belirteci anahtarı sızdıysa eskisi hemen yayımdan kalkar; o ana kadar verilmiş belirteçler
+(en fazla beş dakikalık) doğrulanmaz, mini uygulama yenisini ister.
 
 Eski anahtarların hepsi halkadan çıkar. QR'da o ana kadar üretilmiş bütün kodlar geçersiz olur ve
 basılmış kodların yeniden alınması gerekir; doğrulama kodunda yoldaki kodlar geçersiz olur ve
@@ -200,7 +226,7 @@ imzalamayı sürdürür), sonra ilk sıraya alıp yeniden başlatın.
 
 ## API ne zaman başlamaz
 
-- Üç değişkenden biri tanımlı değil ya da boş.
+- Dört değişkenden biri tanımlı değil ya da boş.
 - Bir anahtar hex değil, 64 karakterden kısa ya da rastgele üretilmemiş (yinelenen bir desen).
 - Geliştirme anahtarı kullanılmış.
 - Aynı anahtar iki ailede ya da bir halkada iki kez geçiyor.

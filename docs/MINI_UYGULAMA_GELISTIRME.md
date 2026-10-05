@@ -92,6 +92,7 @@ diğerleri `capability_denied` hatası verir.
 | `vado.container.close()`          | —                 | —                              | Mini uygulamayı kapatır                     |
 | `vado.app.getContext()`           | —                 | —                              | `{ appId, version, config, params }`        |
 | `vado.identity.getProfile()`      | `identity.basic`  | İlk seferde                    | `{ openId, displayName, avatarUrl }`        |
+| `vado.identity.getToken()`        | `identity.basic`  | İlk seferde (aynı izin)        | `{ token, expiresAt }`                      |
 | `vado.scanner.scanQr()`           | `camera.qr`       | İlk seferde                    | Okunan kodun metni                          |
 | `vado.location.getCurrent()`      | `location.coarse` | İlk seferde                    | Yaklaşık enlem ve boylam                    |
 | `vado.payment.request(params)`    | `payment.request` | Her seferinde, ödeme ekranında | `{ paymentId, status: "paid" }`             |
@@ -106,6 +107,10 @@ Bilmeniz gerekenler:
 - **Kimlik.** `openId`, kullanıcının yalnızca o uygulama kaydındaki kimliğidir: aynı kullanıcı için
   hep aynıdır; başka bir kayıtta, aynı paketi kullansa bile, farklıdır. Telefon numarası ve VADO
   kimliği verilmez.
+- **Sunucunuzda kimlik.** `getProfile()` sonucunu sunucunuza gönderirseniz sunucunuz onun gerçekten
+  VADO'dan geldiğini bilemez. Sunucunuz kullanıcıyı tanıyacaksa `getToken()` ile beş dakikalık imzalı
+  bir belirteç alıp onu gönderin; sunucunuz aşağıdaki [Sunucunuzda doğrulama](#sunucunuzda-doğrulama)
+  bölümündeki gibi denetler.
 - **İzin.** Kimlik, kamera ve konum için VADO kullanıcıya bir kez sorar. Kullanıcı reddederse
   `user_denied` hatası alırsınız; izni sonradan **Ben › Mini uygulama izinleri** ekranından geri de
   alabilir. Uygulamanız izinsiz de çalışabilmelidir (örnek uygulama adı bilmeden de selam verir).
@@ -118,6 +123,45 @@ Bilmeniz gerekenler:
   çerez, IndexedDB) yoktur; kalıcı veri için bu işlevleri kullanın.
 - **Zaman aşımı.** Kullanıcıya ekran açmayan çağrılar 15 saniyede, açanlar (izin, kamera, ödeme)
   5 dakikada `failed` hatasıyla sonlanır.
+
+### Sunucunuzda doğrulama
+
+Belirteç bir JWT'dir (`alg: EdDSA`, Ed25519). Sunucunuz şu dört şeyi denetler: imza
+(`GET /v1/identity-keys` adresindeki açık anahtarlardan, başlıktaki `kid` ile seçilen), `iss` (VADO
+API'sinin adresi), `aud` (sizin uygulama kaydınızın kimliği, `getContext().appId`) ve `exp`. Sonra
+kullanıcıyı `sub` değeriyle tanır; bu, `getProfile()` sonucundaki `openId` ile aynıdır.
+
+Bir JWT kitaplığı (ör. `jose`) bunu tek çağrıyla yapar. Kitaplıksız, yalnızca Node.js ile:
+
+```js
+import { createPublicKey, verify } from "node:crypto";
+
+const VADO = "https://api.ornek.com"; // VADO API adresi
+const APP_ID = "kayit-kimliginiz";
+
+export async function verifyVadoToken(token) {
+  const [header, payload, signature] = token.split(".");
+  const { alg, kid } = JSON.parse(Buffer.from(header, "base64url").toString());
+  // Anahtar listesini en fazla 10 dakika önbellekte tutabilirsiniz.
+  const { keys } = await (await fetch(`${VADO}/v1/identity-keys`)).json();
+  const jwk = keys.find((key) => key.kid === kid);
+  if (alg !== "EdDSA" || !jwk) return null;
+  const signed = Buffer.from(`${header}.${payload}`);
+  const key = createPublicKey({ key: jwk, format: "jwk" });
+  if (!verify(null, signed, key, Buffer.from(signature, "base64url"))) return null;
+  const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
+  if (claims.iss !== VADO || claims.aud !== APP_ID) return null;
+  if (claims.exp * 1000 < Date.now()) return null;
+  return claims.sub; // kullanıcının sizdeki kimliği (openId)
+}
+```
+
+- Belirteçte ad, telefon ya da VADO kullanıcı kimliği yoktur. Adı göstermek istiyorsanız
+  `getProfile()` sonucunu kullanın; kimlik için `sub` değerine güvenin.
+- Bir belirteci yalnızca bir kez kabul etmek istiyorsanız `jti` değerini beş dakika saklayıp
+  yinelenenleri reddedin.
+- Belirteç başka bir kayıt için verilmişse `aud` tutmaz; başka bir mini uygulamanın belirteciyle
+  sizin sunucunuza giriş yapılamaz.
 
 ### Hatalar
 
@@ -432,6 +476,7 @@ function onMessage(event) {
 | `container.close`     | —                                                   | `null`                                              |
 | `app.getContext`      | —                                                   | `{ appId, version, config, params }`                |
 | `identity.getProfile` | —                                                   | `{ openId, displayName, avatarUrl }`                |
+| `identity.getToken`   | —                                                   | `{ token, expiresAt }`                              |
 | `scanner.scanQr`      | —                                                   | `{ value }`                                         |
 | `location.getCurrent` | —                                                   | `{ latitude, longitude, accuracyMeters }`           |
 | `payment.request`     | `{ merchantId, orderId, description, amountMinor }` | `{ paymentId, status: "paid" }`                     |

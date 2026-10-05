@@ -193,15 +193,17 @@ da çözülür. Kişisel kod varsayılan olarak 10 dakika geçerlidir
 
 ## İşletmeler ve mini uygulamalar
 
-| Uç nokta                        | Gövde                      | Yanıt             | Not                                          |
-| ------------------------------- | -------------------------- | ----------------- | -------------------------------------------- |
-| `GET /v1/businesses?category=`  | —                          | `List<Business>`  | Yalnızca onaylanmış işletmeler               |
-| `GET /v1/businesses/mine`       | —                          | `List<Business>`  | Kendi başvuruları, onay bekleyenler dahil    |
-| `POST /v1/businesses`           | `createBusinessBodySchema` | `Business`        | Başvuru; panelden onaylanana kadar `pending` |
-| `GET /v1/businesses/:id`        | —                          | `BusinessDetail`  | Bağlı mini uygulamalarla birlikte            |
-| `GET /v1/miniapps?category=`    | —                          | `List<MiniApp>`   | Yalnızca kullanıcılara açık kayıtlar         |
-| `GET /v1/miniapps/:id`          | —                          | `MiniAppDetail`   | Kabuğun açarken okuduğu kayıt; ayarlarıyla   |
-| `GET /v1/miniapps/:id/identity` | —                          | `MiniAppIdentity` | Kullanıcının o uygulama kaydına özel kimliği |
+| Uç nokta                               | Gövde                      | Yanıt                  | Not                                                          |
+| -------------------------------------- | -------------------------- | ---------------------- | ------------------------------------------------------------ |
+| `GET /v1/businesses?category=`         | —                          | `List<Business>`       | Yalnızca onaylanmış işletmeler                               |
+| `GET /v1/businesses/mine`              | —                          | `List<Business>`       | Kendi başvuruları, onay bekleyenler dahil                    |
+| `POST /v1/businesses`                  | `createBusinessBodySchema` | `Business`             | Başvuru; panelden onaylanana kadar `pending`                 |
+| `GET /v1/businesses/:id`               | —                          | `BusinessDetail`       | Bağlı mini uygulamalarla birlikte                            |
+| `GET /v1/miniapps?category=`           | —                          | `List<MiniApp>`        | Yalnızca kullanıcılara açık kayıtlar                         |
+| `GET /v1/miniapps/:id`                 | —                          | `MiniAppDetail`        | Kabuğun açarken okuduğu kayıt; ayarlarıyla                   |
+| `GET /v1/miniapps/:id/identity`        | —                          | `MiniAppIdentity`      | Kullanıcının o uygulama kaydına özel kimliği                 |
+| `POST /v1/miniapps/:id/identity-token` | —                          | `MiniAppIdentityToken` | Mini uygulamanın sunucusuna iletilecek imzalı belirteç (2.5) |
+| `GET /v1/identity-keys`                | —                          | `IdentityKeySet`       | Oturumsuz; belirteci doğrulayan açık anahtarlar (JWKS)       |
 
 - Buradaki "mini uygulama" bir **uygulama kaydıdır**: işletmenin vitrini ve yayınladığı paket
   sürümü. Bir kayıt, doğrulanmış ve açıksa ve onaylı bir paket sürümü yayınlıyorsa kullanıcılara
@@ -217,6 +219,14 @@ da çözülür. Kişisel kod varsayılan olarak 10 dakika geçerlidir
   sonucu köprü üzerinden mini uygulamaya iletir. Kaydın `identity.basic` yetkisi yoksa `forbidden`
   döner. `openId` kullanıcı ve uygulama kaydı çiftine özgüdür: aynı paketi kullanan iki kayıtta
   farklıdır.
+- `identity-token` aynı koşullarla (kayıt açık, `identity.basic` yetkisi var, kullanıcı izin vermiş)
+  bir JWT verir: `alg: EdDSA` (Ed25519), başlıkta `kid`; içerikte `iss` (API'nin dış adresi),
+  `aud` (uygulama kaydının kimliği), `sub` (`openId`), `iat`, `exp` (beş dakika), `jti`. Ad, telefon
+  ya da VADO kullanıcı kimliği taşımaz. Mini uygulama belirteci kendi sunucusuna gönderir; sunucu
+  imzayı `GET /v1/identity-keys` anahtarlarıyla, `aud` değerini kendi kayıt kimliğiyle, `exp`
+  değerini saatle denetler. Örnek: [MINI_UYGULAMA_GELISTIRME.md](MINI_UYGULAMA_GELISTIRME.md).
+- `identity-keys` yanıtı `cache-control: public, max-age=600` taşır. Anahtar değiştirildiğinde eski
+  anahtar ertesi günün sonuna kadar listede kalır ([ANAHTARLAR.md](ANAHTARLAR.md)).
 
 ### Sarmalayıcı belge ve paket dosyaları
 
