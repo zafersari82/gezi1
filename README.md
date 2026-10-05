@@ -68,7 +68,8 @@ npm run mobile     # telefonda Expo Go ile (önce: npm run lan)
 İki kişiyi iki ayrı tarayıcı penceresinde (biri gizli pencere) açarsanız mesajların, okundu
 bilgisinin ve "yazıyor" göstergesinin anında karşıya geçtiğini görürsünüz.
 
-Yönetim paneli `http://localhost:3000` adresindedir. Örnek veri üç yönetici açar; parola
+Yönetim paneli `http://localhost:3000` adresindedir. Örnek veri üç yönetici ve bir işletme
+hesabı açar; parola
 `vado-gelistirme`, demo modunda ikinci adım kodu `000000`:
 
 | Kullanıcı adı | Kişi         | Rol       | Not                                         |
@@ -76,6 +77,7 @@ Yönetim paneli `http://localhost:3000` adresindedir. Örnek veri üç yönetici
 | `sahip`       | Deniz Arslan | Sahip     | Her şey; panel hesaplarını yönetir          |
 | `operator`    | Okan Şahin   | Operatör  | Paket yükler, kayıtları yönetir ve yayınlar |
 | `inceleyen`   | İpek Aydın   | İnceleyen | Paket sürümlerini onaylar ve reddeder       |
+| `isletme`     | Mehmet Demir | İşletme   | Yalnızca Kadıköy Berber'in kaydını görür    |
 
 ## Komutlar
 
@@ -172,61 +174,58 @@ Dürüst bir liste; ayrıntısı ve önerilen sıra [docs/YOL_HARITASI.md](docs/
 
 ## Neyi denedik, neyi denemedik
 
-Denendi (bu depodaki kodla, gerçek PostgreSQL üzerinde; 2.4 için yinelenenler ve yenileri):
+Denendi (bu depodaki kodla, gerçek PostgreSQL üzerinde; 2.5 için yinelenenler ve yenileri):
 
-- 606 otomatik test: sözleşmeler (132), mini uygulama kitaplığı (10), API (403; gerçek veritabanı
-  ve gerçek WebSocket bağlantılarıyla), mobil uygulamanın telefondan bağımsız mantığı (61). Panel
-  hesaplarının testleri TOTP'yi RFC 4226 ve RFC 6238'in sınama vektörleriyle, girişi gerçek
-  kodlarla sınar; izin testi kayıtlı her yönetim ucunu (34) her rolle (5) çağırır ve izni olmayan
-  her rolün reddedildiğini doğrular; dört göz kuralı ve son sahibin korunması doğrudan SQL ile de
-  zorlanır. Paket testleri bozuk ve kötü niyetli zip arşivleri yükler, depodaki dosyaları bozar ve
-  değişmezlik kurallarını doğrudan SQL ile zorlar.
-- **Bozma denemesi:** koruma kurallarının 78'i (2.3.1'den 50, 2.4'te eklenen 28: izin denetimi,
-  yönetici anahtarı, yarım oturum, oturumun süresi ve iptali, kapalı hesap, kodun yeniden
-  kullanımı, kurtarma kodu, kilitlenme, parola, son sahip, yükleyen/onaylayan kuralı) tek tek
-  bozuldu; testler hepsini yakaladı. İlk turda dört bozma kaçtı; eksik testler yazıldı.
-- **Tarayıcıda uçtan uca sekiz senaryo, toplam 171 adım:** kayıt, kişi ekleme, iki kullanıcı
-  arasında anlık sohbet, grup, Anlar, QR, şikayet, oturumu uzaktan kapatma, hesap silme, yeni cihaz
-  uyarısı ve yeniden doğrulama; paketli mini uygulama, izin, ödeme, yalıtım, gezinme, yeniden izin,
-  geri alma ve acil kapatma; panelde hesapla giriş (yanlış parola, yanlış kod), paket yükleme
-  (operatör), onay (inceleyen; operatör onay düğmesini görmez), yayın, toplu dağıtım, geri çekme ve
-  denetim kaydında kişi adları. Senaryo 1-7 hem geliştirme kipinde hem canlı derlemelerle
-  çalıştırıldı (151 adım, ikisinde de hatasız); geliştirme kipinde 36 ekran tarandı, tarayıcı
-  konsolu temiz. Ayrıca panelin yeni sayfaları (giriş, ikinci adımın kurulumu, kurtarma kodları,
-  hesabım, panel hesapları, role göre menü, yetki sayfası, çıkış) tarayıcıda 17 adımla denendi.
-- **Canlı ortam düzeni (senaryo 8, 20 adım):** derlenmiş API (canlı ayarlar, alt alan adı kipi) ve
-  canlı derlenmiş panel, depodaki Nginx örneğinin (1.24) arkasında, TLS ile çalıştırıldı. İlk sahip
-  komut satırından açıldı; panelde ilk giriş, ikinci adımın gerçek TOTP koduyla kurulumu (demo kodu
-  reddedildi), kurtarma kodları ve parola değişikliği tarayıcıda yapıldı; oturum çerezinin
-  `HttpOnly`, `Secure` ve `SameSite=Strict` olduğu görüldü. Paketi yükleyen sahip onay düğmesini
-  görmedi, ikinci hesap onayladı; mini uygulama açılıp ödeme alındı ve sürüm geri çekildi.
-- **Canlı ortam denemesi:** derlenmiş API canlı ayarlarla 50 denetimden geçti (eksik ya da zayıf
-  anahtarla başlamama; yönetici anahtarının tek başına yetmemesi; demo kodunun canlıda
-  geçmemesi; kendi sürümünü onaylayamama dahil). Dayanıklılık: iki API sürecinde veritabanı
-  bağlantıları koparıldı, Redis yeniden başlatıldı (19/19).
-- **2.3.1'den geçiş (28/28):** 2.3.1'in derlenmiş API'si canlı ayarlarla kullanıcı, yayınlanmış
-  paket, incelemede bekleyen ve taslak sürüm, askıya alma ve denetim kaydı üretti. 2.4 şema
-  yükseltilmeden başlamadı; `migrate` yalnızca `0004` ve `0005`'i uyguladı; sahip yokken API
-  uyardı; eski panel girişi (yalnızca anahtar) reddedildi. Kullanıcı oturumu, mini uygulamanın
-  adresi, izin özeti ve kullanıcı kimliği değişmedi. Hesaplar komut satırından açıldı, ilk girişte
-  ikinci adım kuruldu. Eski kayıtlar "Ortak panel hesabı (2.3)" adıyla göründü; incelemede bekleyen
-  eski sürüm doğrudan onaylanamadı, bir hesap yeniden gönderince başka bir hesap onayladı. Aynı
-  veritabanında 2.3.1'in başladığı ama incelemeye gönderme yapamadığı görüldü: geri dönüş yedekten
-  yapılır.
-- **Docker:** API ve panel imajları resmî `node:22-bookworm-slim` imajından derlendi (bu ortamın
-  ağ vekili için taban imaja yalnızca bir kök sertifika eklendi) ve canlı ayarlarla 28 denetimden
-  geçti (ilk sahip kabın içindeki komutla, eski panel değişkenleriyle panelin açılmaması dahil).
-  **`docker-compose.prod.yml` dosyasının tamamı** resmî PostgreSQL ve Redis imajlarıyla `up` ile
-  çalıştırıldı: şema kuruldu, API ve panel sağlıklı açıldı, belgedeki `run --rm api … admins.js
-create` komutu ilk sahibi açtı, panelde ilk giriş ve ikinci adım kurulumu yapıldı.
-  `npm run db:up` de çalıştırıldı. **Yedekten dönüş** tatbikatı 12/12.
+- 651 otomatik test: sözleşmeler (132), mini uygulama kitaplığı (11), API (441; gerçek veritabanı
+  ve gerçek WebSocket bağlantılarıyla), mobil uygulamanın telefondan bağımsız mantığı (67). 2.5'in
+  testleri kimlik belirtecini Node.js'in kendi `crypto` modülüyle, mini uygulama sunucusunun
+  yapacağı gibi doğrular; işletme hesabının kapsamını, rol tablosu bilerek genişletilmişken de
+  sınar; bildirimleri sahte sağlayıcıyla, Expo sağlayıcısını taklit edilmiş yanıtlarla sınar. Yeni
+  veritabanı kuralları (işletme kapsamı, bildirim adresinin sahibi, oturum kapanınca adresin
+  silinmesi) doğrudan SQL ile de zorlanır. İzin testi kayıtlı her yönetim ucunu (35) her rolle (6)
+  çağırır.
+- **Bozma denemesi:** koruma kurallarının 110'u (2.4'e kadar 78, 2.5'te eklenen 32: belirtecin
+  kimlik yetkisi, kaydı, takma kimliği ve süresi; süresi dolan açık anahtar; QR parametrelerinin
+  imzası ve kapsamı; mobilde açılış parametreleri; işletme kapsamı, ikinci katman, rol değişmezliği
+  ve veritabanı kuralları; bildirim alıcıları, önizleme, adresin sahibi, oturum kapanınca silinme,
+  geçersiz adres, yeni cihaz bildirimi, Expo yanıtı, bildirim verisi) tek tek bozuldu; testler
+  hepsini yakaladı.
+- **Tarayıcıda uçtan uca senaryolar.** 2.4'ün yedi senaryosu (151 adım) hem geliştirme kipinde hem
+  canlı derlemelerle hatasız geçti. 2.5 için yeni senaryolar: mobil web önizlemesinde işletmenin
+  ürettiği parametreli kodun okutulması ve parametrelerin mini uygulamanın bağlamına gelmesi
+  (adreste görünmeden; uydurma açılış anahtarı ve değiştirilmiş kod reddedildi), mini uygulamanın
+  aldığı kimlik belirtecinin yayımlanan açık anahtarla doğrulanması, Bildirimler ekranı (8 adım);
+  panelde QR kodu üretimi ve hatalı parametreler (17 adım); işletme hesabıyla giriş, yalnızca kendi
+  kaydını görme, ayar değiştirme, yetkisiz bölümler, işletme hesabı açma ve rollere göre daralan
+  kayıt sayfası (29 adım). Üçü de iki kipte hatasız; tarayıcı konsolu temiz. Geliştirme kipinde 37
+  ekran tarandı, sorun yok.
+- **Canlı ortam denemesi (54/54):** 2.4'teki 50 denetim ve yenileri: kimlik anahtarı eksikken ya da
+  başka aileyle ortakken başlamama, bir süreçte imzalanan kimlik belirtecinin öteki sürecin
+  yayımladığı anahtarla doğrulanması, parametreli kodun süreçler arası çözülmesi.
+- **2.4'ten geçiş (26/26):** 2.4'ün derlenmiş API'si canlı ayarlarla hesaplar, kullanıcı, işletme,
+  yayınlanmış paket ve QR kodu üretti. 2.5 kimlik anahtarı olmadan başlamadı ve
+  `keys add identity` dedi; komutun yazdırdığı satırla `keys check` geçti; şema yükseltilmeden
+  başlamadı, `migrate` yalnızca `0006` ve `0007`'yi uyguladı. Kullanıcı ve panel oturumları, mini
+  uygulamanın adresi, izin özeti, kullanıcı kimliği ve 2.4'te üretilen QR kodu korundu; kimlik
+  belirteci, parametreli kod, işletme hesabı (komut satırından) ve bildirim ayarları aynı veride
+  çalıştı. Aynı veritabanında 2.4 yeniden başladı; kapatılmamış işletme hesabının 2.4'te sunucu
+  hatası aldığı görüldü (belgede "önce kapatın" yazar).
+- **Nginx ve TLS (senaryo 8, 20/20):** derlenmiş API ve canlı panel depodaki Nginx örneğinin
+  arkasında, gerçek tarayıcıyla; 2.4'teki adımlar 2.5 kodu ve dört anahtar ailesiyle yinelendi.
+- **Docker:** API ve panel imajları 2.5 ile derlenip canlı ayarlarla 28 denetimden geçti
+  (`keys generate` dört aile üretiyor). **`docker-compose.prod.yml` dosyasının tamamı** `up` ile
+  çalıştırıldı: `migrate` 0001-0007'yi uyguladı, API ve panel sağlıklı açıldı, açık anahtarlar
+  önbellek başlığıyla yayımlandı, belgedeki `keys check` ve `admins.js create` komutları çalıştı;
+  `VADO_IDENTITY_KEYS` boşken Compose nedenini söyleyip başlamadı. **Yedekten dönüş** tatbikatı
+  12/12.
+- Dayanıklılık denemesi (veritabanı bağlantısının ve Redis'in kopması) 2.4'te yapıldı (19/19); 2.5
+  bu katmana dokunmadığı için yinelenmedi.
 - Zip dosyası boş bir klasöre açılıp sıfırdan kuruldu; `npm ci` ve `npm run check` o kopyada
   hatasız geçti.
-- Mobil uygulamanın Android ve iOS için JavaScript paketleri derlendi.
+- Mobil uygulamanın Android ve iOS için JavaScript paketleri `expo-notifications` ile derlendi.
 - **Yalıtım ölçümü** (2.3.1): paketin açıldığı belgeden çıkış 59 denemeyle, Chromium 141 ve WebKit
-  2.52 üzerinde ölçüldü; hiçbirinde paketin dışına istek çıkmadı, koruma kaldırıldığında dokuz
-  yoldan istek çıktı. 2.4 bu alana dokunmadığı için ölçüm yinelenmedi; senaryo 6 ve 8'deki yalıtım
-  adımları geçti.
+  2.52 üzerinde ölçüldü; 2.4 ve 2.5 bu alana dokunmadığı için ölçüm yinelenmedi; senaryo 6 ve 8'deki
+  yalıtım adımları geçti.
 
 Her birinin ayrıntısı ve sınırı [docs/YAYIN.md](docs/YAYIN.md) belgesinin son bölümündedir.
 
@@ -240,6 +239,10 @@ Denenmedi:
   iOS WKWebView'in kendisinde, telefondaki kabuğun kilidi ve köprünün taşımasıyla birlikte
   yalnızca derlendi; 2.3.0'daki Android köprü hatasının düzeltmesi de cihazda görülmedi. Yayından
   önce gerçek cihazda sınanmalıdır (bkz. [SECURITY.md](SECURITY.md), bilinen sınırlar).
+- **Anlık bildirimin cihaz tarafı.** Gerçek bir telefona bildirim gönderilmedi; izin, adres alma,
+  bildirime dokununca sohbetin açılması ve Expo'nun gerçek yanıtları denenmedi. Bunun için sizin
+  Expo, Firebase ve Apple hesaplarınız gerekir; adımlar ve deneme listesi
+  [docs/YAYIN.md](docs/YAYIN.md#anlık-bildirim) içindedir.
 - **Gerçek bir doğrulama uygulaması.** İkinci adımın kodları RFC sınama vektörleriyle ve aynı
   hesabı yapan bir betikle üretildi; panelin gösterdiği QR kodu bir telefondaki Google
   Authenticator ya da benzeriyle okutulmadı.

@@ -586,6 +586,20 @@ npm run miniapp:pack -- miniapps/appointment/dist    # randevu-1.0.0.zip
 
 ## Bu belgedeki adımların ne kadarı denendi
 
+2.5 için:
+
+- **2.4'ten 2.5'e geçiş gerçek süreçlerle denendi** (26 denetim): 2.5 kimlik anahtarı olmadan
+  başlamadı; "2.4'ten 2.5'e geçiş" bölümündeki `keys add identity` komutu standart girdiden
+  okunan dosyayla çalıştırıldı, yazdırdığı satırla `keys check` geçti, ikinci kez çalıştırılınca
+  anahtarı yeniden üretmedi. `migrate` yalnızca `0006` ve `0007`'yi uyguladı; eski oturumlar,
+  kimlikler ve QR kodları korundu. Aynı veritabanında 2.4 yeniden başladı.
+- **`docker-compose.prod.yml` 2.5 ile `up` edildi:** yedi şema dosyası uygulandı, API ve panel
+  sağlıklı açıldı; `VADO_IDENTITY_KEYS` boşken Compose başlamadı ve bu belgeyi gösterdi. İmajlar
+  28 denetimden, yedekten dönüş tatbikatı 12 denetimden, Nginx + TLS senaryosu 20 adımdan geçti.
+- **Anlık bildirim** sunucu tarafında sahte sağlayıcıyla ve Expo'nun yanıtları taklit edilerek
+  sınandı. "Anlık bildirim" bölümündeki hesap ve anahtar adımları (Expo, Firebase, APNs) ve
+  "Cihazda deneme listesi" **denenmedi**.
+
 2.4 için yinelenenler ve yeniler:
 
 - **`docker-compose.prod.yml` dosyasının tamamı `up` ile çalıştırıldı** (resmî `postgres:16-alpine`

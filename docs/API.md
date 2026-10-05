@@ -95,13 +95,17 @@ Durum kodları: 400 geçersiz istek, 401 oturum yok ya da geçersiz, 403 yetki y
 
 ## Hesap ve kullanıcılar
 
-| Uç nokta                  | Gövde                | Yanıt               | Not                                            |
-| ------------------------- | -------------------- | ------------------- | ---------------------------------------------- |
-| `GET /v1/me`              | —                    | `Me`                | Oturum sahibinin hesabı                        |
-| `PATCH /v1/me`            | `updateMeBodySchema` | `Me`                | Ad, VADO kimliği, hakkında, fotoğraf, gizlilik |
-| `DELETE /v1/me`           | —                    | 204                 | Hesabı ve kişisel verileri siler               |
-| `GET /v1/users/search?q=` | —                    | `List<UserProfile>` | Telefon numarası ya da VADO kimliğiyle arama   |
-| `GET /v1/users/:id`       | —                    | `UserProfile`       | `relation` alanı aradaki ilişkiyi gösterir     |
+| Uç nokta                     | Gövde                                  | Yanıt                  | Not                                            |
+| ---------------------------- | -------------------------------------- | ---------------------- | ---------------------------------------------- |
+| `GET /v1/me`                 | —                                      | `Me`                   | Oturum sahibinin hesabı                        |
+| `PATCH /v1/me`               | `updateMeBodySchema`                   | `Me`                   | Ad, VADO kimliği, hakkında, fotoğraf, gizlilik |
+| `DELETE /v1/me`              | —                                      | 204                    | Hesabı ve kişisel verileri siler               |
+| `GET /v1/users/search?q=`    | —                                      | `List<UserProfile>`    | Telefon numarası ya da VADO kimliğiyle arama   |
+| `GET /v1/users/:id`          | —                                      | `UserProfile`          | `relation` alanı aradaki ilişkiyi gösterir     |
+| `PUT /v1/me/push-token`      | `pushTokenBodySchema`                  | 204                    | Bu oturumun bildirim adresi (2.5)              |
+| `DELETE /v1/me/push-token`   | —                                      | 204                    | Bildirim adresini siler                        |
+| `GET /v1/me/notifications`   | —                                      | `NotificationSettings` | Bildirim ayarları                              |
+| `PATCH /v1/me/notifications` | `updateNotificationSettingsBodySchema` | `NotificationSettings` | En az bir alan                                 |
 
 - Arama yalnızca tam eşleşme bulur ve en fazla bir sonuç döndürür; kısmi arama bilinçli olarak
   yoktur. "Numaramla bulunabileyim" ayarını kapatan kullanıcı numarayla bulunamaz.
@@ -109,6 +113,12 @@ Durum kodları: 400 geçersiz istek, 401 oturum yok ya da geçersiz, 403 yetki y
 - Bir kullanıcı sizi engellediyse profili `user_not_found` döndürür.
 - Hesap silindiğinde ad, numara, VADO kimliği, fotoğraflar, paylaşımlar, kişiler ve grup üyelikleri
   kaldırılır; gönderilmiş mesajlar karşı tarafta "Silinmiş Hesap" adıyla kalır.
+- **Bildirim adresi** Expo push belirtecidir (`ExponentPushToken[…]`) ve isteği yapan oturuma
+  bağlanır. Aynı adres başka bir oturumda kayıtlıysa oradan alınır. Çıkışta ve oturum kapatılınca
+  silinir. Ayarlar: `pushMessages` (yeni mesaj bildirimi, varsayılan açık) ve `pushPreview`
+  (bildirimde gönderen ve metin, varsayılan kapalı). Yeni cihazdan giriş bildirimi kapatılamaz.
+  Bildirimin `data` alanı `{ type: "message", conversationId }` ya da `{ type: "new_device" }`
+  biçimindedir (`pushDataSchema`).
 
 ## Kişiler
 
@@ -311,27 +321,28 @@ Her uç, gerektirdiği izni bildirir (aşağıdaki tablolarda "İzin" sütunu). 
 yoksa `forbidden` (403); hesabın parolasını bir yönetici belirlediyse (ilk hesap, sıfırlama) parola
 değişene kadar izin gerektiren her uç `admin_password_change_required` (403) döner. Rollerin
 izinleri `packages/contracts/src/admin-accounts.ts` içindeki `ADMIN_ROLE_PERMISSIONS`
-tablosundadır:
+tablosundadır. İşletme hesabının kapsamı ayrıca uygulanır (aşağıda, "Panel hesapları"):
 
-| İzin                               | Sahip | İnceleyen | Operatör | Destek | Denetçi |
-| ---------------------------------- | :---: | :-------: | :------: | :----: | :-----: |
-| `overview.read`                    |   ✓   |     ✓     |    ✓     |   ✓    |    ✓    |
-| `users.read`                       |   ✓   |           |          |   ✓    |    ✓    |
-| `users.manage`                     |   ✓   |           |          |   ✓    |         |
-| `businesses.read`                  |   ✓   |           |    ✓     |   ✓    |    ✓    |
-| `businesses.manage`                |   ✓   |           |    ✓     |        |         |
-| `reports.read`                     |   ✓   |           |          |   ✓    |    ✓    |
-| `reports.manage`                   |   ✓   |           |          |   ✓    |         |
-| `audit.read`                       |   ✓   |     ✓     |          |        |    ✓    |
-| `packages.read`                    |   ✓   |     ✓     |    ✓     |        |    ✓    |
-| `packages.upload`                  |   ✓   |           |    ✓     |        |         |
-| `packages.review`                  |   ✓   |     ✓     |          |        |         |
-| `packages.rollout`                 |   ✓   |           |    ✓     |        |         |
-| `miniapps.read`                    |   ✓   |     ✓     |    ✓     |   ✓    |    ✓    |
-| `miniapps.manage`                  |   ✓   |           |    ✓     |        |         |
-| `miniapps.publish`                 |   ✓   |           |    ✓     |        |         |
-| `emergency.disable` (acil kapatma) |   ✓   |     ✓     |    ✓     |        |         |
-| `accounts.manage`                  |   ✓   |           |          |        |         |
+| İzin                               | Sahip | İnceleyen | Operatör | Destek | Denetçi | İşletme |
+| ---------------------------------- | :---: | :-------: | :------: | :----: | :-----: | :-----: |
+| `overview.read`                    |   ✓   |     ✓     |    ✓     |   ✓    |    ✓    |         |
+| `users.read`                       |   ✓   |           |          |   ✓    |    ✓    |         |
+| `users.manage`                     |   ✓   |           |          |   ✓    |         |         |
+| `businesses.read`                  |   ✓   |           |    ✓     |   ✓    |    ✓    |         |
+| `businesses.manage`                |   ✓   |           |    ✓     |        |         |         |
+| `reports.read`                     |   ✓   |           |          |   ✓    |    ✓    |         |
+| `reports.manage`                   |   ✓   |           |          |   ✓    |         |         |
+| `audit.read`                       |   ✓   |     ✓     |          |        |    ✓    |         |
+| `packages.read`                    |   ✓   |     ✓     |    ✓     |        |    ✓    |         |
+| `packages.upload`                  |   ✓   |           |    ✓     |        |         |         |
+| `packages.review`                  |   ✓   |     ✓     |          |        |         |         |
+| `packages.rollout`                 |   ✓   |           |    ✓     |        |         |         |
+| `miniapps.read`                    |   ✓   |     ✓     |    ✓     |   ✓    |    ✓    |    ✓    |
+| `miniapps.manage`                  |   ✓   |           |    ✓     |        |         |         |
+| `miniapps.configure` (ayar, QR)    |   ✓   |           |    ✓     |        |         |    ✓    |
+| `miniapps.publish`                 |   ✓   |           |    ✓     |        |         |         |
+| `emergency.disable` (acil kapatma) |   ✓   |     ✓     |    ✓     |        |         |         |
+| `accounts.manage`                  |   ✓   |           |          |        |         |         |
 
 Yönetim işlemlerinin denetim kaydına ve "kim yaptı" alanlarına hesabın kimliği yazılır. Yanıtlarda
 işlemi yapan `Actor` biçimindedir: `{ id, name }`. `id`, hesabın ya da kullanıcının kimliğidir;
@@ -392,6 +403,15 @@ hesap olmayanlar için `admin` (2.4'ten önceki ortak panel hesabı), `cli` (kom
   sıfırlanınca hesabın açık oturumları kapanır. Son etkin sahip hesabı sahiplikten çıkarılamaz ve
   kapatılamaz (`admin_last_owner`, 409); kural veritabanında da korunur.
 - Hesap silinmez, kapatılır: denetim kaydında adı kalır.
+- **İşletme hesabı (2.5):** `role: "business"` ile açılır ve `businessId` ister; diğer roller
+  `businessId` almaz (`validation_failed`). İşletme yoksa `business_not_found`. Yanıttaki
+  `business` alanı (`{ id, name }`) hesabın işletmesidir; ekip hesaplarında `null`. İşletme
+  hesabının rolü değiştirilemez, ekip hesabı işletme rolüne geçirilemez
+  (`admin_scope_change_forbidden`, 409); kural veritabanında da korunur.
+- İşletme hesabı yalnızca `miniapps.read` ve `miniapps.configure` izinlerini kullanır ve yalnızca
+  işletmesinin satıcı olarak bağlı olduğu uygulama kayıtlarını görür: liste süzülür, başka bir
+  kayıt `miniapp_not_found` (404) döner. Yayın geçmişinde VADO ekibinin hesapları "VADO ekibi"
+  adıyla görünür, kayda bağlı başka işletmelerin satıcıları gösterilmez.
 
 ### Kullanıcılar, işletmeler, şikayetler
 
@@ -455,18 +475,18 @@ Paket incelenen koddur; sürümleri yüklenir, incelenir ve onaylanır. Akışı
 
 ### Uygulama kayıtları
 
-| Uç nokta                                           | İzin                | Gövde                              | Yanıt                       | Not                                                           |
-| -------------------------------------------------- | ------------------- | ---------------------------------- | --------------------------- | ------------------------------------------------------------- |
-| `GET /v1/admin/miniapps?q=`                        | `miniapps.read`     | —                                  | `List<AdminMiniAppSummary>` | Kapalı olanlar dahil; ad ya da kimlik araması                 |
-| `GET /v1/admin/miniapps/:id`                       | `miniapps.read`     | —                                  | `AdminMiniApp`              | Yayın geçmişi ve satıcılarıyla                                |
-| `PUT /v1/admin/miniapps/:id`                       | `miniapps.manage`   | `adminSaveMiniAppBodySchema`       | `AdminMiniApp`              | Vitrini oluşturur ya da günceller                             |
-| `PATCH /v1/admin/miniapps/:id`                     | `miniapps.manage`   | `adminUpdateMiniAppBodySchema`     | 204                         | Doğrular, açar, kapatır                                       |
-| `POST /v1/admin/miniapps/:id/releases`             | `miniapps.publish`  | `adminPublishMiniAppBodySchema`    | `AdminMiniApp`              | Onaylı bir sürümü, ayarlarıyla yayınlar                       |
-| `POST /v1/admin/miniapps/:id/disable`              | `emergency.disable` | —                                  | 204                         | Acil kapatma: kaydı kullanıcılara kapatır                     |
-| `POST /v1/admin/miniapps/:id/rollback`             | `miniapps.publish`  | —                                  | `AdminMiniApp`              | Bir önceki yayına, o yayının ayarlarıyla döner                |
-| `PUT /v1/admin/miniapps/:id/config`                | `miniapps.manage`   | `adminSaveMiniAppConfigBodySchema` | `AdminMiniApp`              | İşletme ayarlarını değiştirir                                 |
-| `POST /v1/admin/miniapps/:id/qr`                   | `miniapps.manage`   | `adminIssueMiniAppQrBodySchema`    | `IssuedQr`                  | İmzalı, isteğe bağlı parametreli kod; denetim kaydına yazılır |
-| `PUT /v1/admin/miniapps/:id/merchants/:merchantId` | `miniapps.manage`   | `adminSaveMerchantBodySchema`      | 204                         | Satıcıyı kayda bağlar                                         |
+| Uç nokta                                           | İzin                 | Gövde                              | Yanıt                       | Not                                                           |
+| -------------------------------------------------- | -------------------- | ---------------------------------- | --------------------------- | ------------------------------------------------------------- |
+| `GET /v1/admin/miniapps?q=`                        | `miniapps.read`      | —                                  | `List<AdminMiniAppSummary>` | Kapalı olanlar dahil; ad ya da kimlik araması                 |
+| `GET /v1/admin/miniapps/:id`                       | `miniapps.read`      | —                                  | `AdminMiniApp`              | Yayın geçmişi ve satıcılarıyla                                |
+| `PUT /v1/admin/miniapps/:id`                       | `miniapps.manage`    | `adminSaveMiniAppBodySchema`       | `AdminMiniApp`              | Vitrini oluşturur ya da günceller                             |
+| `PATCH /v1/admin/miniapps/:id`                     | `miniapps.manage`    | `adminUpdateMiniAppBodySchema`     | 204                         | Doğrular, açar, kapatır                                       |
+| `POST /v1/admin/miniapps/:id/releases`             | `miniapps.publish`   | `adminPublishMiniAppBodySchema`    | `AdminMiniApp`              | Onaylı bir sürümü, ayarlarıyla yayınlar                       |
+| `POST /v1/admin/miniapps/:id/disable`              | `emergency.disable`  | —                                  | 204                         | Acil kapatma: kaydı kullanıcılara kapatır                     |
+| `POST /v1/admin/miniapps/:id/rollback`             | `miniapps.publish`   | —                                  | `AdminMiniApp`              | Bir önceki yayına, o yayının ayarlarıyla döner                |
+| `PUT /v1/admin/miniapps/:id/config`                | `miniapps.configure` | `adminSaveMiniAppConfigBodySchema` | `AdminMiniApp`              | İşletme ayarlarını değiştirir                                 |
+| `POST /v1/admin/miniapps/:id/qr`                   | `miniapps.configure` | `adminIssueMiniAppQrBodySchema`    | `IssuedQr`                  | İmzalı, isteğe bağlı parametreli kod; denetim kaydına yazılır |
+| `PUT /v1/admin/miniapps/:id/merchants/:merchantId` | `miniapps.manage`    | `adminSaveMerchantBodySchema`      | 204                         | Satıcıyı kayda bağlar                                         |
 
 - Yeni kayıt doğrulanmamış ve yayınsız başlar. `AdminMiniApp.offlineReason`, kaydın kullanıcılara
   neden kapalı olduğunu söyler (`disabled`, `unverified`, `unpublished`, `version_unavailable`,

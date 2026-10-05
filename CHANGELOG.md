@@ -38,7 +38,9 @@ Anlar, ödeme akışı ve mini uygulama yalıtımı değişmedi.
   bildirimlerini kapatabilir. Yeni cihaz bildirimi kapatılamaz. Bildirime dokununca sohbet ya da
   oturumlar ekranı açılır. Bildirim adresi oturuma bağlıdır; çıkışta ve oturum kapatılınca
   veritabanı onu siler. Sağlayıcının geçersiz dediği adres silinir. Gönderim isteği bekletmez.
-  Uçlar: `PUT`/`DELETE /v1/me/push-token`, `GET`/`PATCH /v1/me/notifications`.
+  Uçlar: `PUT`/`DELETE /v1/me/push-token`, `GET`/`PATCH /v1/me/notifications`. Sunucu tarafı
+  sahte sağlayıcıyla sınandı; **gerçek telefona bildirim gönderilmedi, cihaz tarafı denenmedi**
+  (deneme listesi: [docs/YAYIN.md](docs/YAYIN.md#anlık-bildirim)).
 
 ### Değişen
 
