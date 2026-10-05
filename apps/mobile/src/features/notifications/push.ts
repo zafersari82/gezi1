@@ -31,7 +31,16 @@ function projectId(): string | null {
   return typeof id === "string" && id !== "" ? id : null;
 }
 
-export async function notificationPermission(): Promise<"granted" | "denied" | "undetermined"> {
+export type PushAvailability =
+  "granted" | "denied" | "undetermined" | "unsupported" | "not_configured";
+
+/**
+ * Bu cihazda bildirimin durumu: önce cihazın ve kurulumun bildirime uygun olup olmadığı, sonra
+ * kullanıcının izni. Ayarlar ekranı kullanıcıya buna göre ne yapabileceğini söyler.
+ */
+export async function pushAvailability(): Promise<PushAvailability> {
+  if (!Device.isDevice) return "unsupported";
+  if (projectId() === null) return "not_configured";
   const { status } = await Notifications.getPermissionsAsync();
   return status;
 }
@@ -51,9 +60,9 @@ export async function registerForPush(ask: boolean): Promise<PushRegistration> {
       importance: Notifications.AndroidImportance.HIGH,
     });
   }
-  let status = await notificationPermission();
-  if (status !== "granted" && ask) status = (await Notifications.requestPermissionsAsync()).status;
-  if (status !== "granted") return "denied";
+  let { granted } = await Notifications.getPermissionsAsync();
+  if (!granted && ask) ({ granted } = await Notifications.requestPermissionsAsync());
+  if (!granted) return "denied";
 
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId: id });
   await api.put("/v1/me/push-token", { token });

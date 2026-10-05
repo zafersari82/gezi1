@@ -202,7 +202,7 @@ uygulama paketleri değişmeden çalışır.
 3. **Güncelleyin:** `docker compose … up -d --build`. `migrate` servisi iki dosyayı uygular.
 4. **Anlık bildirim** isteğe bağlıdır; açmak için aşağıdaki "Anlık bildirim" bölümü.
 5. **Geri dönüş:** 2.4 yükseltilmiş veritabanında çalışır. Önce varsa işletme hesaplarını kapatın;
-   2.4 bu rolü tanımaz.
+   2.4 bu rolü tanımaz (kapatılmamış işletme hesabı girebilir ama panel sunucu hatası verir).
 
 ### 2.3.1'den 2.4'e geçiş
 

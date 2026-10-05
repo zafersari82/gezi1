@@ -3,7 +3,8 @@ import { Linking, ScrollView, StyleSheet, View } from "react-native";
 
 import { errorMessage } from "@/api/client";
 import {
-  notificationPermission,
+  type PushAvailability,
+  pushAvailability,
   type PushRegistration,
   registerForPush,
 } from "@/features/notifications/push";
@@ -20,7 +21,7 @@ import { SectionTitle } from "@/ui/screen";
 import { ErrorView, LoadingView } from "@/ui/states";
 import { Toggle } from "@/ui/toggle";
 
-type DeviceState = "granted" | "denied" | "undetermined" | PushRegistration;
+type DeviceState = PushAvailability | PushRegistration;
 
 const DEVICE_NOTES: Partial<Record<DeviceState, string>> = {
   denied: "Bu telefonda VADO bildirimlerine izin verilmedi. Telefonun ayarlarından açabilirsin.",
@@ -36,7 +37,7 @@ export default function NotificationSettingsScreen() {
   const [device, setDevice] = useState<DeviceState | null>(null);
 
   useEffect(() => {
-    void notificationPermission().then(setDevice);
+    void pushAvailability().then(setDevice);
   }, []);
 
   async function enable() {

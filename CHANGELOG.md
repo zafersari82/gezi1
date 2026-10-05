@@ -84,7 +84,8 @@ Anlar, ödeme akışı ve mini uygulama yalıtımı değişmedi.
    uygulamanın 2.5 SDK'sıyla derlenmesi ve kullanıcının mobil uygulamasının 2.5 olması gerekir;
    eski mobil uygulamada `getToken()` "bilinmeyen metot" hatası verir, `params` boş gelir.
 7. **Geri dönüş.** 2.4 yükseltilmiş veritabanında çalışır; önce işletme hesaplarını kapatın (2.4
-   bu rolü tanımaz). `VADO_IDENTITY_KEYS` satırını 2.4 yok sayar. Bildirim adresleri ve ayarları
+   bu rolü tanımaz: kapatılmamış işletme hesabı girebilir ama panel her sayfada sunucu hatası
+   verir). `VADO_IDENTITY_KEYS` satırını 2.4 yok sayar. Bildirim adresleri ve ayarları
    2.4'te kullanılmaz.
 
 ## 2.4.0 (2026-10-05)

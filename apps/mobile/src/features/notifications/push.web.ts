@@ -5,8 +5,11 @@ export function configureForegroundNotifications(): void {
   // Tarayıcıda yapılacak bir şey yok.
 }
 
-export function notificationPermission(): Promise<"granted" | "denied" | "undetermined"> {
-  return Promise.resolve("denied");
+export type PushAvailability =
+  "granted" | "denied" | "undetermined" | "unsupported" | "not_configured";
+
+export function pushAvailability(): Promise<PushAvailability> {
+  return Promise.resolve("unsupported");
 }
 
 export function registerForPush(_ask: boolean): Promise<PushRegistration> {
