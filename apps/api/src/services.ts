@@ -1,5 +1,6 @@
 import type { AppContext } from "./core/context";
 import { createAdminService } from "./modules/admin/admin.service";
+import { createAdminAccountService } from "./modules/admin-accounts/admin-accounts.service";
 import { createAuthService } from "./modules/auth/auth.service";
 import { createBusinessService } from "./modules/businesses/businesses.service";
 import { createChatService } from "./modules/chat/chat.service";
@@ -30,6 +31,7 @@ export function createServices(context: AppContext) {
   const payments = createPaymentService(context);
   const reports = createReportService(context);
   const admin = createAdminService(context, auth);
+  const adminAccounts = createAdminAccountService(context);
 
   return {
     auth,
@@ -46,6 +48,7 @@ export function createServices(context: AppContext) {
     payments,
     reports,
     admin,
+    adminAccounts,
   };
 }
 

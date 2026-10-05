@@ -22,6 +22,7 @@
     "db:migrate": "npm run migrate -w @vado/api",
     "db:seed": "npm run build -w @vado/miniapp-appointment && npm run seed -w @vado/api -- --package miniapps/appointment/dist",
     "keys": "npm run keys -w @vado/api --",
+    "admins": "npm run admins -w @vado/api --",
     "miniapp:pack": "npm run pack -w @vado/api --",
     "packages:verify": "npm run packages -w @vado/api -- verify",
     "format": "prettier --write .",

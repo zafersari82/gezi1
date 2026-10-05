@@ -18,6 +18,14 @@ import { userRefSchema } from "./users";
 /** Yönetim uç noktaları bu başlıkta yönetici anahtarı bekler. Anahtar yalnızca panel sunucusunda durur. */
 export const ADMIN_KEY_HEADER = "x-vado-admin-key";
 
+/**
+ * Panel sunucusu, yöneticinin tarayıcısının IP adresini ve tarayıcı bilgisini bu başlıklarla
+ * iletir; oturum listesinde ve denetim kaydında panel sunucusunun değil yöneticinin adresi görünür.
+ * API bu başlıklara yalnızca yönetici anahtarı doğrulandıktan sonra bakar.
+ */
+export const ADMIN_CLIENT_IP_HEADER = "x-vado-client-ip";
+export const ADMIN_CLIENT_AGENT_HEADER = "x-vado-client-agent";
+
 export const adminOverviewSchema = z.object({
   users: z.number().int(),
   newUsersToday: z.number().int(),

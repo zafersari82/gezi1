@@ -91,7 +91,7 @@ describe("paketler", () => {
         permissions: ["identity.basic", "storage.local"],
         network: ["https://api.ornek.com"],
         fileCount: 5,
-        uploadedBy: "admin",
+        uploadedBy: app.admins.operator.id,
         submittedAt: null,
         reviewedBy: null,
         diff: null,
@@ -287,18 +287,28 @@ describe("paketler", () => {
       await uploadVersion(app, { id, version: "1.0.0" });
       const url = versionUrl(id, "1.0.0");
 
-      const submitted = await admin.ok(adminPackageVersionSchema, "POST", `${url}/submit`);
+      const { operator, reviewer } = app.admins;
+      const submitted = await asAdmin(app, "operator").ok(
+        adminPackageVersionSchema,
+        "POST",
+        `${url}/submit`,
+      );
       expect(submitted).toMatchObject({ status: "in_review", reviewedBy: null });
       expect(submitted.submittedAt).not.toBeNull();
       const overview = await admin.ok(adminOverviewSchema, "GET", "/v1/admin/overview");
       expect(overview.packagesInReview).toBeGreaterThan(0);
 
-      const approved = await admin.ok(adminPackageVersionSchema, "POST", `${url}/approve`, {
-        body: { note: "Bildirilen adresler ve yetkiler uygun." },
-      });
+      const approved = await asAdmin(app, "reviewer").ok(
+        adminPackageVersionSchema,
+        "POST",
+        `${url}/approve`,
+        {
+          body: { note: "Bildirilen adresler ve yetkiler uygun." },
+        },
+      );
       expect(approved).toMatchObject({
         status: "approved",
-        reviewedBy: "admin",
+        reviewedBy: reviewer.id,
         reviewNote: "Bildirilen adresler ve yetkiler uygun.",
       });
       expect(approved.reviewedAt).not.toBeNull();
@@ -309,10 +319,10 @@ describe("paketler", () => {
         order by id
       `);
       expect(audit).toEqual([
-        { actor: "admin", action: "package.saved" },
-        { actor: "admin", action: "package.version_uploaded" },
-        { actor: "admin", action: "package.version_submitted" },
-        { actor: "admin", action: "package.version_approved" },
+        { actor: operator.id, action: "package.saved" },
+        { actor: operator.id, action: "package.version_uploaded" },
+        { actor: operator.id, action: "package.version_submitted" },
+        { actor: reviewer.id, action: "package.version_approved" },
       ]);
     });
 
@@ -329,7 +339,7 @@ describe("paketler", () => {
       });
       expect(rejected).toMatchObject({
         status: "rejected",
-        reviewedBy: "admin",
+        reviewedBy: app.admins.owner.id,
         reviewNote: "Bildirilmemiş bir adrese veri gönderiyor.",
       });
 

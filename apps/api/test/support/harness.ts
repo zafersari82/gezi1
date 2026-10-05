@@ -5,6 +5,8 @@ import { join } from "node:path";
 
 import {
   ADMIN_KEY_HEADER,
+  ADMIN_ROLES,
+  type AdminRole,
   type ApiErrorBody,
   apiErrorBodySchema,
   type ErrorCode,
@@ -39,7 +41,17 @@ export interface TestApp extends App {
   sentSms: SentSms[];
   /** Servislerin günlüğe düştüğü kayıtlar burada birikir. */
   logs: LogEntry[];
+  /** Her rolden, oturumu açık birer panel hesabı (bkz. `asAdmin`). */
+  admins: Record<AdminRole, TestAdmin>;
   stop: () => Promise<void>;
+}
+
+/** Oturumu açık, ikinci adımı geçilmiş bir panel hesabı. */
+export interface TestAdmin {
+  id: string;
+  username: string;
+  token: string;
+  sessionId: string;
 }
 
 export interface TestUser {
@@ -113,12 +125,16 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
     log: { info: record("info"), warn: record("warn"), error: record("error") },
   });
 
+  const admins = {} as Record<AdminRole, TestAdmin>;
+  for (const role of ADMIN_ROLES) admins[role] = await createAdmin(db, role);
+
   return {
     ...app,
     config,
     db,
     sentSms,
     logs,
+    admins,
     async stop() {
       await app.close();
       await db.close();
@@ -134,6 +150,36 @@ function randomIp(): string {
 /** Çakışmayan, geçerli bir Türkiye cep telefonu numarası üretir. */
 export function randomPhone(): string {
   return `+90555${randomInt(0, 10_000_000).toString().padStart(7, "0")}`;
+}
+
+/**
+ * Girişe ve ikinci adıma girmeden, oturumu açık bir panel hesabı oluşturur. Parolası yoktur
+ * (özeti hiçbir parolayla eşleşmez); girişi sınayan testler hesabı kendileri açar.
+ */
+export async function createAdmin(
+  db: DatabasePool,
+  role: AdminRole,
+  options: { mustChangePassword?: boolean } = {},
+): Promise<TestAdmin> {
+  const username = `${role}-${randomInt(0, 1_000_000_000)}`;
+  const token = randomToken();
+  const account = await db.one<{ id: string }>(sql`
+    insert into admin_accounts (
+      username, display_name, role, password_hash, must_change_password, totp_secret,
+      totp_enabled_at
+    )
+    values (
+      ${username}, ${`Sınama ${role}`}, ${role}, 'parolasiz', ${options.mustChangePassword ?? false},
+      'JBSWY3DPEHPK3PXP', now()
+    )
+    returning id
+  `);
+  const session = await db.one<{ id: string }>(sql`
+    insert into admin_sessions (account_id, token_hash, stage, expires_at)
+    values (${account.id}, ${sha256(token)}, 'active', now() + interval '1 hour')
+    returning id
+  `);
+  return { id: account.id, username, token, sessionId: session.id };
 }
 
 /** SMS doğrulamasına girmeden, adı ve az önce açılmış oturumu olan bir kullanıcı oluşturur. */
@@ -211,9 +257,22 @@ export function anonymous(app: TestApp): Client {
   return createClient(app, {});
 }
 
-/** Yönetim paneli gibi yönetici anahtarıyla istek gönderen istemci. */
-export function asAdmin(app: TestApp): Client {
+/** Panel sunucusunun yaptığı gibi: yönetici anahtarı ve panel hesabının oturumuyla. */
+export function asAdminSession(app: TestApp, token: string): Client {
+  return createClient(app, {
+    [ADMIN_KEY_HEADER]: app.config.adminApiKey,
+    authorization: `Bearer ${token}`,
+  });
+}
+
+/** Yalnızca yönetici anahtarıyla, oturumsuz: panelin giriş sayfası gibi. */
+export function asPanel(app: TestApp): Client {
   return createClient(app, { [ADMIN_KEY_HEADER]: app.config.adminApiKey });
+}
+
+/** Verilen roldeki hazır panel hesabıyla (varsayılan: sahip) istek gönderen istemci. */
+export function asAdmin(app: TestApp, role: AdminRole = "owner"): Client {
+  return asAdminSession(app, app.admins[role].token);
 }
 
 /** Geçerli en küçük PNG dosyası (1x1 piksel). */

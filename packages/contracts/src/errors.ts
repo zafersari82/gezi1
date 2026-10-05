@@ -90,6 +90,17 @@ export const ERROR_MESSAGES = {
 
   // Yönetim
   admin_unauthorized: "Yönetici anahtarı geçersiz.",
+  admin_login_failed:
+    "Kullanıcı adı ya da parola hatalı. Çok sayıda hatalı denemeden sonra hesap bir süre kilitlenir.",
+  admin_session_invalid: "Panel oturumun sona erdi. Yeniden giriş yap.",
+  admin_second_factor_invalid: "Kod hatalı ya da kullanılmış. Uygulamadaki güncel kodu gir.",
+  admin_password_change_required: "Devam etmeden önce parolanı değiştirmelisin.",
+  admin_password_invalid: "Mevcut parolan hatalı.",
+  admin_password_reused: "Yeni parola eskisiyle aynı olamaz.",
+  admin_totp_already_enabled: "İki adımlı doğrulama bu hesapta zaten kurulu.",
+  admin_username_taken: "Bu kullanıcı adı başka bir hesapta kullanılıyor.",
+  admin_account_not_found: "Yönetici hesabı bulunamadı.",
+  admin_last_owner: "En az bir etkin sahip hesabı kalmalı.",
   report_not_found: "Şikayet bulunamadı.",
 } as const;
 

@@ -94,7 +94,9 @@ describe("paketle yayınlanan uygulama kayıtları", () => {
         version: "1.0.0",
         release: { packageId, version: "1.0.0", status: "approved" },
       });
-      expect(published.releases).toMatchObject([{ seq: 1, action: "publish", actor: "admin" }]);
+      expect(published.releases).toMatchObject([
+        { seq: 1, action: "publish", actor: app.admins.owner.id },
+      ]);
       await as(app, user).fail("miniapp_not_found", "GET", `/v1/miniapps/${id}`);
 
       await admin.done("PATCH", url, { body: { verified: true } });

@@ -13,7 +13,13 @@ const external = Object.keys(manifest.dependencies).filter((name) => !name.start
 await rm(new URL("./dist", import.meta.url), { recursive: true, force: true });
 
 await build({
-  entryPoints: ["src/main.ts", "src/cli/migrate.ts", "src/cli/keys.ts", "src/cli/packages.ts"],
+  entryPoints: [
+    "src/main.ts",
+    "src/cli/migrate.ts",
+    "src/cli/keys.ts",
+    "src/cli/packages.ts",
+    "src/cli/admins.ts",
+  ],
   outdir: "dist",
   outbase: "src",
   bundle: true,

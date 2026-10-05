@@ -71,7 +71,7 @@ export function packageArchive(source: PackageSource): Buffer {
   return writeZip(Object.entries(packageFiles(source)).map(([path, data]) => ({ path, data })));
 }
 
-/** Arşivi paketin yeni sürümü olarak yükler; durum kodunu ve gövdeyi döndürür. */
+/** Arşivi operatör hesabıyla paketin yeni sürümü olarak yükler; durum kodunu ve gövdeyi döndürür. */
 export async function sendArchive(
   app: TestApp,
   packageId: string,
@@ -82,7 +82,11 @@ export async function sendArchive(
   const response = await app.server.inject({
     method: "POST",
     url: `/v1/admin/packages/${packageId}/versions`,
-    headers: { ...headers, [ADMIN_KEY_HEADER]: app.config.adminApiKey },
+    headers: {
+      ...headers,
+      [ADMIN_KEY_HEADER]: app.config.adminApiKey,
+      authorization: `Bearer ${app.admins.operator.token}`,
+    },
     payload,
   });
   return { status: response.statusCode, body: response.body === "" ? null : response.json() };
@@ -101,9 +105,9 @@ export async function expectUploadError(
   return body.error;
 }
 
-/** Paketin kimlik kaydını oluşturur. */
+/** Paketin kimlik kaydını operatör hesabıyla oluşturur. */
 export async function createPackage(app: TestApp, id = unique("paket")): Promise<string> {
-  await asAdmin(app).ok(adminPackageSchema, "PUT", `/v1/admin/packages/${id}`, {
+  await asAdmin(app, "operator").ok(adminPackageSchema, "PUT", `/v1/admin/packages/${id}`, {
     body: { name: "Örnek Paket", developerName: "VADO" },
   });
   return id;
@@ -119,16 +123,15 @@ export async function uploadVersion(
   return adminPackageVersionSchema.parse(response.body);
 }
 
-/** Sürümü yükler, incelemeye gönderir ve onaylar. */
+/** Sürümü operatör yükler ve incelemeye gönderir, inceleyen onaylar. */
 export async function approveVersion(
   app: TestApp,
   source: PackageSource,
 ): Promise<AdminPackageVersion> {
-  const admin = asAdmin(app);
   const url = `/v1/admin/packages/${source.id}/versions/${source.version}`;
   await uploadVersion(app, source);
-  await admin.ok(adminPackageVersionSchema, "POST", `${url}/submit`);
-  return admin.ok(adminPackageVersionSchema, "POST", `${url}/approve`);
+  await asAdmin(app, "operator").ok(adminPackageVersionSchema, "POST", `${url}/submit`);
+  return asAdmin(app, "reviewer").ok(adminPackageVersionSchema, "POST", `${url}/approve`);
 }
 
 /** Yeni bir uygulama kaydı açar; kayıt doğrulanmamıştır ve yayınlanmış sürümü yoktur. */

@@ -10,6 +10,7 @@
     "migrate": "tsx src/cli/migrate.ts",
     "seed": "tsx src/cli/seed.ts",
     "keys": "tsx src/cli/keys.ts",
+    "admins": "tsx src/cli/admins.ts",
     "pack": "tsx src/cli/pack.ts",
     "packages": "tsx src/cli/packages.ts",
     "build": "node build.mjs",

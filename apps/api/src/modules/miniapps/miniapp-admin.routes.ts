@@ -11,70 +11,95 @@ import {
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { miniAppParamsSchema, noContent, parse } from "../../core/http";
+import { adminAccess, miniAppParamsSchema, noContent, parse } from "../../core/http";
 import type { RouteContext } from "../../routes";
 
 const merchantParamsSchema = z.object({ id: miniAppIdSchema, merchantId: merchantIdSchema });
 
-/** Uygulama kayıtlarının yönetimi. Yalnızca yönetici anahtarıyla çağrılır. */
+/** Uygulama kayıtlarının yönetimi. Her uç gerektirdiği izni bildirir (bkz. core/http.ts). */
 export function miniAppAdminRoutes(
   server: FastifyInstance,
   { services, adminGuard }: RouteContext,
 ): void {
   const { miniAppAdmin } = services;
 
-  server.get("/v1/admin/miniapps", async (request) => {
-    adminGuard(request);
+  server.get("/v1/admin/miniapps", adminAccess("miniapps.read"), async (request) => {
+    await adminGuard(request);
     const { q } = parse(adminSearchQuerySchema, request.query);
     return { items: await miniAppAdmin.list(q) };
   });
 
-  server.get("/v1/admin/miniapps/:id", (request) => {
-    adminGuard(request);
+  server.get("/v1/admin/miniapps/:id", adminAccess("miniapps.read"), async (request) => {
+    await adminGuard(request);
     const { id } = parse(miniAppParamsSchema, request.params);
     return miniAppAdmin.get(id);
   });
 
-  server.put("/v1/admin/miniapps/:id", (request) => {
-    const { actor } = adminGuard(request);
+  server.put("/v1/admin/miniapps/:id", adminAccess("miniapps.manage"), async (request) => {
+    const { actor } = await adminGuard(request);
     const { id } = parse(miniAppParamsSchema, request.params);
     const body = parse(adminSaveMiniAppBodySchema, request.body);
     return miniAppAdmin.save(actor, id, body);
   });
 
-  server.patch("/v1/admin/miniapps/:id", async (request, reply) => {
-    const { actor } = adminGuard(request);
+  server.patch("/v1/admin/miniapps/:id", adminAccess("miniapps.manage"), async (request, reply) => {
+    const { actor } = await adminGuard(request);
     const { id } = parse(miniAppParamsSchema, request.params);
     const body = parse(adminUpdateMiniAppBodySchema, request.body);
     await miniAppAdmin.update(actor, id, body);
     return noContent(reply);
   });
 
-  server.post("/v1/admin/miniapps/:id/releases", (request) => {
-    const { actor } = adminGuard(request);
-    const { id } = parse(miniAppParamsSchema, request.params);
-    const body = parse(adminPublishMiniAppBodySchema, request.body);
-    return miniAppAdmin.publish(actor, id, body);
-  });
+  // Acil kapatma: kaydı yönetemeyen ama sorunlu bir uygulamayı kullanıcılardan hemen gizlemesi
+  // gereken roller (inceleyen) için ayrı bir uçtur; kaydı yeniden açmak `miniapps.manage` ister.
+  server.post(
+    "/v1/admin/miniapps/:id/disable",
+    adminAccess("emergency.disable"),
+    async (request, reply) => {
+      const { actor } = await adminGuard(request);
+      const { id } = parse(miniAppParamsSchema, request.params);
+      await miniAppAdmin.update(actor, id, { enabled: false });
+      return noContent(reply);
+    },
+  );
 
-  server.post("/v1/admin/miniapps/:id/rollback", (request) => {
-    const { actor } = adminGuard(request);
-    const { id } = parse(miniAppParamsSchema, request.params);
-    return miniAppAdmin.rollback(actor, id);
-  });
+  server.post(
+    "/v1/admin/miniapps/:id/releases",
+    adminAccess("miniapps.publish"),
+    async (request) => {
+      const { actor } = await adminGuard(request);
+      const { id } = parse(miniAppParamsSchema, request.params);
+      const body = parse(adminPublishMiniAppBodySchema, request.body);
+      return miniAppAdmin.publish(actor, id, body);
+    },
+  );
 
-  server.put("/v1/admin/miniapps/:id/config", (request) => {
-    const { actor } = adminGuard(request);
+  server.post(
+    "/v1/admin/miniapps/:id/rollback",
+    adminAccess("miniapps.publish"),
+    async (request) => {
+      const { actor } = await adminGuard(request);
+      const { id } = parse(miniAppParamsSchema, request.params);
+      return miniAppAdmin.rollback(actor, id);
+    },
+  );
+
+  server.put("/v1/admin/miniapps/:id/config", adminAccess("miniapps.manage"), async (request) => {
+    const { actor } = await adminGuard(request);
     const { id } = parse(miniAppParamsSchema, request.params);
     const body = parse(adminSaveMiniAppConfigBodySchema, request.body);
     return miniAppAdmin.saveConfig(actor, id, body.config);
   });
 
-  server.put("/v1/admin/miniapps/:id/merchants/:merchantId", async (request, reply) => {
-    const { actor } = adminGuard(request);
-    const params = parse(merchantParamsSchema, request.params);
-    const body = parse(adminSaveMerchantBodySchema, request.body);
-    await miniAppAdmin.saveMerchant(actor, params.id, params.merchantId, body);
-    return noContent(reply);
-  });
+  server.put(
+    "/v1/admin/miniapps/:id/merchants/:merchantId",
+    adminAccess("miniapps.manage"),
+    async (request, reply) => {
+      const { actor } = await adminGuard(request);
+      const params = parse(merchantParamsSchema, request.params);
+      const body = parse(adminSaveMerchantBodySchema, request.body);
+      await miniAppAdmin.saveMerchant(actor, params.id, params.merchantId, body);
+      return noContent(reply);
+    },
+  );
 }

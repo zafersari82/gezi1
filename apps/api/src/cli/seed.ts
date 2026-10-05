@@ -8,13 +8,14 @@ import {
   TERMS_VERSION,
 } from "@vado/contracts";
 
-import { ADMIN_ACTOR } from "../core/audit";
 import { loadConfig, loadEnvFile } from "../core/config";
 import type { AppContext } from "../core/context";
 import { createDatabase, type Database, sql } from "../core/database";
 import { StartupError } from "../core/errors";
 import { createAppKeys } from "../core/keys";
 import { migrate } from "../core/migrator";
+import { hashPassword } from "../core/security";
+import { generateTotpSecret } from "../core/totp";
 import { writeZip, type ZipEntry } from "../core/zip";
 import { readPackageDirectory } from "../modules/packages/package-directory";
 import { inspectPackage } from "../modules/packages/package-inspection";
@@ -26,6 +27,10 @@ import { createServices } from "../services";
  * Geliştirme için örnek veri yükler: `npm run db:seed`.
  * Dört kullanıcı, sohbetler, bir grup, paylaşımlar, onaylı bir işletme ve örnek mini uygulama.
  * Örnek kullanıcılarla giriş: 0555 000 00 01 … 04, doğrulama kodu 000000.
+ *
+ * Panel için üç örnek yönetici açılır (sahip, inceleyen, operatör); parolaları aşağıda,
+ * ikinci adımları kuruludur ve demo modunda ikinci adımda 000000 kodu geçer. Örnek paketi
+ * operatör yükler, inceleyen onaylar: yükleyen kendi yüklediğini onaylayamaz.
  *
  * Örnek mini uygulama (Randevu) derlenmiş klasöründen paketlenir, yüklenir, onaylanır ve iki
  * işletmenin uygulama kaydında ayrı ayarlarla yayınlanır: aynı paket, iki ayrı vitrin. Üçüncü bir
@@ -80,6 +85,44 @@ const PEOPLE = [
 
 type PersonKey = (typeof PEOPLE)[number]["key"];
 
+/** Örnek yönetici hesaplarının ortak parolası; örnek veri canlı ortama yüklenemez. */
+const ADMIN_DEMO_PASSWORD = "vado-gelistirme";
+
+const ADMINS = [
+  { key: "owner", username: "sahip", name: "Deniz Arslan", role: "owner" },
+  { key: "reviewer", username: "inceleyen", name: "İpek Aydın", role: "reviewer" },
+  { key: "operator", username: "operator", name: "Okan Şahin", role: "operator" },
+] as const;
+
+type AdminKey = (typeof ADMINS)[number]["key"];
+
+/**
+ * Örnek yönetici hesaplarını açar (varsa dokunmaz) ve kimliklerini döndürür. Parola bilinen bir
+ * değerdir ve ilk girişte değiştirilmesi istenmez; ikinci adım kurulu sayılır.
+ */
+async function ensureAdmins(db: Database): Promise<Record<AdminKey, string>> {
+  const ids = {} as Record<AdminKey, string>;
+  const passwordHash = await hashPassword(ADMIN_DEMO_PASSWORD);
+  for (const admin of ADMINS) {
+    await db.execute(sql`
+      insert into admin_accounts (
+        username, display_name, role, password_hash, must_change_password,
+        totp_secret, totp_enabled_at
+      )
+      values (
+        ${admin.username}, ${admin.name}, ${admin.role}, ${passwordHash}, false,
+        ${generateTotpSecret()}, now()
+      )
+      on conflict (username) do nothing
+    `);
+    const row = await db.one<{ id: string }>(sql`
+      select id from admin_accounts where username = ${admin.username}
+    `);
+    ids[admin.key] = row.id;
+  }
+  return ids;
+}
+
 async function createPeople(db: Database): Promise<Record<PersonKey, string>> {
   const ids = {} as Record<PersonKey, string>;
   for (const person of PEOPLE) {
@@ -94,7 +137,7 @@ async function createPeople(db: Database): Promise<Record<PersonKey, string>> {
 }
 
 /** Örnek kullanıcıları, sohbetleri, paylaşımları ve işletmeyi ekler. */
-async function seedContent(context: AppContext): Promise<void> {
+async function seedContent(context: AppContext, admins: Record<AdminKey, string>): Promise<void> {
   const { admin, businesses, chat, contacts, moments } = createServices(context);
   const user = await createPeople(context.db);
 
@@ -141,7 +184,7 @@ async function seedContent(context: AppContext): Promise<void> {
     description: "Saç, sakal ve bakım. Randevunu VADO üzerinden al.",
     city: "İstanbul",
   });
-  await admin.updateBusiness(ADMIN_ACTOR, business.id, { verified: true, status: "active" });
+  await admin.updateBusiness(admins.operator, business.id, { verified: true, status: "active" });
 }
 
 /** Paketin dosyalarını, bildirim dosyasındaki sürüm numarası değiştirilmiş olarak döndürür. */
@@ -166,7 +209,11 @@ function nextPatch(version: string): string {
  * içeriği son yüklenen sürümle aynıysa o sürüm kullanılır; değiştiyse sıradaki sürüm numarasıyla
  * yeniden yüklenir, çünkü yüklenmiş bir sürümün içeriği değiştirilemez.
  */
-async function ensureApprovedVersion(context: AppContext, directory: string): Promise<string> {
+async function ensureApprovedVersion(
+  context: AppContext,
+  admins: Record<AdminKey, string>,
+  directory: string,
+): Promise<string> {
   const { packages } = createServices(context);
   const rules = { maxArchiveBytes: context.config.packageMaxBytes, allowInsecureNetwork: true };
   const { entries } = await readPackageDirectory(directory).catch(() => {
@@ -180,7 +227,7 @@ async function ensureApprovedVersion(context: AppContext, directory: string): Pr
     throw new StartupError(`Klasördeki paket "${PACKAGE_ID}" değil: ${built.manifest.id}`);
   }
 
-  await packages.save(ADMIN_ACTOR, PACKAGE_ID, {
+  await packages.save(admins.operator, PACKAGE_ID, {
     name: built.manifest.name,
     developerName: "VADO",
   });
@@ -200,12 +247,12 @@ async function ensureApprovedVersion(context: AppContext, directory: string): Pr
     }
   }
 
-  if (upload !== null) await packages.upload(ADMIN_ACTOR, PACKAGE_ID, writeZip(upload));
+  if (upload !== null) await packages.upload(admins.operator, PACKAGE_ID, writeZip(upload));
   const { status } = await packages.getVersion(PACKAGE_ID, version);
-  if (status === "draft") await packages.submit(ADMIN_ACTOR, PACKAGE_ID, version);
+  if (status === "draft") await packages.submit(admins.operator, PACKAGE_ID, version);
   if (status !== "approved") {
     await packages.approve(
-      ADMIN_ACTOR,
+      admins.reviewer,
       PACKAGE_ID,
       version,
       "Örnek veri: kendiliğinden onaylandı.",
@@ -215,26 +262,30 @@ async function ensureApprovedVersion(context: AppContext, directory: string): Pr
 }
 
 /** Örnek paketi yükler ve işletmelerin uygulama kayıtlarında, her birinin kendi ayarıyla yayınlar. */
-async function seedPackagedMiniApps(context: AppContext, directory: string): Promise<string> {
+async function seedPackagedMiniApps(
+  context: AppContext,
+  admins: Record<AdminKey, string>,
+  directory: string,
+): Promise<string> {
   const { miniAppAdmin } = createServices(context);
-  const version = await ensureApprovedVersion(context, directory);
+  const version = await ensureApprovedVersion(context, admins, directory);
   const business = await context.db.maybeOne<{ id: string }>(sql`
     select id from businesses where slug = ${MERCHANT_ID}
   `);
 
   for (const record of RECORDS) {
-    await miniAppAdmin.save(ADMIN_ACTOR, record.id, {
+    await miniAppAdmin.save(admins.operator, record.id, {
       name: record.name,
       description: record.description,
       category: "beauty",
       developerName: "VADO",
       sortOrder: record.sortOrder,
     });
-    await miniAppAdmin.saveMerchant(ADMIN_ACTOR, record.id, record.merchantId, {
+    await miniAppAdmin.saveMerchant(admins.operator, record.id, record.merchantId, {
       displayName: record.name,
       businessId: record.merchantId === MERCHANT_ID ? (business?.id ?? null) : null,
     });
-    await miniAppAdmin.publish(ADMIN_ACTOR, record.id, {
+    await miniAppAdmin.publish(admins.operator, record.id, {
       packageId: PACKAGE_ID,
       version,
       config: {
@@ -243,15 +294,19 @@ async function seedPackagedMiniApps(context: AppContext, directory: string): Pro
         services: record.services,
       },
     });
-    await miniAppAdmin.update(ADMIN_ACTOR, record.id, { verified: true });
+    await miniAppAdmin.update(admins.operator, record.id, { verified: true });
   }
   return version;
 }
 
 /** Paketi geliştirme sunucusundan açan kaydı yazar; yalnızca geliştirme kipinde kullanılabilir. */
-async function seedDevelopmentRecord(context: AppContext, url: string): Promise<void> {
+async function seedDevelopmentRecord(
+  context: AppContext,
+  admins: Record<AdminKey, string>,
+  url: string,
+): Promise<void> {
   const { miniAppAdmin } = createServices(context);
-  await miniAppAdmin.save(ADMIN_ACTOR, DEVELOPMENT_RECORD_ID, {
+  await miniAppAdmin.save(admins.operator, DEVELOPMENT_RECORD_ID, {
     name: "Randevu (geliştirme)",
     description:
       "Geliştirme sunucusundan açılır; kod değiştikçe yenilenir. Önce npm run dev çalışmalı.",
@@ -266,14 +321,14 @@ async function seedDevelopmentRecord(context: AppContext, url: string): Promise<
       version: "0.0.0",
     },
   });
-  await miniAppAdmin.saveConfig(ADMIN_ACTOR, DEVELOPMENT_RECORD_ID, {
+  await miniAppAdmin.saveConfig(admins.operator, DEVELOPMENT_RECORD_ID, {
     businessName: "Geliştirme Berberi",
     merchantId: MERCHANT_ID,
     services: "berber",
   });
   // Adres değiştiğinde doğrulama sıfırlanır; örnek kayıt yeniden doğrulanmış sayılır.
-  await miniAppAdmin.update(ADMIN_ACTOR, DEVELOPMENT_RECORD_ID, { verified: true });
-  await miniAppAdmin.saveMerchant(ADMIN_ACTOR, DEVELOPMENT_RECORD_ID, MERCHANT_ID, {
+  await miniAppAdmin.update(admins.operator, DEVELOPMENT_RECORD_ID, { verified: true });
+  await miniAppAdmin.saveMerchant(admins.operator, DEVELOPMENT_RECORD_ID, MERCHANT_ID, {
     displayName: "Kadıköy Berber",
     businessId: null,
   });
@@ -315,19 +370,25 @@ async function main(): Promise<void> {
       realtime: { emit: () => undefined, disconnectSession: () => undefined },
     };
 
+    const admins = await ensureAdmins(db);
+    console.log(
+      `Örnek yöneticiler: ${ADMINS.map((admin) => admin.username).join(", ")}; parola ` +
+        `"${ADMIN_DEMO_PASSWORD}", ikinci adım kodu 000000 (demo modu).`,
+    );
+
     const seeded = await db.maybeOne(sql`select 1 from users where phone = ${PEOPLE[0].phone}`);
     if (seeded === null) {
-      await seedContent(context);
+      await seedContent(context, admins);
       console.log("Örnek kullanıcılar ve içerik yüklendi.");
     } else {
       console.log("Örnek kullanıcılar zaten yüklü; içerik değiştirilmedi.");
     }
 
-    const version = await seedPackagedMiniApps(context, directory);
+    const version = await seedPackagedMiniApps(context, admins, directory);
     const names = RECORDS.map((record) => record.name).join(", ");
     console.log(`Örnek paket ${PACKAGE_ID} ${version} yayında: ${names}.`);
     if (config.miniAppDevMode) {
-      await seedDevelopmentRecord(context, miniAppUrl);
+      await seedDevelopmentRecord(context, admins, miniAppUrl);
       console.log(`Geliştirme kaydının adresi: ${miniAppUrl}`);
     }
     console.log("Giriş için: 0555 000 00 01 (Ayşe) … 0555 000 00 04 (Can), kod 000000");

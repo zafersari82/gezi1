@@ -194,7 +194,7 @@ describe("yönetim", () => {
 
     const audit = await admin.ok(pageOf(auditEntrySchema), "GET", "/v1/admin/audit?limit=5");
     expect(audit.items[0]).toMatchObject({
-      actor: "admin",
+      actor: app.admins.owner.id,
       action: "user.suspended",
       targetType: "user",
       targetId: user.id,

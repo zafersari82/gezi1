@@ -59,12 +59,22 @@ async function main(): Promise<void> {
         "uygulama kimlikleri ve eski QR kodları korunuyor. Bu değişkeni artık kaldırın.",
     );
   }
+  if (!(await app.services.adminAccounts.hasActiveOwner())) {
+    log.warn(
+      "Panelde etkin bir sahip hesabı yok; panele kimse giremez. İlk hesabı komut satırından " +
+        "açın: npm run admins -- create --username <ad> --name <görünen ad> --role owner " +
+        "(canlıda: node dist/cli/admins.js create …).",
+    );
+  }
   db.onIdleError((error) => {
     log.warn(error, "Boştaki veritabanı bağlantısı koptu; havuz yenisini açacak");
   });
 
   const maintenance = setInterval(() => {
-    app.services.auth.purgeExpired().catch((error: unknown) => {
+    Promise.all([
+      app.services.auth.purgeExpired(),
+      app.services.adminAccounts.purgeExpired(),
+    ]).catch((error: unknown) => {
       log.error(error, "Bakım görevi başarısız");
     });
   }, MAINTENANCE_INTERVAL_MS);

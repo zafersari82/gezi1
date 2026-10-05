@@ -1,4 +1,6 @@
 import {
+  type AdminPermission,
+  type AdminRole,
   type ApiErrorBody,
   ERROR_MESSAGES,
   type ErrorCode,
@@ -8,7 +10,7 @@ import {
 import type { FastifyInstance, FastifyLoggerOptions, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
-import { AppError } from "./errors";
+import { AppError, StartupError } from "./errors";
 
 /** Kimliği doğrulanmış isteğin sahibi. */
 export interface AuthContext {
@@ -19,25 +21,88 @@ export interface AuthContext {
 /** İsteğin oturumunu doğrular; geçersizse `unauthorized` hatası fırlatır. */
 export type Guard = (request: FastifyRequest) => Promise<AuthContext>;
 
+/** Panel oturumunun aşaması: parola geçildi ve ikinci adım bekleniyor, ya da oturum açık. */
+export type AdminSessionStage = "second_factor" | "active";
+
 /** Yönetim isteğinin sahibi; `actor` denetim kaydına ve inceleme kararlarına yazılır. */
 export interface AdminContext {
+  /** Hesabın kimliği; denetim kaydına ve "kim yaptı" sütunlarına bu yazılır. */
   actor: string;
+  accountId: string;
+  sessionId: string;
+  role: AdminRole;
+  mustChangePassword: boolean;
 }
 
-/** Yönetici anahtarını doğrular; geçersizse `admin_unauthorized` hatası fırlatır. */
-export type AdminGuard = (request: FastifyRequest) => AdminContext;
+/**
+ * Bir yönetim ucunun istediği erişim. Her `/v1/admin/` ucu bunu rota ayarında (`config.admin`)
+ * bildirir; bildirmeyen uç kaydedilemez (bkz. app.ts).
+ *
+ * - bir izin (`packages.review` gibi): açık oturum ve hesabın rolünde bu izin
+ * - `session`: açık oturum, izin gerekmez (kendi hesabım, çıkış)
+ * - `second_factor`: parolası geçilmiş, ikinci adımı bekleyen yarım oturum
+ * - `public`: oturum gerekmez (giriş); yönetici anahtarı yine gerekir
+ */
+export type AdminAccess = AdminPermission | "session" | "second_factor" | "public";
+
+declare module "fastify" {
+  interface FastifyContextConfig {
+    admin?: AdminAccess;
+  }
+}
+
+/** Yönetim isteğini, ucun bildirdiği erişime göre doğrular: yönetici anahtarı, oturum ve izin. */
+export type AdminGuard = (request: FastifyRequest) => Promise<AdminContext>;
+
+/** Yalnızca yönetici anahtarını doğrular; oturum gerektirmeyen giriş uçları için. */
+export type AdminKeyGuard = (request: FastifyRequest) => void;
+
+/** Yönetim ucunun yöntemi, adresi ve bildirdiği erişim; izin tablosu testi bu listeyi dolaşır. */
+export interface AdminRoute {
+  method: string;
+  url: string;
+  access: AdminAccess;
+}
+
+/** Bu önekle başlayan her uç, gerektirdiği erişimi bildirmek zorundadır (`config.admin`). */
+const ADMIN_ROUTE_PREFIX = "/v1/admin/";
+
+/**
+ * Yönetim uçlarını kaydedilirken toplar. Erişim bildirmeyen bir yönetim ucu kaydedilemez:
+ * uygulama hiç başlamaz. Rotalardan önce çağrılmalıdır.
+ */
+export function collectAdminRoutes(server: FastifyInstance): AdminRoute[] {
+  const routes: AdminRoute[] = [];
+  server.addHook("onRoute", (route) => {
+    if (!route.url.startsWith(ADMIN_ROUTE_PREFIX)) return;
+    const access = route.config?.admin;
+    if (access === undefined) {
+      throw new StartupError(`Yönetim ucu gerektirdiği erişimi bildirmiyor: ${route.url}`);
+    }
+    for (const method of [route.method].flat()) {
+      if (method !== "HEAD") routes.push({ method, url: route.url, access });
+    }
+  });
+  return routes;
+}
+
+/** Rota ayarı olarak yazılır: `server.get(url, adminAccess("users.read"), …)`. */
+export function adminAccess(access: AdminAccess) {
+  return { config: { admin: access } };
+}
 
 export const idParamsSchema = z.object({ id: idSchema });
 export const miniAppParamsSchema = z.object({ id: miniAppIdSchema });
 
-const turkish = z.locales.tr().localeError;
+/** Şemanın kendi iletisi olmayan alanlar için Zod'un Türkçe hata iletileri. */
+export const turkishErrors = z.locales.tr().localeError;
 
 /**
  * Girdiyi şemayla doğrular; uymuyorsa alan bazında ayrıntıyla `validation_failed` fırlatır.
  * Şemanın kendi iletisi olmayan alanlarda neden Türkçe yazılır.
  */
 export function parse<Schema extends z.ZodType>(schema: Schema, input: unknown): z.infer<Schema> {
-  const result = schema.safeParse(input, { error: turkish });
+  const result = schema.safeParse(input, { error: turkishErrors });
   if (result.success) return result.data;
   throw new AppError(
     "validation_failed",

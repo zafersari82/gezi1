@@ -3,17 +3,25 @@ import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
-import { ADMIN_KEY_HEADER, MEDIA_MAX_BYTES } from "@vado/contracts";
+import {
+  ADMIN_CLIENT_AGENT_HEADER,
+  ADMIN_CLIENT_IP_HEADER,
+  ADMIN_KEY_HEADER,
+  MEDIA_MAX_BYTES,
+  roleHasPermission,
+} from "@vado/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 
-import { ADMIN_ACTOR } from "./core/audit";
 import type { Config } from "./core/config";
 import type { AppContext, Logger } from "./core/context";
 import { type Database, sql } from "./core/database";
 import { AppError } from "./core/errors";
 import {
   type AdminGuard,
+  type AdminKeyGuard,
+  type AdminRoute,
   bearerToken,
+  collectAdminRoutes,
   type Guard,
   loggerOptions,
   registerErrorHandling,
@@ -44,6 +52,8 @@ export interface AppOptions {
 export interface App {
   server: FastifyInstance;
   services: Services;
+  /** Yönetim uçları ve bildirdikleri erişim; izin tablosu testi bu listeyi dolaşır. */
+  adminRoutes: AdminRoute[];
   /** HTTP sunucusunu ve gerçek zamanlı bağlantıları kapatır. Veritabanını çağıran kapatır. */
   close: () => Promise<void>;
 }
@@ -72,7 +82,13 @@ export async function buildApp({ config, db, sms, log }: AppOptions): Promise<Ap
   await server.register(cors, {
     origin: config.corsOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["authorization", "content-type", ADMIN_KEY_HEADER],
+    allowedHeaders: [
+      "authorization",
+      "content-type",
+      ADMIN_KEY_HEADER,
+      ADMIN_CLIENT_IP_HEADER,
+      ADMIN_CLIENT_AGENT_HEADER,
+    ],
   });
   if (config.env !== "test") {
     await server.register(rateLimit, {
@@ -120,19 +136,45 @@ export async function buildApp({ config, db, sms, log }: AppOptions): Promise<Ap
     await services.auth.requireRecentVerification(context);
     return context;
   };
-  const adminGuard: AdminGuard = (request) => {
-    const key = request.headers[ADMIN_KEY_HEADER];
+
+  // Yönetim uçlarında iki katman vardır: yönetici anahtarı isteğin panel sunucusundan geldiğini,
+  // panel oturumu isteği yapan hesabı kanıtlar. İzin, ucun bildirdiği erişime göre denetlenir.
+  const adminKeyGuard: AdminKeyGuard = (request) => {
+    if (request.routeOptions.config.admin !== "public") {
+      throw new Error(`Oturum gerektiren uçta yalnızca anahtar denetlendi: ${request.url}`);
+    }
+    requireAdminKey(request.headers[ADMIN_KEY_HEADER]);
+  };
+  const adminGuard: AdminGuard = async (request) => {
+    const access = request.routeOptions.config.admin;
+    if (access === undefined || access === "public") {
+      throw new Error(`Uç, oturum gerektiren bir erişim bildirmiyor: ${request.url}`);
+    }
+    requireAdminKey(request.headers[ADMIN_KEY_HEADER]);
+    const token = bearerToken(request);
+    if (token === null) throw new AppError("admin_session_invalid");
+    const context = await services.adminAccounts.authenticate(
+      token,
+      access === "second_factor" ? "second_factor" : "active",
+    );
+    if (access === "session" || access === "second_factor") return context;
+    if (context.mustChangePassword) throw new AppError("admin_password_change_required");
+    if (!roleHasPermission(context.role, access)) throw new AppError("forbidden");
+    return context;
+  };
+  function requireAdminKey(key: unknown): void {
     if (typeof key !== "string" || !safeEqual(key, config.adminApiKey)) {
       throw new AppError("admin_unauthorized");
     }
-    return { actor: ADMIN_ACTOR };
-  };
+  }
+
+  const adminRoutes = collectAdminRoutes(server);
 
   server.get("/health", async () => {
     await db.one(sql`select 1 as ok`);
     return { status: "ok", version: API_VERSION };
   });
-  registerRoutes(server, { config, services, guard, verifiedGuard, adminGuard });
+  registerRoutes(server, { config, services, guard, verifiedGuard, adminGuard, adminKeyGuard });
 
   server.addHook("preClose", () => {
     realtime.disconnectAll();
@@ -145,5 +187,5 @@ export async function buildApp({ config, db, sms, log }: AppOptions): Promise<Ap
     typingRecipients: services.chat.typingRecipients,
   });
 
-  return { server, services, close: () => server.close() };
+  return { server, services, adminRoutes, close: () => server.close() };
 }

@@ -73,6 +73,16 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   payment_provider_unavailable: 501,
 
   admin_unauthorized: 401,
+  admin_login_failed: 401,
+  admin_session_invalid: 401,
+  admin_second_factor_invalid: 401,
+  admin_password_change_required: 403,
+  admin_password_invalid: 400,
+  admin_password_reused: 400,
+  admin_totp_already_enabled: 409,
+  admin_username_taken: 409,
+  admin_account_not_found: 404,
+  admin_last_owner: 409,
   report_not_found: 404,
 };
 

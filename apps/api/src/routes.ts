@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 
 import type { Config } from "./core/config";
-import type { AdminGuard, Guard } from "./core/http";
+import type { AdminGuard, AdminKeyGuard, Guard } from "./core/http";
 import { adminRoutes } from "./modules/admin/admin.routes";
+import { adminAccountRoutes } from "./modules/admin-accounts/admin-accounts.routes";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { businessRoutes } from "./modules/businesses/businesses.routes";
 import { chatRoutes } from "./modules/chat/chat.routes";
@@ -26,8 +27,10 @@ export interface RouteContext {
   guard: Guard;
   /** Oturumu doğrular ve kimliğin yakın zamanda kanıtlanmış olmasını şart koşar (hassas işlemler). */
   verifiedGuard: Guard;
-  /** Yönetim uç noktalarını korur: yönetici anahtarını doğrular. */
+  /** Yönetim uçlarını korur: yönetici anahtarını, panel oturumunu ve ucun bildirdiği izni doğrular. */
   adminGuard: AdminGuard;
+  /** Oturum gerektirmeyen giriş ucunu korur: yalnızca yönetici anahtarını doğrular. */
+  adminKeyGuard: AdminKeyGuard;
 }
 
 /**
@@ -47,6 +50,7 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   miniAppDeliveryRoutes(server, context);
   paymentRoutes(server, context);
   reportRoutes(server, context);
+  adminAccountRoutes(server, context);
   adminRoutes(server, context);
   miniAppAdminRoutes(server, context);
   packageRoutes(server, context);
