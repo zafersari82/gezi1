@@ -79,6 +79,10 @@ export const ERROR_MESSAGES = {
   package_version_not_newer: "Sürüm numarası, daha önce yüklenen sürümlerden büyük olmalı.",
   package_state_invalid: "Paket sürümü bu işlem için uygun durumda değil.",
   package_integrity_failed: "Paket dosyası kayıtlı özetiyle eşleşmiyor.",
+  package_self_review:
+    "Bir sürümü yükleyen ya da incelemeye gönderen hesap o sürümü onaylayamaz. Onayı başka bir hesap vermeli.",
+  package_resubmit_required:
+    "Bu sürüm 2.4'ten önce incelemeye gönderildi. Onaylanmadan önce bir hesabın onu yeniden incelemeye göndermesi gerekir.",
 
   // Ödemeler
   payment_not_allowed: "Bu mini uygulamanın ödeme alma yetkisi yok.",

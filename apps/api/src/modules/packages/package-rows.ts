@@ -1,4 +1,5 @@
 import type {
+  Actor,
   AdminPackageVersionSummary,
   Capability,
   ConfigField,
@@ -26,6 +27,7 @@ export interface PackageVersionRow {
   findings: PackageFinding[];
   uploaded_by: string;
   created_at: Date;
+  submitted_by: string | null;
   submitted_at: Date | null;
   reviewed_by: string | null;
   reviewed_at: Date | null;
@@ -36,7 +38,7 @@ export interface PackageVersionRow {
 export const PACKAGE_VERSION_COLUMNS = sql`
   v.package_id, v.version, v.name, v.status, v.digest, v.size_bytes, v.file_count, v.entry,
   v.icon, v.permissions, v.network, v.config_fields, v.findings, v.uploaded_by, v.created_at,
-  v.submitted_at, v.reviewed_by, v.reviewed_at, v.review_note
+  v.submitted_by, v.submitted_at, v.reviewed_by, v.reviewed_at, v.review_note
 `;
 
 export interface PackageFileRow {
@@ -50,7 +52,15 @@ export function toPackageFile(row: PackageFileRow): PackageFile {
   return { path: row.path, sha256: row.sha256, size: row.size, contentType: row.content_type };
 }
 
-export function toVersionSummary(row: PackageVersionRow): AdminPackageVersionSummary {
+/** Sürümlerin "kim yaptı" sütunlarındaki değerler; adları tek sorguda okunur (`resolveActors`). */
+export function versionActors(rows: readonly PackageVersionRow[]): (string | null)[] {
+  return rows.flatMap((row) => [row.uploaded_by, row.submitted_by, row.reviewed_by]);
+}
+
+export function toVersionSummary(
+  row: PackageVersionRow,
+  actorOf: (actor: string) => Actor,
+): AdminPackageVersionSummary {
   const count = (level: PackageFinding["level"]) =>
     row.findings.filter((finding) => finding.level === level).length;
   return {
@@ -64,10 +74,11 @@ export function toVersionSummary(row: PackageVersionRow): AdminPackageVersionSum
     permissions: row.permissions,
     network: row.network,
     findingCounts: { blocked: count("blocked"), review: count("review"), info: count("info") },
-    uploadedBy: row.uploaded_by,
+    uploadedBy: actorOf(row.uploaded_by),
     createdAt: row.created_at.toISOString(),
+    submittedBy: row.submitted_by === null ? null : actorOf(row.submitted_by),
     submittedAt: row.submitted_at?.toISOString() ?? null,
-    reviewedBy: row.reviewed_by,
+    reviewedBy: row.reviewed_by === null ? null : actorOf(row.reviewed_by),
     reviewedAt: row.reviewed_at?.toISOString() ?? null,
     reviewNote: row.review_note,
   };

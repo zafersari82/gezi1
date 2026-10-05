@@ -8,8 +8,6 @@ import { AUDIT_ACTION_LABELS, AUDIT_TARGET_LABELS, formatDateTime } from "@/lib/
 
 export const metadata: Metadata = { title: "Denetim kaydı" };
 
-const ADMIN_ACTOR = "admin";
-
 export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   const { cursor } = pageQuerySchema.pick({ cursor: true }).parse(await searchParams);
   const page = await adminGet(
@@ -48,14 +46,8 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
                     <span className="cell-sub mono">{entry.targetId}</span>
                   </td>
                   <td>
-                    {entry.actor === ADMIN_ACTOR ? (
-                      "Panel"
-                    ) : (
-                      <>
-                        Kullanıcı
-                        <span className="cell-sub mono">{entry.actor}</span>
-                      </>
-                    )}
+                    {entry.actor.name}
+                    <span className="cell-sub mono">{entry.actor.id}</span>
                   </td>
                   <td className="mono">
                     {Object.keys(entry.metadata).length === 0 ? "" : JSON.stringify(entry.metadata)}

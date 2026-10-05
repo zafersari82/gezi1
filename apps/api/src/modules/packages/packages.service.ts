@@ -10,7 +10,7 @@ import {
   type PackageVersionStatus,
 } from "@vado/contracts";
 
-import { recordAudit } from "../../core/audit";
+import { recordAudit, resolveActors } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { type Database, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
@@ -25,6 +25,7 @@ import {
   type PackageVersionRow,
   toPackageFile,
   toVersionSummary,
+  versionActors,
 } from "./package-rows";
 
 const LIST_LIMIT = 200;
@@ -95,11 +96,14 @@ export function createPackageService(
       where v.package_id = any(${rows.map((row) => row.id)}::text[])
       order by v.version_key desc
     `);
+    const actorOf = await resolveActors(db, versionActors(versions));
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
       developerName: row.developer_name,
-      versions: versions.filter((version) => version.package_id === row.id).map(toVersionSummary),
+      versions: versions
+        .filter((version) => version.package_id === row.id)
+        .map((version) => toVersionSummary(version, actorOf)),
       appCount: row.app_count,
       createdAt: row.created_at.toISOString(),
     }));
@@ -188,7 +192,7 @@ export function createPackageService(
     `);
 
     return {
-      ...toVersionSummary(row),
+      ...toVersionSummary(row, await resolveActors(db, versionActors([row]))),
       entry: row.entry,
       icon: row.icon,
       configFields: row.config_fields,
@@ -410,6 +414,7 @@ export function createPackageService(
         set
           status = ${change.to},
           submitted_at = ${change.to === "in_review" ? sql`now()` : sql`submitted_at`},
+          submitted_by = ${change.to === "in_review" ? sql`${actor}` : sql`submitted_by`},
           reviewed_by = ${review === undefined ? sql`reviewed_by` : sql`${actor}`},
           reviewed_at = ${review === undefined ? sql`reviewed_at` : sql`now()`},
           review_note = ${review === undefined ? sql`review_note` : sql`${review.note}`}
@@ -442,9 +447,20 @@ export function createPackageService(
     return row;
   }
 
-  /** Taslağı incelemeye gönderir. */
+  /**
+   * Taslağı incelemeye gönderir. 2.4'ten önce incelemeye gönderilmiş, göndereni bilinmeyen bir
+   * sürümde gönderen olarak yalnızca bu hesap yazılır; durum değişmez. Böylece eski sürümler de
+   * başka bir hesap tarafından onaylanır.
+   */
   async function submit(actor: string, packageId: string, version: string) {
-    await verifyIntegrity(await requireVersion(packageId, version, "draft"));
+    const row = await findVersion(db, packageId, version);
+    if (row === null) throw new AppError("package_version_not_found");
+    if (row.status === "in_review" && row.submitted_by === null) {
+      await verifyIntegrity(row);
+      return claimSubmission(actor, packageId, version);
+    }
+    if (row.status !== "draft") throw new AppError("package_state_invalid");
+    await verifyIntegrity(row);
     return transition(actor, packageId, version, {
       from: ["draft"],
       to: "in_review",
@@ -452,9 +468,43 @@ export function createPackageService(
     });
   }
 
-  /** İncelemedeki sürümü onaylar; onaylı sürüm uygulama kayıtlarında yayınlanabilir. */
+  async function claimSubmission(actor: string, packageId: string, version: string) {
+    const claimed = await db.transaction(async (tx) => {
+      const count = await tx.execute(sql`
+        update package_versions
+        set submitted_by = ${actor}, submitted_at = now()
+        where package_id = ${packageId}
+          and version = ${version}
+          and status = 'in_review'
+          and submitted_by is null
+      `);
+      if (count > 0) {
+        await recordAudit(tx, {
+          actor,
+          action: "package.version_resubmitted",
+          targetType: "package",
+          targetId: packageId,
+          metadata: { version },
+        });
+      }
+      return count;
+    });
+    if (claimed === 0) throw new AppError("package_state_invalid");
+    return getVersion(packageId, version);
+  }
+
+  /**
+   * İncelemedeki sürümü onaylar; onaylı sürüm uygulama kayıtlarında yayınlanabilir. Onayı,
+   * sürümü yükleyen ve incelemeye gönderen hesaplardan başka biri verir.
+   */
   async function approve(actor: string, packageId: string, version: string, note: string | null) {
-    await verifyIntegrity(await requireVersion(packageId, version, "in_review"));
+    const row = await requireVersion(packageId, version, "in_review");
+    // Dört göz ilkesi: yükleyen ya da incelemeye gönderen onaylayamaz (veritabanında da korunur).
+    if (row.submitted_by === null) throw new AppError("package_resubmit_required");
+    if (actor === row.uploaded_by || actor === row.submitted_by) {
+      throw new AppError("package_self_review");
+    }
+    await verifyIntegrity(row);
     return transition(actor, packageId, version, {
       from: ["in_review"],
       to: "approved",

@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 import {
+  type Actor,
   type AdminMiniApp,
   type AdminMiniAppSummary,
   type AdminPublishMiniAppBody,
@@ -21,7 +22,7 @@ import {
   resolveConfig,
 } from "@vado/contracts";
 
-import { recordAudit } from "../../core/audit";
+import { recordAudit, resolveActors } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { type Database, sql, type SqlFragment } from "../../core/database";
 import { AppError } from "../../core/errors";
@@ -73,14 +74,14 @@ function toMerchant(row: MerchantRow): MerchantBinding {
   };
 }
 
-function toRelease(row: ReleaseRow): MiniAppRelease {
+function toRelease(row: ReleaseRow, actorOf: (actor: string) => Actor): MiniAppRelease {
   return {
     seq: row.seq,
     packageId: row.package_id,
     version: row.version,
     action: row.action,
     config: row.config,
-    actor: row.actor,
+    actor: actorOf(row.actor),
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -194,7 +195,11 @@ export function createMiniAppAdminService({ config, db }: AppContext) {
       order by seq desc
       limit ${RELEASES_SHOWN}
     `);
-    return { ...summary, releases: releases.map(toRelease) };
+    const actorOf = await resolveActors(
+      db,
+      releases.map((release) => release.actor),
+    );
+    return { ...summary, releases: releases.map((release) => toRelease(release, actorOf)) };
   }
 
   /** Kaydı işlem sonuna kadar kilitler; aynı kayda eşzamanlı yayınlar sıraya girer. */

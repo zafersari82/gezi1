@@ -91,7 +91,7 @@ describe("paketler", () => {
         permissions: ["identity.basic", "storage.local"],
         network: ["https://api.ornek.com"],
         fileCount: 5,
-        uploadedBy: app.admins.operator.id,
+        uploadedBy: { id: app.admins.operator.id, name: "Sınama operator" },
         submittedAt: null,
         reviewedBy: null,
         diff: null,
@@ -308,7 +308,7 @@ describe("paketler", () => {
       );
       expect(approved).toMatchObject({
         status: "approved",
-        reviewedBy: reviewer.id,
+        reviewedBy: { id: reviewer.id, name: "Sınama reviewer" },
         reviewNote: "Bildirilen adresler ve yetkiler uygun.",
       });
       expect(approved.reviewedAt).not.toBeNull();
@@ -339,7 +339,7 @@ describe("paketler", () => {
       });
       expect(rejected).toMatchObject({
         status: "rejected",
-        reviewedBy: app.admins.owner.id,
+        reviewedBy: { id: app.admins.owner.id },
         reviewNote: "Bildirilmemiş bir adrese veri gönderiyor.",
       });
 
@@ -359,7 +359,7 @@ describe("paketler", () => {
       await admin.fail("package_state_invalid", "POST", `${url}/reject`, note);
       await admin.fail("package_state_invalid", "POST", `${url}/revoke`, note);
 
-      await admin.ok(adminPackageVersionSchema, "POST", `${url}/submit`);
+      await asAdmin(app, "operator").ok(adminPackageVersionSchema, "POST", `${url}/submit`);
       await admin.fail("package_state_invalid", "POST", `${url}/submit`);
       await admin.fail("package_state_invalid", "POST", `${url}/revoke`, note);
 
@@ -499,6 +499,129 @@ describe("paketler", () => {
 
       await admin.fail("package_version_not_found", "GET", `${url}/assets/yok.js`);
       await admin.fail("validation_failed", "GET", `${url}/..%2f..%2fetc%2fpasswd`);
+    });
+  });
+
+  describe("dört göz ilkesi", () => {
+    const reviewer = () => asAdmin(app, "reviewer");
+
+    it("sürümü yükleyen ya da incelemeye gönderen hesap onaylayamaz; başka bir hesap onaylar", async () => {
+      const id = await createPackage(app);
+      // Sahip yükler, operatör gönderir: ikisi de onaylayamaz (operatörün onay izni de yoktur).
+      await uploadVersion(app, { id, version: "1.0.0" }, "owner");
+      const url = versionUrl(id, "1.0.0");
+      const submitted = await asAdmin(app, "operator").ok(
+        adminPackageVersionSchema,
+        "POST",
+        `${url}/submit`,
+      );
+      expect(submitted).toMatchObject({
+        uploadedBy: { id: app.admins.owner.id },
+        submittedBy: { id: app.admins.operator.id, name: "Sınama operator" },
+      });
+      await admin.fail("package_self_review", "POST", `${url}/approve`);
+      await asAdmin(app, "operator").fail("forbidden", "POST", `${url}/approve`);
+      const approved = await reviewer().ok(adminPackageVersionSchema, "POST", `${url}/approve`);
+      expect(approved.reviewedBy).toEqual({ id: app.admins.reviewer.id, name: "Sınama reviewer" });
+
+      // Operatör yükler, sahip gönderir: sahip onaylayamaz, inceleyen onaylar.
+      await uploadVersion(app, { id, version: "1.1.0" });
+      const next = versionUrl(id, "1.1.0");
+      await admin.ok(adminPackageVersionSchema, "POST", `${next}/submit`);
+      await admin.fail("package_self_review", "POST", `${next}/approve`);
+      await reviewer().ok(adminPackageVersionSchema, "POST", `${next}/approve`);
+    });
+
+    it("sürümü yükleyen hesap kendi sürümünü reddedebilir ve sürümden vazgeçebilir", async () => {
+      const id = await createPackage(app);
+      await uploadVersion(app, { id, version: "1.0.0" }, "owner");
+      await admin.ok(adminPackageVersionSchema, "POST", `${versionUrl(id, "1.0.0")}/submit`);
+      await admin.ok(adminPackageVersionSchema, "POST", `${versionUrl(id, "1.0.0")}/reject`, {
+        body: { note: "Yanlış sürümü yükledim." },
+      });
+    });
+
+    it("kural veritabanında da durur: yükleyen ya da gönderen elle yazılmış SQL ile de onaylayamaz", async () => {
+      const id = await createPackage(app);
+      await uploadVersion(app, { id, version: "1.0.0" });
+      const where = sql`package_id = ${id} and version = '1.0.0'`;
+      await expect(
+        app.db.execute(sql`update package_versions set status = 'in_review' where ${where}`),
+      ).rejects.toThrow(/gönderen hesap yazılmadan/);
+      await asAdmin(app, "reviewer").fail("forbidden", "POST", `${versionUrl(id, "1.0.0")}/submit`);
+      await asAdmin(app, "operator").ok(
+        adminPackageVersionSchema,
+        "POST",
+        `${versionUrl(id, "1.0.0")}/submit`,
+      );
+
+      const approveAs = (reviewedBy: string | null) =>
+        app.db.execute(sql`
+          update package_versions
+          set status = 'approved', reviewed_by = ${reviewedBy}, reviewed_at = now()
+          where ${where}
+        `);
+      for (const reviewedBy of [app.admins.operator.id, null]) {
+        await expect(approveAs(reviewedBy)).rejects.toThrow(/yükleyen ya da incelemeye gönderen/);
+      }
+      await expect(
+        app.db.execute(sql`update package_versions set submitted_by = 'baskasi' where ${where}`),
+      ).rejects.toThrow(/gönderen değiştirilemez/);
+      await expect(
+        app.db.execute(sql`update package_versions set submitted_by = null where ${where}`),
+      ).rejects.toThrow(/gönderen değiştirilemez/);
+      expect(await approveAs(app.admins.reviewer.id)).toBe(1);
+    });
+
+    it("2.4'ten önce incelemeye gönderilmiş sürüm, bir hesap onu yeniden göndermeden onaylanamaz", async () => {
+      const id = await createPackage(app);
+      await uploadVersion(app, { id, version: "1.0.0" });
+      const url = versionUrl(id, "1.0.0");
+      // 2.3.1 veritabanındaki durum: ortak hesapla yüklenmiş ve incelemeye gönderilmiş, göndereni
+      // yazılmamış sürüm. 0005'ten önceki durumu kurmak için tetikleyiciler bu işlemde kapatılır.
+      await app.db.transaction(async (tx) => {
+        await tx.execute(sql`alter table package_versions disable trigger user`);
+        await tx.execute(sql`
+          update package_versions
+          set uploaded_by = 'admin', status = 'in_review', submitted_at = now()
+          where package_id = ${id} and version = '1.0.0'
+        `);
+        await tx.execute(sql`alter table package_versions enable trigger user`);
+      });
+
+      const legacy = await reviewer().ok(adminPackageVersionSchema, "GET", url);
+      expect(legacy).toMatchObject({
+        status: "in_review",
+        uploadedBy: { id: "admin", name: "Ortak panel hesabı (2.3)" },
+        submittedBy: null,
+      });
+      await reviewer().fail("package_resubmit_required", "POST", `${url}/approve`);
+      await expect(
+        app.db.execute(sql`
+          update package_versions
+          set status = 'approved', reviewed_by = ${app.admins.reviewer.id}
+          where package_id = ${id} and version = '1.0.0'
+        `),
+      ).rejects.toThrow(/göndereni bilinmeyen/);
+
+      // Operatör yeniden gönderir: durum değişmez, gönderen yazılır; ikinci kez gönderilemez.
+      const claimed = await asAdmin(app, "operator").ok(
+        adminPackageVersionSchema,
+        "POST",
+        `${url}/submit`,
+      );
+      expect(claimed).toMatchObject({
+        status: "in_review",
+        submittedBy: { id: app.admins.operator.id },
+      });
+      await asAdmin(app, "owner").fail("package_state_invalid", "POST", `${url}/submit`);
+      await reviewer().ok(adminPackageVersionSchema, "POST", `${url}/approve`);
+
+      const audit = await app.db.many<{ action: string }>(sql`
+        select action from audit_log where target_type = 'package' and target_id = ${id}
+        order by id
+      `);
+      expect(audit.map((row) => row.action)).toContain("package.version_resubmitted");
     });
   });
 
@@ -674,7 +797,11 @@ describe("paketler", () => {
       const id = await createPackage(app);
       const marker = `export const sürüm = "${unique("bozulacak")}";\n`;
       await uploadVersion(app, { id, version: "1.0.0", files: { "assets/app.js": marker } });
-      await admin.ok(adminPackageVersionSchema, "POST", `${versionUrl(id, "1.0.0")}/submit`);
+      await asAdmin(app, "operator").ok(
+        adminPackageVersionSchema,
+        "POST",
+        `${versionUrl(id, "1.0.0")}/submit`,
+      );
 
       await chmod(blobOf(marker), 0o644);
       await writeFile(blobOf(marker), "export const sürüm = 'değiştirildi';\n");

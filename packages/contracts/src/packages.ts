@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { actorSchema } from "./admin-accounts";
 import { CAPABILITIES, capabilitySchema } from "./capabilities";
 import { timestampSchema } from "./common";
 
@@ -440,11 +441,16 @@ export const adminPackageVersionSummarySchema = z.object({
     review: z.number().int(),
     info: z.number().int(),
   }),
-  uploadedBy: z.string(),
+  uploadedBy: actorSchema,
   createdAt: timestampSchema,
+  /**
+   * İncelemeye gönderen. 2.4'ten önce gönderilmiş sürümlerde `null`: böyle bir sürüm onaylanmadan
+   * önce bir hesap tarafından yeniden incelemeye gönderilir.
+   */
+  submittedBy: actorSchema.nullable(),
   submittedAt: timestampSchema.nullable(),
   /** Son kararı (onay, ret ya da geri çekme) veren, kararın zamanı ve gerekçesi. */
-  reviewedBy: z.string().nullable(),
+  reviewedBy: actorSchema.nullable(),
   reviewedAt: timestampSchema.nullable(),
   reviewNote: z.string().nullable(),
 });

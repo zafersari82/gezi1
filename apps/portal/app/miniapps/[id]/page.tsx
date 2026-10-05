@@ -39,7 +39,6 @@ import { formatDateTime, miniAppStatus, packageStatus, shortDigest } from "@/lib
 
 export const metadata: Metadata = { title: "Mini uygulama" };
 
-const ADMIN_ACTOR = "admin";
 const querySchema = z.object({
   package: packageIdSchema.optional().catch(undefined),
   version: versionSchema.optional().catch(undefined),
@@ -322,7 +321,7 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
                       <td>{formatDateTime(entry.createdAt)}</td>
                       <td>{MINI_APP_RELEASE_ACTION_LABELS[entry.action]}</td>
                       <td className="mono">{entry.version}</td>
-                      <td>{entry.actor === ADMIN_ACTOR ? "Panel" : entry.actor}</td>
+                      <td>{entry.actor.name}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -95,6 +95,27 @@ export const ADMIN_ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[
   auditor: READ_ALL,
 };
 
+/**
+ * Hesap olmayan işlem yapanlar ve panelde görünen adları. `admin`, 2.4'ten önceki ortak panel
+ * hesabıdır ve yalnızca eski kayıtlarda görünür.
+ */
+export const SYSTEM_ACTOR_LABELS: Record<string, string> = {
+  admin: "Ortak panel hesabı (2.3)",
+  cli: "Komut satırı",
+  anonymous: "Bilinmeyen hesap",
+};
+
+/**
+ * Bir işlemi yapan: panel hesabı, kullanıcı ya da sistem. `id` kayıtta yazan değerdir (hesabın ya
+ * da kullanıcının kimliği, ya da `SYSTEM_ACTOR_LABELS` anahtarlarından biri); `name` gösterilecek
+ * addır.
+ */
+export const actorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+export type Actor = z.infer<typeof actorSchema>;
+
 export function roleHasPermission(role: AdminRole, permission: AdminPermission): boolean {
   return ADMIN_ROLE_PERMISSIONS[role].includes(permission);
 }

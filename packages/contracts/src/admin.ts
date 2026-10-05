@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { actorSchema } from "./admin-accounts";
 import { businessSchema, businessStatusSchema } from "./businesses";
 import { CAPABILITIES, capabilitySchema } from "./capabilities";
 import { categorySchema, idSchema, timestampSchema } from "./common";
@@ -123,8 +124,7 @@ export const miniAppReleaseSchema = z.object({
   version: versionSchema,
   action: z.enum(MINI_APP_RELEASE_ACTIONS),
   config: configValuesSchema,
-  /** `admin` (panel) ya da işlemi yapan hesabın kimliği. */
-  actor: z.string(),
+  actor: actorSchema,
   createdAt: timestampSchema,
 });
 export type MiniAppRelease = z.infer<typeof miniAppReleaseSchema>;
@@ -251,8 +251,8 @@ export type AdminUpdateReportBody = z.infer<typeof adminUpdateReportBodySchema>;
 
 export const auditEntrySchema = z.object({
   id: z.number().int(),
-  /** `admin` (panel) veya işlemi yapan kullanıcının kimliği. */
-  actor: z.string(),
+  /** İşlemi yapan panel hesabı ya da kullanıcı. */
+  actor: actorSchema,
   action: z.string(),
   targetType: z.string(),
   targetId: z.string(),

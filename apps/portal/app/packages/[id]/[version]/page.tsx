@@ -26,7 +26,6 @@ import {
 
 export const metadata: Metadata = { title: "Paket sürümü" };
 
-const ADMIN_ACTOR = "admin";
 const CONFIG_TYPE_LABELS: Record<ConfigField["type"], string> = {
   text: "Metin",
   number: "Sayı",
@@ -50,7 +49,6 @@ async function loadVersion(id: string, version: string): Promise<AdminPackageVer
   }
 }
 
-const actorName = (actor: string) => (actor === ADMIN_ACTOR ? "Panel" : actor);
 const fileHref = (id: string, version: string, path: string) =>
   `/packages/${id}/${version}/files/${path.split("/").map(encodeURIComponent).join("/")}` as const;
 
@@ -321,12 +319,19 @@ export default async function PackageVersionPage({
             <dt>Yükleme</dt>
             <dd>
               {formatDateTime(item.createdAt)}
-              <span className="note">{actorName(item.uploadedBy)}</span>
+              <span className="note">{item.uploadedBy.name}</span>
             </dd>
           </div>
           <div>
             <dt>İncelemeye gönderme</dt>
-            <dd>{item.submittedAt === null ? "Gönderilmedi" : formatDateTime(item.submittedAt)}</dd>
+            <dd>
+              {item.submittedAt === null ? "Gönderilmedi" : formatDateTime(item.submittedAt)}
+              {item.submittedAt !== null && (
+                <span className="note">
+                  {item.submittedBy?.name ?? "Gönderen bilinmiyor (2.4'ten önce gönderildi)"}
+                </span>
+              )}
+            </dd>
           </div>
           <div>
             <dt>Son karar</dt>
@@ -337,7 +342,7 @@ export default async function PackageVersionPage({
                 <>
                   {status.label}, {formatDateTime(item.reviewedAt)}
                   <span className="note">
-                    {actorName(item.reviewedBy)}
+                    {item.reviewedBy.name}
                     {item.reviewNote === null ? "" : `: ${item.reviewNote}`}
                   </span>
                 </>

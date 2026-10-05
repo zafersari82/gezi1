@@ -64,6 +64,8 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   package_version_not_newer: 409,
   package_state_invalid: 409,
   package_integrity_failed: 500,
+  package_self_review: 409,
+  package_resubmit_required: 409,
 
   payment_not_allowed: 403,
   merchant_not_bound: 403,

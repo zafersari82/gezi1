@@ -5,6 +5,7 @@ import {
   adminPackageSchema,
   type AdminPackageVersion,
   adminPackageVersionSchema,
+  type AdminRole,
   type ApiErrorBody,
   apiErrorBodySchema,
   type ErrorCode,
@@ -71,12 +72,13 @@ export function packageArchive(source: PackageSource): Buffer {
   return writeZip(Object.entries(packageFiles(source)).map(([path, data]) => ({ path, data })));
 }
 
-/** Arşivi operatör hesabıyla paketin yeni sürümü olarak yükler; durum kodunu ve gövdeyi döndürür. */
+/** Arşivi paketin yeni sürümü olarak yükler (varsayılan: operatör); durum kodunu ve gövdeyi döndürür. */
 export async function sendArchive(
   app: TestApp,
   packageId: string,
   archive: Buffer,
   field = PACKAGE_UPLOAD_FIELD,
+  role: AdminRole = "operator",
 ): Promise<{ status: number; body: unknown }> {
   const { payload, headers } = multipartBody(field, "paket.zip", archive);
   const response = await app.server.inject({
@@ -85,7 +87,7 @@ export async function sendArchive(
     headers: {
       ...headers,
       [ADMIN_KEY_HEADER]: app.config.adminApiKey,
-      authorization: `Bearer ${app.admins.operator.token}`,
+      authorization: `Bearer ${app.admins[role].token}`,
     },
     payload,
   });
@@ -117,8 +119,15 @@ export async function createPackage(app: TestApp, id = unique("paket")): Promise
 export async function uploadVersion(
   app: TestApp,
   source: PackageSource,
+  role: AdminRole = "operator",
 ): Promise<AdminPackageVersion> {
-  const response = await sendArchive(app, source.id, packageArchive(source));
+  const response = await sendArchive(
+    app,
+    source.id,
+    packageArchive(source),
+    PACKAGE_UPLOAD_FIELD,
+    role,
+  );
   expect(response, `${source.id} ${source.version}`).toMatchObject({ status: 200 });
   return adminPackageVersionSchema.parse(response.body);
 }

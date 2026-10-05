@@ -13,7 +13,7 @@ import {
   type UserStatus,
 } from "@vado/contracts";
 
-import { recordAudit } from "../../core/audit";
+import { recordAudit, resolveActors } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { sql } from "../../core/database";
 import { AppError } from "../../core/errors";
@@ -303,9 +303,14 @@ export function createAdminService({ config, db, storage }: AppContext, auth: Au
       order by id desc
       limit ${page.limit + 1}
     `);
-    const items = rows.slice(0, page.limit).map((row) => ({
+    const shown = rows.slice(0, page.limit);
+    const actorOf = await resolveActors(
+      db,
+      shown.map((row) => row.actor),
+    );
+    const items = shown.map((row) => ({
       id: row.id,
-      actor: row.actor,
+      actor: actorOf(row.actor),
       action: row.action,
       targetType: row.target_type,
       targetId: row.target_id,

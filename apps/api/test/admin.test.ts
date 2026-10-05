@@ -192,14 +192,18 @@ describe("yönetim", () => {
     const user = await createUser(app, "Kayda Geçen");
     await admin.done("PATCH", `/v1/admin/users/${user.id}`, { body: { status: "suspended" } });
 
-    const audit = await admin.ok(pageOf(auditEntrySchema), "GET", "/v1/admin/audit?limit=5");
-    expect(audit.items[0]).toMatchObject({
-      actor: app.admins.owner.id,
+    // Denetim kaydı bütün sınama dosyalarınca paylaşılır; aynı anda çalışan başka bir dosyanın
+    // kaydı araya girebilir. Bu yüzden ilk satıra değil, hedefe göre bakılır.
+    const audit = await admin.ok(pageOf(auditEntrySchema), "GET", "/v1/admin/audit?limit=100");
+    expect(audit.items.find((item) => item.targetId === user.id)).toMatchObject({
+      actor: { id: app.admins.owner.id, name: "Sınama owner" },
       action: "user.suspended",
       targetType: "user",
       targetId: user.id,
     });
-    expect(audit.nextCursor).not.toBeNull();
+    const first = await admin.ok(pageOf(auditEntrySchema), "GET", "/v1/admin/audit?limit=1");
+    expect(first.items).toHaveLength(1);
+    expect(first.nextCursor).not.toBeNull();
   });
 
   it("askıya alma, o kullanıcıya ait başka verileri etkilemez", async () => {
