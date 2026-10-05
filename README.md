@@ -269,6 +269,6 @@ Denenmedi:
   uygulamayı mağazaya hazırlama
 - [Anahtarlar](docs/ANAHTARLAR.md): imza anahtarlarını üretme, 2.1'den geçiş, anahtar değiştirme
 - [Türkiye'de mevzuat](docs/TURKIYE_UYUM.md): KVKK, BTK, 5651, ödeme hizmetleri
-- [Yol haritası](docs/YOL_HARITASI.md)
+- [Yol haritası](docs/YOL_HARITASI.md) · [2.6 planı ve devir notu](docs/PLAN_2.6.md)
 - [Değişiklikler](CHANGELOG.md) · [Güvenlik](SECURITY.md) · [Lisans](LICENSE.md) ·
   [Üçüncü taraf bildirimleri](THIRD_PARTY_NOTICES.md)
