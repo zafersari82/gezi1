@@ -49,8 +49,6 @@ nano infra/.env.production
 | `VADO_ADMIN_API_KEY`         | En az 32 karakter rastgele değer: `openssl rand -hex 32`        |
 | `VADO_SMS_WEBHOOK_URL`       | SMS aracı servisinizin adresi                                   |
 | `VADO_SMS_WEBHOOK_SECRET`    | Aracı servisle paylaşılan gizli değer                           |
-| `VADO_PORTAL_USER`           | Panele giriş kullanıcı adı                                      |
-| `VADO_PORTAL_PASSWORD`       | Panele giriş şifresi; uzun ve rastgele                          |
 | `VADO_PAYMENT_MODE`          | `sandbox` (deneme ödemesi) ya da `provider` (ödeme kapalı)      |
 | `VADO_RATE_LIMIT_PER_MINUTE` | IP başına dakikadaki istek sınırı; kullanıcı arttıkça yükseltin |
 | `VADO_PACKAGE_MAX_MB`        | Yüklenebilecek mini uygulama paketinin en büyük boyutu (1-50)   |
@@ -76,12 +74,39 @@ Denetleyin:
 
 ```bash
 docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production ps
-curl http://127.0.0.1:4000/health      # {"status":"ok","version":"2.3.0"}
+curl http://127.0.0.1:4000/health      # {"status":"ok","version":"2.4.0"}
 curl -i http://127.0.0.1:3000/healthz  # 200
 ```
 
 API ve panel yalnızca sunucunun kendisinden (`127.0.0.1`) erişilebilir; dışarıya bir sonraki
 adımdaki ters vekil açar.
+
+### İlk panel hesabı
+
+Panelde varsayılan hesap ya da parola yoktur. İlk sahip hesabını sunucuda, komut satırından açın:
+
+```bash
+docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production \
+  run --rm api node dist/cli/admins.js create --username deniz --name "Deniz Arslan" --role owner
+```
+
+Komut geçici parolayı bir kez yazar (`Geçici parola: abcd-efgh-…`). Sahip panelde bu parolayla
+girer; ilk girişte telefonundaki doğrulama uygulamasıyla (Google Authenticator, Microsoft
+Authenticator ya da parola yöneticisi) iki adımlı doğrulamayı kurar, kurtarma kodlarını kaydeder ve
+parolasını değiştirir. Diğer yöneticilerin hesaplarını panelde "Panel hesapları" sayfasından açar.
+Paket onayı için en az iki hesap gerekir: sürümü yükleyen ya da gönderen onu onaylayamaz.
+
+Aynı komut, panele erişimi kalmayan bir sahip için de kullanılır:
+
+| Komut                                      | Ne yapar                                                       |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| `admins.js list`                           | Hesapları, rollerini ve durumlarını listeler                   |
+| `admins.js reset-password --username <ad>` | Geçici parola verir, kilidi açar, oturumları kapatır           |
+| `admins.js reset-2fa --username <ad>`      | İkinci adımı sıfırlar; hesap bir sonraki girişte yeniden kurar |
+
+Geliştirmede aynı komut `npm run admins -- <komut>` biçimindedir. Şema yükseltilmemişse komut
+çalışmaz ve önce şemayı yükseltmenizi söyler. Etkin sahip hesabı yokken API başlarken günlüğe uyarı
+yazar.
 
 ### Alan adı ve TLS
 
@@ -103,7 +128,8 @@ Sertifikalar henüz yokken Nginx örnek dosyadaki `ssl_certificate` satırları 
 dosyayı etkinleştirebilirsiniz.
 
 Paneli mümkünse yalnızca ofis ya da VPN adreslerine açın (örnek dosyadaki `allow` / `deny`
-satırları). Panelin kendi girişi HTTP Basic'tir: tek kullanıcı adı ve şifre vardır.
+satırları). Panelin kendi girişi kişisel hesaplar ve iki adımlı doğrulamadır; oturum çerezi canlı
+ortamda yalnızca HTTPS üzerinden gönderilir (`Secure`), bu yüzden panel TLS olmadan çalışmaz.
 
 Örnek dosyada dikkat edilecek iki yer:
 
@@ -152,6 +178,25 @@ giderilene kadar kapalı kalır; `.env.production` dosyasındaki değişiklikler
 **2.1 ve öncesinden yükseltirken** önce imza anahtarlarını yeni düzene geçirin:
 [ANAHTARLAR.md](ANAHTARLAR.md#21-ve-öncesinden-geçiş). Geçiş yapılmadan yukarıdaki komut eksik
 değişkeni söyleyip durur; çalışan sürüme dokunmaz.
+
+### 2.3.1'den 2.4'e geçiş
+
+2.4 ile paneldeki ortak kullanıcı adı ve şifre kalkar; her yönetici kendi hesabıyla ve iki adımlı
+doğrulamayla girer. İki şema dosyası eklenir (`0004`, `0005`); mobil uygulama, mini uygulama
+paketleri ve Nginx ayarı değişmez.
+
+1. **Yedek alın** (aşağıda, "Yedek"). Geri dönüş yalnızca yedekten yapılabilir: 2.3.1 yükseltilmiş
+   veritabanında başlar, ama yeni kural incelemeye göndereni istediği için 2.3.1 paket sürümünü
+   incelemeye gönderemez.
+2. **`infra/.env.production` dosyasından `VADO_PORTAL_USER` ve `VADO_PORTAL_PASSWORD` satırlarını
+   silin.** Hâlâ tanımlıysa canlı panel nedenini söyleyerek 503 döner. Yeni zorunlu ayar yoktur.
+3. **Güncelleyin:** `docker compose … up -d --build`. `migrate` servisi iki dosyayı uygular.
+4. **İlk sahibi açın** ("İlk panel hesabı", yukarıda) ve diğer yöneticilerin hesaplarını panelden
+   açın.
+5. **Eski kayıtlar** olduğu gibi kalır; 2.3.1'de yapılan işlemler "Ortak panel hesabı (2.3)" adıyla
+   görünür. 2.3.1'de incelemeye gönderilmiş, karar bekleyen sürümün göndereni bilinmez: önce bir
+   hesap sürüm sayfasındaki "Yeniden incelemeye gönder" düğmesiyle gönderir, sonra başka bir hesap
+   onaylar.
 
 ### 2.3.0'dan 2.3.1'e geçiş
 
@@ -446,7 +491,9 @@ npm run miniapp:pack -- miniapps/appointment/dist    # randevu-1.0.0.zip
       `keys check` "Anahtarlar canlı ortam için geçerli." diyor (bkz. [ANAHTARLAR.md](ANAHTARLAR.md)).
 - [ ] `https://api.ornek.com/health` dışarıdan yanıt veriyor; `https://api.ornek.com/v1/admin/overview`
       dışarıdan 404 veriyor.
-- [ ] Panel şifre soruyor; şifresiz açılmıyor.
+- [ ] Panel giriş sayfası açılıyor; giriş parola ve ikinci adım istiyor. İlk sahip hesabı komut
+      satırından açıldı, en az iki hesap var, her hesap kendi ikinci adımını kurdu ve kurtarma
+      kodlarını sakladı. `VADO_PORTAL_USER` ve `VADO_PORTAL_PASSWORD` tanımlı değil.
 - [ ] Gerçek bir telefona doğrulama kodu SMS olarak geliyor.
 - [ ] Deneme APK'sı gerçek sunucuya bağlanıp mesaj gönderebiliyor, fotoğraf yükleyebiliyor.
 - [ ] Veritabanı, fotoğraf ve paket deposu yedeği zamanlandı; geri yükleme bir kez denendi ve

@@ -283,20 +283,112 @@ Kullanıcı, mesaj, paylaşım, mini uygulama ve işletme şikayet edilebilir. �
 
 ## Yönetim
 
-Bu uç noktalar kullanıcı oturumuyla değil, `x-vado-admin-key` başlığındaki yönetici anahtarıyla
-çağrılır (`admin_unauthorized`). Anahtar yalnızca panel sunucusunda durur; bu uç noktalar internete
-açılmamalıdır (bkz. [YAYIN.md](YAYIN.md)).
+Yönetim uç noktaları kullanıcı oturumuyla değil, iki şeyle birlikte çağrılır:
 
-| Uç nokta                         | Gövde                           | Yanıt                 | Not                                           |
-| -------------------------------- | ------------------------------- | --------------------- | --------------------------------------------- |
-| `GET /v1/admin/overview`         | —                               | `AdminOverview`       | Sayılar ve yürürlükteki ayarlar               |
-| `GET /v1/admin/users?q=`         | —                               | `List<AdminUser>`     | En yeni 200 kayıt; ad, numara, kimlik araması |
-| `PATCH /v1/admin/users/:id`      | `adminUpdateUserBodySchema`     | 204                   | Askıya alır ya da yeniden açar                |
-| `GET /v1/admin/businesses?q=`    | —                               | `List<AdminBusiness>` |                                               |
-| `PATCH /v1/admin/businesses/:id` | `adminUpdateBusinessBodySchema` | 204                   | Onaylar, yayınlar, askıya alır                |
-| `GET /v1/admin/reports`          | —                               | `List<AdminReport>`   |                                               |
-| `PATCH /v1/admin/reports/:id`    | `adminUpdateReportBodySchema`   | 204                   | Çözüldü ya da yeniden açık                    |
-| `GET /v1/admin/audit`            | —                               | `Page<AuditEntry>`    | Denetim kaydı, sayfalı                        |
+- `x-vado-admin-key` başlığındaki **yönetici anahtarı**: isteğin panel sunucusundan geldiğini
+  kanıtlar. Anahtar yalnızca panel sunucusunda durur; yoksa ya da yanlışsa `admin_unauthorized`
+  (401). Bu uç noktalar internete açılmamalıdır (bkz. [YAYIN.md](YAYIN.md)).
+- `Authorization: Bearer <belirteç>` başlığındaki **panel hesabının oturumu**: isteği yapan
+  hesabı kanıtlar. Oturum yoksa, süresi dolduysa ya da kapatıldıysa `admin_session_invalid` (401).
+
+Her uç, gerektirdiği izni bildirir (aşağıdaki tablolarda "İzin" sütunu). Hesabın rolünde o izin
+yoksa `forbidden` (403); hesabın parolasını bir yönetici belirlediyse (ilk hesap, sıfırlama) parola
+değişene kadar izin gerektiren her uç `admin_password_change_required` (403) döner. Rollerin
+izinleri `packages/contracts/src/admin-accounts.ts` içindeki `ADMIN_ROLE_PERMISSIONS`
+tablosundadır:
+
+| İzin                               | Sahip | İnceleyen | Operatör | Destek | Denetçi |
+| ---------------------------------- | :---: | :-------: | :------: | :----: | :-----: |
+| `overview.read`                    |   ✓   |     ✓     |    ✓     |   ✓    |    ✓    |
+| `users.read`                       |   ✓   |           |          |   ✓    |    ✓    |
+| `users.manage`                     |   ✓   |           |          |   ✓    |         |
+| `businesses.read`                  |   ✓   |           |    ✓     |   ✓    |    ✓    |
+| `businesses.manage`                |   ✓   |           |    ✓     |        |         |
+| `reports.read`                     |   ✓   |           |          |   ✓    |    ✓    |
+| `reports.manage`                   |   ✓   |           |          |   ✓    |         |
+| `audit.read`                       |   ✓   |     ✓     |          |        |    ✓    |
+| `packages.read`                    |   ✓   |     ✓     |    ✓     |        |    ✓    |
+| `packages.upload`                  |   ✓   |           |    ✓     |        |         |
+| `packages.review`                  |   ✓   |     ✓     |          |        |         |
+| `packages.rollout`                 |   ✓   |           |    ✓     |        |         |
+| `miniapps.read`                    |   ✓   |     ✓     |    ✓     |   ✓    |    ✓    |
+| `miniapps.manage`                  |   ✓   |           |    ✓     |        |         |
+| `miniapps.publish`                 |   ✓   |           |    ✓     |        |         |
+| `emergency.disable` (acil kapatma) |   ✓   |     ✓     |    ✓     |        |         |
+| `accounts.manage`                  |   ✓   |           |          |        |         |
+
+Yönetim işlemlerinin denetim kaydına ve "kim yaptı" alanlarına hesabın kimliği yazılır. Yanıtlarda
+işlemi yapan `Actor` biçimindedir: `{ id, name }`. `id`, hesabın ya da kullanıcının kimliğidir;
+hesap olmayanlar için `admin` (2.4'ten önceki ortak panel hesabı), `cli` (komut satırı) ya da
+`anonymous` (var olmayan hesap adıyla giriş denemesi) yazar.
+
+### Panel girişi ve hesabım
+
+| Uç nokta                                 | Erişim       | Gövde                           | Yanıt                |
+| ---------------------------------------- | ------------ | ------------------------------- | -------------------- |
+| `POST /v1/admin/auth/login`              | anahtar      | `adminLoginBodySchema`          | `AdminLoginResult`   |
+| `POST /v1/admin/auth/totp-setup`         | yarım oturum | —                               | `AdminTotpSetup`     |
+| `POST /v1/admin/auth/totp-setup/confirm` | yarım oturum | `adminTotpConfirmBodySchema`    | `AdminSessionResult` |
+| `POST /v1/admin/auth/second-factor`      | yarım oturum | `adminSecondFactorBodySchema`   | `AdminSessionResult` |
+| `POST /v1/admin/auth/logout`             | oturum       | —                               | 204                  |
+| `GET /v1/admin/me`                       | oturum       | —                               | `AdminMe`            |
+| `PUT /v1/admin/me/password`              | oturum       | `adminChangePasswordBodySchema` | 204                  |
+| `GET /v1/admin/me/sessions`              | oturum       | —                               | `List<AdminSession>` |
+| `DELETE /v1/admin/me/sessions/:id`       | oturum       | —                               | 204                  |
+| `POST /v1/admin/me/recovery-codes`       | oturum       | `adminTotpConfirmBodySchema`    | `AdminRecoveryCodes` |
+
+- Giriş iki adımdır. `login` parolayı doğrular ve yalnızca ikinci adıma yarayan bir **yarım
+  oturum** belirteci döndürür (10 dakika); `next`, ikinci adımın kurulu olup olmadığını söyler
+  (`totp` ya da `totp_setup`). İkinci adım geçilince yeni bir belirteçle **tam oturum** açılır.
+  Yarım oturumla tam oturum gerektiren uç, tam oturumla ikinci adım ucu çağrılamaz
+  (`admin_session_invalid`).
+- Hesap yoksa, kapalıysa, kilitliyse ya da parola yanlışsa `admin_login_failed` (401) döner;
+  dördü dışarıdan ayırt edilmez. Parola ve ikinci adım denemeleri birlikte sayılır; beş hatalı
+  denemeden sonra hesap 15 dakika kilitlenir. Kilit, parola sıfırlanınca da açılır.
+- İkinci adım ya `{ "code": "123456" }` (doğrulama uygulamasının kodu) ya da
+  `{ "recoveryCode": "abcd-efgh-ijkl-mnop" }` (kurtarma kodu; tire ve büyük harf yok sayılır)
+  ile geçilir. Hatalı ya da daha önce kullanılmış kod `admin_second_factor_invalid` (401) döner.
+  Demo modunda `000000` kodu da geçer (canlı ortamda demo modu açılamaz).
+- `totp-setup` her çağrıda yeni bir sır üretir; ikinci adım kuruluysa `admin_totp_already_enabled`
+  (409). Kurulum, sırla üretilen ilk kodla `totp-setup/confirm` çağrılınca etkinleşir; kurtarma
+  kodları yalnızca bu yanıtta (ve `me/recovery-codes` ile yenilenince) bir kez döner.
+- Tam oturum 30 dakika kullanılmazsa ya da açıldıktan 12 saat sonra kapanır.
+- Parola değişikliği mevcut parolayı ister (`admin_password_invalid`), yenisi en az 12 karakter
+  olmalı ve eskisiyle aynı olmamalıdır (`admin_password_reused`). Hesabın diğer oturumları kapanır.
+- Panel sunucusu, oturum listesinde ve denetim kaydında yöneticinin tarayıcısının görünmesi için
+  `x-vado-client-ip` ve `x-vado-client-agent` başlıklarını gönderir; API bunlara yalnızca
+  yönetici anahtarı doğrulandıktan sonra bakar.
+
+### Panel hesapları
+
+| Uç nokta                                     | İzin              | Gövde                          | Yanıt                    |
+| -------------------------------------------- | ----------------- | ------------------------------ | ------------------------ |
+| `GET /v1/admin/accounts`                     | `accounts.manage` | —                              | `List<AdminAccount>`     |
+| `POST /v1/admin/accounts`                    | `accounts.manage` | `adminCreateAccountBodySchema` | `AdminTemporaryPassword` |
+| `PATCH /v1/admin/accounts/:id`               | `accounts.manage` | `adminUpdateAccountBodySchema` | `AdminAccount`           |
+| `POST /v1/admin/accounts/:id/password-reset` | `accounts.manage` | —                              | `AdminTemporaryPassword` |
+| `POST /v1/admin/accounts/:id/totp-reset`     | `accounts.manage` | —                              | `AdminAccount`           |
+
+- Yeni hesabın ve sıfırlanan parolanın geçici parolası yalnızca yanıtta, bir kez döner; hesap ilk
+  girişte parolasını değiştirir ve ikinci adımı kurar. Kullanıcı adı alınmışsa
+  `admin_username_taken` (409).
+- Rol değişince ya da hesap kapatılınca (`status: "disabled"`), parola ya da ikinci adım
+  sıfırlanınca hesabın açık oturumları kapanır. Son etkin sahip hesabı sahiplikten çıkarılamaz ve
+  kapatılamaz (`admin_last_owner`, 409); kural veritabanında da korunur.
+- Hesap silinmez, kapatılır: denetim kaydında adı kalır.
+
+### Kullanıcılar, işletmeler, şikayetler
+
+| Uç nokta                         | İzin                | Gövde                           | Yanıt                 | Not                                           |
+| -------------------------------- | ------------------- | ------------------------------- | --------------------- | --------------------------------------------- |
+| `GET /v1/admin/overview`         | `overview.read`     | —                               | `AdminOverview`       | Sayılar ve yürürlükteki ayarlar               |
+| `GET /v1/admin/users?q=`         | `users.read`        | —                               | `List<AdminUser>`     | En yeni 200 kayıt; ad, numara, kimlik araması |
+| `PATCH /v1/admin/users/:id`      | `users.manage`      | `adminUpdateUserBodySchema`     | 204                   | Askıya alır ya da yeniden açar                |
+| `GET /v1/admin/businesses?q=`    | `businesses.read`   | —                               | `List<AdminBusiness>` |                                               |
+| `PATCH /v1/admin/businesses/:id` | `businesses.manage` | `adminUpdateBusinessBodySchema` | 204                   | Onaylar, yayınlar, askıya alır                |
+| `GET /v1/admin/reports`          | `reports.read`      | —                               | `List<AdminReport>`   |                                               |
+| `PATCH /v1/admin/reports/:id`    | `reports.manage`    | `adminUpdateReportBodySchema`   | 204                   | Çözüldü ya da yeniden açık                    |
+| `GET /v1/admin/audit`            | `audit.read`        | —                               | `Page<AuditEntry>`    | Denetim kaydı, sayfalı                        |
 
 Askıya alınan kullanıcının tüm oturumları kapanır. Sahibi etkin olmayan işletme yayınlanamaz
 (`business_owner_unavailable`).
@@ -306,20 +398,20 @@ Askıya alınan kullanıcının tüm oturumları kapanır. Sahibi etkin olmayan 
 Paket incelenen koddur; sürümleri yüklenir, incelenir ve onaylanır. Akışın anlatımı
 [MINI_UYGULAMA_GELISTIRME.md](MINI_UYGULAMA_GELISTIRME.md) belgesindedir.
 
-| Uç nokta                                                 | Gövde                                     | Yanıt                 | Not                                              |
-| -------------------------------------------------------- | ----------------------------------------- | --------------------- | ------------------------------------------------ |
-| `GET /v1/admin/packages`                                 | —                                         | `List<AdminPackage>`  | Sürümlerinin özetiyle                            |
-| `GET /v1/admin/packages/:id`                             | —                                         | `AdminPackage`        |                                                  |
-| `PUT /v1/admin/packages/:id`                             | `adminSavePackageBodySchema`              | `AdminPackage`        | Paketin kimlik kaydını oluşturur ya da günceller |
-| `POST /v1/admin/packages/:id/versions`                   | `multipart/form-data`, alan adı `package` | `AdminPackageVersion` | Zip arşivini taslak sürüm olarak yükler          |
-| `GET /v1/admin/packages/:id/versions/:version`           | —                                         | `AdminPackageVersion` | Dosyalar, bulgular, önceki onaylı sürüme fark    |
-| `GET /v1/admin/packages/:id/versions/:version/files/*`   | —                                         | `PackageFileContent`  | İnceleyenin açtığı dosya                         |
-| `POST /v1/admin/packages/:id/versions/:version/submit`   | —                                         | `AdminPackageVersion` | Taslak → incelemede                              |
-| `POST /v1/admin/packages/:id/versions/:version/approve`  | `adminApproveBodySchema`                  | `AdminPackageVersion` | İncelemede → onaylı                              |
-| `POST /v1/admin/packages/:id/versions/:version/reject`   | `adminReviewBodySchema`                   | `AdminPackageVersion` | İncelemede → reddedildi; gerekçe zorunlu         |
-| `POST /v1/admin/packages/:id/versions/:version/withdraw` | —                                         | `AdminPackageVersion` | Taslak ya da incelemede → vazgeçildi             |
-| `POST /v1/admin/packages/:id/versions/:version/revoke`   | `adminRevokeBodySchema`                   | `AdminPackageVersion` | Onaylı → geri çekildi; gerekçe zorunlu           |
-| `POST /v1/admin/packages/:id/versions/:version/rollout`  | —                                         | `AdminRolloutResult`  | Eski sürümdeki kayıtları bu sürüme geçirir       |
+| Uç nokta                                                 | İzin                | Gövde                                     | Yanıt                 | Not                                              |
+| -------------------------------------------------------- | ------------------- | ----------------------------------------- | --------------------- | ------------------------------------------------ |
+| `GET /v1/admin/packages`                                 | `packages.read`     | —                                         | `List<AdminPackage>`  | Sürümlerinin özetiyle                            |
+| `GET /v1/admin/packages/:id`                             | `packages.read`     | —                                         | `AdminPackage`        |                                                  |
+| `PUT /v1/admin/packages/:id`                             | `packages.upload`   | `adminSavePackageBodySchema`              | `AdminPackage`        | Paketin kimlik kaydını oluşturur ya da günceller |
+| `POST /v1/admin/packages/:id/versions`                   | `packages.upload`   | `multipart/form-data`, alan adı `package` | `AdminPackageVersion` | Zip arşivini taslak sürüm olarak yükler          |
+| `GET /v1/admin/packages/:id/versions/:version`           | `packages.read`     | —                                         | `AdminPackageVersion` | Dosyalar, bulgular, önceki onaylı sürüme fark    |
+| `GET /v1/admin/packages/:id/versions/:version/files/*`   | `packages.read`     | —                                         | `PackageFileContent`  | İnceleyenin açtığı dosya                         |
+| `POST /v1/admin/packages/:id/versions/:version/submit`   | `packages.upload`   | —                                         | `AdminPackageVersion` | Taslak → incelemede                              |
+| `POST /v1/admin/packages/:id/versions/:version/approve`  | `packages.review`   | `adminApproveBodySchema`                  | `AdminPackageVersion` | İncelemede → onaylı                              |
+| `POST /v1/admin/packages/:id/versions/:version/reject`   | `packages.review`   | `adminReviewBodySchema`                   | `AdminPackageVersion` | İncelemede → reddedildi; gerekçe zorunlu         |
+| `POST /v1/admin/packages/:id/versions/:version/withdraw` | `packages.upload`   | —                                         | `AdminPackageVersion` | Taslak ya da incelemede → vazgeçildi             |
+| `POST /v1/admin/packages/:id/versions/:version/revoke`   | `emergency.disable` | `adminRevokeBodySchema`                   | `AdminPackageVersion` | Onaylı → geri çekildi; gerekçe zorunlu           |
+| `POST /v1/admin/packages/:id/versions/:version/rollout`  | `packages.rollout`  | —                                         | `AdminRolloutResult`  | Eski sürümdeki kayıtları bu sürüme geçirir       |
 
 - Yükleme kurallara uymuyorsa hiçbir şey saklanmaz ve `package_invalid` (400) döner; `details`
   sorunları dosya dosya listeler. Arşiv `VADO_PACKAGE_MAX_MB` sınırını aşıyorsa `package_too_large`
@@ -328,6 +420,12 @@ Paket incelenen koddur; sürümleri yüklenir, incelenir ve onaylanır. Akışı
 - Sürüm numarası daha önce yüklenmişse `package_version_exists`, yüklenmiş bir sürümden küçükse
   `package_version_not_newer` (409) döner. Reddedilen ya da vazgeçilen sürümün numarası da yeniden
   kullanılamaz.
+- **Dört göz ilkesi:** sürümü yükleyen ya da incelemeye gönderen hesap onu onaylayamaz
+  (`package_self_review`, 409); kural veritabanında da uygulanır. 2.4'ten önce incelemeye
+  gönderilmiş sürümün göndereni bilinmez (`submittedBy: null`); onay `package_resubmit_required`
+  (409) döner. Böyle bir sürüm için `submit` çağrılınca durum değişmez, gönderen olarak çağıran
+  hesap yazılır; sonra başka bir hesap onaylar. Sürümü yükleyen kendi sürümünü reddedebilir ve
+  sürümden vazgeçebilir.
 - Yüklenen sürümün içeriği değiştirilemez; yalnızca durumu değişir. Geçersiz durum geçişi
   `package_state_invalid` (409) döner. Bu kural veritabanında da uygulanır.
 - İncelemeye gönderme ve onay, sürümün bütün dosyalarını depodan okuyup özetleriyle karşılaştırır;
@@ -341,16 +439,17 @@ Paket incelenen koddur; sürümleri yüklenir, incelenir ve onaylanır. Akışı
 
 ### Uygulama kayıtları
 
-| Uç nokta                                           | Gövde                              | Yanıt                       | Not                                            |
-| -------------------------------------------------- | ---------------------------------- | --------------------------- | ---------------------------------------------- |
-| `GET /v1/admin/miniapps?q=`                        | —                                  | `List<AdminMiniAppSummary>` | Kapalı olanlar dahil; ad ya da kimlik araması  |
-| `GET /v1/admin/miniapps/:id`                       | —                                  | `AdminMiniApp`              | Yayın geçmişi ve satıcılarıyla                 |
-| `PUT /v1/admin/miniapps/:id`                       | `adminSaveMiniAppBodySchema`       | `AdminMiniApp`              | Vitrini oluşturur ya da günceller              |
-| `PATCH /v1/admin/miniapps/:id`                     | `adminUpdateMiniAppBodySchema`     | 204                         | Doğrular, açar, kapatır                        |
-| `POST /v1/admin/miniapps/:id/releases`             | `adminPublishMiniAppBodySchema`    | `AdminMiniApp`              | Onaylı bir sürümü, ayarlarıyla yayınlar        |
-| `POST /v1/admin/miniapps/:id/rollback`             | —                                  | `AdminMiniApp`              | Bir önceki yayına, o yayının ayarlarıyla döner |
-| `PUT /v1/admin/miniapps/:id/config`                | `adminSaveMiniAppConfigBodySchema` | `AdminMiniApp`              | İşletme ayarlarını değiştirir                  |
-| `PUT /v1/admin/miniapps/:id/merchants/:merchantId` | `adminSaveMerchantBodySchema`      | 204                         | Satıcıyı kayda bağlar                          |
+| Uç nokta                                           | İzin                | Gövde                              | Yanıt                       | Not                                            |
+| -------------------------------------------------- | ------------------- | ---------------------------------- | --------------------------- | ---------------------------------------------- |
+| `GET /v1/admin/miniapps?q=`                        | `miniapps.read`     | —                                  | `List<AdminMiniAppSummary>` | Kapalı olanlar dahil; ad ya da kimlik araması  |
+| `GET /v1/admin/miniapps/:id`                       | `miniapps.read`     | —                                  | `AdminMiniApp`              | Yayın geçmişi ve satıcılarıyla                 |
+| `PUT /v1/admin/miniapps/:id`                       | `miniapps.manage`   | `adminSaveMiniAppBodySchema`       | `AdminMiniApp`              | Vitrini oluşturur ya da günceller              |
+| `PATCH /v1/admin/miniapps/:id`                     | `miniapps.manage`   | `adminUpdateMiniAppBodySchema`     | 204                         | Doğrular, açar, kapatır                        |
+| `POST /v1/admin/miniapps/:id/releases`             | `miniapps.publish`  | `adminPublishMiniAppBodySchema`    | `AdminMiniApp`              | Onaylı bir sürümü, ayarlarıyla yayınlar        |
+| `POST /v1/admin/miniapps/:id/disable`              | `emergency.disable` | —                                  | 204                         | Acil kapatma: kaydı kullanıcılara kapatır      |
+| `POST /v1/admin/miniapps/:id/rollback`             | `miniapps.publish`  | —                                  | `AdminMiniApp`              | Bir önceki yayına, o yayının ayarlarıyla döner |
+| `PUT /v1/admin/miniapps/:id/config`                | `miniapps.manage`   | `adminSaveMiniAppConfigBodySchema` | `AdminMiniApp`              | İşletme ayarlarını değiştirir                  |
+| `PUT /v1/admin/miniapps/:id/merchants/:merchantId` | `miniapps.manage`   | `adminSaveMerchantBodySchema`      | 204                         | Satıcıyı kayda bağlar                          |
 
 - Yeni kayıt doğrulanmamış ve yayınsız başlar. `AdminMiniApp.offlineReason`, kaydın kullanıcılara
   neden kapalı olduğunu söyler (`disabled`, `unverified`, `unpublished`, `version_unavailable`,

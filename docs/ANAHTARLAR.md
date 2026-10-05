@@ -179,7 +179,9 @@ keys rotate otp --drop-old
 Eski anahtarların hepsi halkadan çıkar. QR'da o ana kadar üretilmiş bütün kodlar geçersiz olur ve
 basılmış kodların yeniden alınması gerekir; doğrulama kodunda yoldaki kodlar geçersiz olur ve
 kullanıcı yeni kod ister. Sızan `.env` dosyasının kendisiyse içindeki diğer değerleri de (yönetici
-anahtarı, veritabanı ve panel şifreleri, SMS gizli değeri) değiştirin.
+anahtarı, veritabanı şifresi, SMS gizli değeri) değiştirin. Panel hesaplarının parolaları
+`.env` dosyasında durmaz; veritabanı da sızdıysa onları ve ikinci adımlarını sıfırlayın
+(`admins.js reset-password`, `reset-2fa`).
 
 ### Mini uygulama kimliği anahtarı
 

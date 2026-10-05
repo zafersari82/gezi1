@@ -187,8 +187,12 @@ Dosya adını çatının belirlediği yerler (Expo Router ve Next.js'te `_layout
 - Sayfalar sunucu bileşenidir ve veriyi `lib/api.ts` üzerinden okur. Tarayıcıda çalışan bileşen
   (`"use client"`) yalnızca etkileşim gerektiğinde yazılır.
 - Değişiklikler `lib/actions.ts` içindeki sunucu işlevleriyle yapılır. API'ye giden her çağrı
-  `requireOperator()` denetiminden geçer; yönetici anahtarı tarayıcıya gönderilen hiçbir dosyada
-  geçmez (`server-only`).
+  `lib/api.ts` üzerinden geçer ve oturum çerezindeki belirteci taşır; yetkiye panel değil API karar
+  verir. Yönetici anahtarı ve oturum belirteci tarayıcıya gönderilen hiçbir dosyada geçmez
+  (`server-only`, `HttpOnly` çerez).
+- Panelde menüyü ya da düğmeyi gizlemek yetki değildir; yalnızca rolün yapamayacağı işlemi
+  göstermemek içindir. Her yönetim ucu gerektirdiği izni rota ayarında bildirir
+  (`adminAccess(…)`); bildirmeyen uç kaydedilemez.
 - API yanıtları sözleşme şemasıyla doğrulanır; panel "herhalde böyle gelir" varsayımıyla veri okumaz.
 - Renkler `app/globals.css` içindeki CSS değişkenlerinden gelir; bileşenlerde renk kodu yazılamaz.
 

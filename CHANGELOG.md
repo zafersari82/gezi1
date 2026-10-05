@@ -1,5 +1,102 @@
 # Değişiklikler
 
+## 2.4.0 (2026-10-05)
+
+Yönetim panelinde kişisel hesaplar, roller ve iki adımlı doğrulama; paketi yükleyen ile onaylayanın
+ayrılması. Paneldeki ortak kullanıcı adı ve şifre kalktı: her yönetici kendi hesabıyla, parolası ve
+telefonundaki doğrulama uygulamasının ürettiği kodla girer. Denetim kaydında, paket sürümlerinde ve
+yayın geçmişinde işlemi yapan hesap adıyla görünür. Mobil uygulama, mini uygulamalar, giriş, sohbet
+ve ödeme akışı değişmedi.
+
+### Yeni
+
+- **Panel hesapları.** Hesaplar, parolalar, ikinci adım ve oturumlar API'nin veritabanında durur
+  (`admin_accounts`, `admin_sessions`, `admin_recovery_codes`). Parola scrypt ile saklanır ve
+  sabit zamanda karşılaştırılır. Hesap yok, parola yanlış, hesap kapalı ya da kilitli durumlarında
+  aynı hata döner. Parola ve ikinci adım denemeleri birlikte sayılır: beş hatalı denemeden sonra
+  hesap 15 dakika kilitlenir. Sayaç karşılaştırmadan önce artırılır; eş zamanlı tahminler sınırı
+  aşamaz.
+- **İki adımlı doğrulama.** Doğrulama uygulamasıyla zamana dayalı kod (TOTP, RFC 6238; SHA-1,
+  6 hane, 30 saniye) ve tek kullanımlık 10 kurtarma kodu. Bütün hesaplarda zorunludur ve ilk
+  girişte kurulur; panel kurulum için QR kodu gösterir. Aynı kod ikinci kez geçmez. Kurtarma
+  kodları "Hesabım" sayfasından, güncel kod girilerek yenilenir.
+- **Oturumlar.** Parola doğrulanınca yalnızca ikinci adıma yarayan bir yarım oturum açılır;
+  ikinci adım geçilince yeni bir belirteçle tam oturum açılır. Oturum 30 dakika kullanılmazsa ya
+  da 12 saat dolunca kapanır. Oturumlar "Hesabım" sayfasında listelenir ve uzaktan kapatılır.
+  Parola değişince hesabın diğer oturumları; rol değişince, hesap kapatılınca, parola ya da ikinci
+  adım sıfırlanınca hesabın bütün oturumları kapanır.
+- **Roller ve izinler.** Sahip (her şey), inceleyen (paket onayı ve reddi), operatör (paket
+  yükleme, uygulama kayıtları, yayın, işletme onayı), destek (kullanıcı askıya alma, şikayetler),
+  denetçi (yalnızca okuma). Acil kapatmayı sahip, inceleyen ve operatör yapabilir. İzin listesi ve
+  rol-izin tablosu `packages/contracts` içindedir. Her yönetim ucu gerektirdiği izni bildirir;
+  bildirmeyen uç kaydedilemez, API başlamaz.
+- **Dört göz ilkesi.** Bir paket sürümünü yükleyen ya da incelemeye gönderen hesap o sürümü
+  onaylayamaz (`package_self_review`). Kural serviste ve veritabanında (tetikleyici) uygulanır.
+  Tek yöneticili kurulumda paket onaylanamaz; onay için ikinci bir hesap gerekir.
+- **İlk hesap komut satırından:** `npm run admins -- create --username <ad> --name "<ad soyad>"
+--role owner` (canlıda `node dist/cli/admins.js …`). Varsayılan parola yoktur: geçici parola
+  rastgele üretilir, bir kez gösterilir ve ilk girişte değiştirilir. Aynı komut hesapları listeler,
+  parolayı ve ikinci adımı sıfırlar. Etkin sahip hesabı yoksa API başlarken uyarır.
+- **Panel:** giriş, ikinci adımın kurulumu, "Hesabım" (parola, oturumlar, kurtarma kodları) ve
+  yalnızca sahibin gördüğü "Panel hesapları" (hesap açma, rol değiştirme, kapatma, parola ve ikinci
+  adım sıfırlama) sayfaları. Menü ve paket sayfasındaki kararlar hesabın rolüne göre gösterilir;
+  rolün göremediği bir bölümün adresi açılırsa "Bu bölüm için yetkin yok" sayfası çıkar. Kenar
+  çubuğunda hesabın adı ve rolü, çıkış düğmesi vardır.
+- **Kim yaptı:** denetim kaydı, paket sürümleri (yükleyen, gönderen, karar veren) ve yayın geçmişi
+  işlemi yapanı adıyla döndürür. Giriş, başarısız giriş, hatalı ikinci adım kodu, ikinci adımın
+  kurulumu ve sıfırlanması, parola değişikliği ve sıfırlanması, rol değişikliği, hesap açma ve
+  oturum kapatma da denetim kaydına yazılır.
+- **Acil kapatma ucu:** `POST /v1/admin/miniapps/:id/disable`. Kaydı yönetemeyen inceleyen de
+  sorunlu bir uygulamayı kullanıcılardan hemen gizleyebilir; yeniden açmak kayıt yönetimi izni ister.
+- **Örnek veri** üç yönetici açar: `sahip`, `inceleyen`, `operator` (parola `vado-gelistirme`,
+  demo modunda ikinci adım kodu `000000`). Örnek paketi operatör yükler, inceleyen onaylar.
+
+### Değişen
+
+- **Panel girişi.** HTTP Basic girişi ve `VADO_PORTAL_USER`, `VADO_PORTAL_PASSWORD` değişkenleri
+  kaldırıldı. Panel, yöneticinin oturum belirtecini `HttpOnly`, `SameSite=Strict` (canlıda
+  `Secure`) bir çerezde tutar ve her çağrıda API'ye taşır; hesabın kim olduğuna ve neyi
+  yapabileceğine API karar verir. Geliştirmede de panel artık şifresiz açılmaz; örnek hesaplarla
+  girilir.
+- **Yönetim API'si.** `/v1/admin/` uçları yönetici anahtarının yanında panel hesabının oturumunu
+  (`Authorization: Bearer …`) ister; oturum yoksa `admin_session_invalid` (401), izin yoksa
+  `forbidden` (403), parola değişmeden önce `admin_password_change_required` (403) döner.
+  `VADO_ADMIN_API_KEY` ikinci katman olarak kalır: isteğin panel sunucusundan geldiğini kanıtlar.
+- **Yanıt biçimi.** Denetim kaydındaki `actor`, yayın geçmişindeki `actor` ve paket sürümlerindeki
+  `uploadedBy`, `reviewedBy` artık `{ id, name }` biçimindedir; sürümlere `submittedBy` eklendi.
+  Ayrıntı: [docs/API.md](docs/API.md).
+- **Şema:** `0004_admin_accounts.sql` (hesaplar, oturumlar, kurtarma kodları, son sahibin
+  korunması) ve `0005_package_review_separation.sql` (`package_versions.submitted_by` ve dört göz
+  tetikleyicisi). Eski şema dosyaları değişmedi.
+
+### Düzeltilen
+
+- Yönetim testlerinden biri denetim kaydının ilk satırına bakıyordu; aynı anda çalışan başka bir
+  test dosyası kayıt düşerse aralıklı olarak başarısız oluyordu (2.4 geliştirilirken temiz kopyada
+  bir kez görüldü). Test artık hedefin kendi satırını arar.
+
+### 2.3.1'den geçiş
+
+1. **Yedek alın.** Geri dönüş yalnızca yedekten yapılabilir (aşağıda, 6. adım).
+2. **Ayarlar.** `infra/.env.production` dosyasından `VADO_PORTAL_USER` ve `VADO_PORTAL_PASSWORD`
+   satırlarını silin. Bu değişkenler hâlâ tanımlıysa canlı panel nedenini söyleyerek açılmaz
+   (503). Yeni zorunlu ayar yoktur; `VADO_ADMIN_API_KEY` aynen kalır.
+3. **Güncelleyin.** Her zamanki komut (`docker compose … up -d --build`); `migrate` servisi
+   `0004` ve `0005` dosyalarını uygular. API şema yükseltilmeden başlamaz.
+4. **İlk sahibi açın.** `docker compose -f infra/docker-compose.prod.yml --env-file
+infra/.env.production run --rm api node dist/cli/admins.js create --username <ad> --name "<ad
+soyad>" --role owner`. Komut geçici parolayı bir kez yazar. Sahip panelde girer, ikinci adımı
+   kurar, parolasını değiştirir ve diğer yöneticilerin hesaplarını "Panel hesapları" sayfasından
+   açar. Paket onayı için en az iki hesap gerekir.
+5. **Eski kayıtlar** olduğu gibi kalır: 2.3.1'de yapılan işlemler denetim kaydında ve paket
+   sürümlerinde "Ortak panel hesabı (2.3)" adıyla görünür. 2.3.1'de incelemeye gönderilmiş ve
+   karar bekleyen bir sürümün göndereni bilinmez; onaylanabilmesi için önce bir hesabın onu
+   "Yeniden incelemeye gönder" düğmesiyle göndermesi, sonra başka bir hesabın onaylaması gerekir.
+   Taslak kalmış sürümler her zamanki gibi gönderilir.
+6. **Geri dönüş.** 2.3.1 yükseltilmiş veritabanında başlar ama incelemeye gönderme yapamaz (yeni
+   tetikleyici göndereni ister). 2.3.1'e dönmek gerekirse 1. adımdaki yedeği geri yükleyin.
+7. Mobil uygulama, mini uygulama paketleri ve Nginx ayarı değişmez.
+
 ## 2.3.1 (2026-10-05)
 
 Mini uygulama yalıtımının sıkılaştırılması. Kabuk artık paketi doğrudan açmaz; VADO'nun kendi

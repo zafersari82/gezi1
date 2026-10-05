@@ -8,9 +8,9 @@ belgesindedir.
 
 ```
  Telefon (apps/mobile)                 Yönetici tarayıcısı
-   │  REST + Socket.IO                    │  HTTPS (Basic giriş)
+   │  REST + Socket.IO                    │  HTTPS (hesap + ikinci adım, oturum çerezi)
    ▼                                      ▼
- ┌──────────────────────┐   x-vado-admin-key   ┌─────────────────────┐
+ ┌──────────────────────┐ anahtar + oturum     ┌─────────────────────┐
  │  API (apps/api)      │◄─────────────────────│  Panel (apps/portal) │
  │  Fastify + Socket.IO │                      │  Next.js             │
  └───┬────────┬─────────┘                      └─────────────────────┘
@@ -49,8 +49,8 @@ apps/api/src
   modules/     her alan için <ad>.service.ts (iş kuralları) ve <ad>.routes.ts (HTTP)
   providers/   dış dünyaya açılan arayüzler: SMS, dosya depolama, paket deposu
   realtime/    Socket.IO sunucusu
-  cli/         komut satırı betikleri: şema yükseltme, örnek veri, anahtar yönetimi, paketleme,
-               paket deposu denetimi
+  cli/         komut satırı betikleri: şema yükseltme, örnek veri, anahtar yönetimi, panel
+               hesapları, paketleme, paket deposu denetimi
   app.ts       uygulamayı kurar; main.ts yalnızca başlatır ve kapatır
 
 apps/mobile/src
@@ -62,8 +62,8 @@ apps/mobile/src
   lib/         saf yardımcılar (biçimlendirme, Türkçe metin)
 
 apps/portal
-  app/         sayfalar (Next.js App Router)
-  lib/         API istemcisi, sunucu işlevleri, giriş denetimi
+  app/         sayfalar (Next.js App Router): (auth) giriş sayfaları, (panel) giriş gerektirenler
+  lib/         API istemcisi, sunucu işlevleri, oturum çerezi
   components/  ortak bileşenler
 
 miniapps/appointment   örnek mini uygulama; derleme çıktısı örnek paket olarak yüklenir
@@ -119,6 +119,11 @@ Böylece şema değişikliği her zaman bilinçli bir adımdır (`migrate` servi
   (`system_event`). Metin okunurken güncel adlarla üretilir; ad değişikliği ve hesap silme eski
   mesajlara da yansır.
 - `audit_log` panelden yapılan her işlemi ve önemli kullanıcı işlemlerini kalıcı olarak tutar.
+  `actor` sütunu panel hesabının ya da kullanıcının kimliğini (ya da `admin`, `cli` gibi bir sistem
+  adını) taşır; yanıtlarda bu değer tek sorguda hesabın adına çevrilir (`resolveActors`).
+- `admin_accounts`, `admin_sessions`, `admin_recovery_codes` panel hesaplarıdır; kullanıcılardan
+  (`users`, `sessions`) tamamen ayrıdır. Hesap silinmez, kapatılır; son etkin sahip hesabını
+  kaldıran güncellemeyi tetikleyici reddeder.
 - `package_versions` ve `package_files` yüklendikten sonra değişmez; bu, uygulama kodunda değil
   veritabanı tetikleyicilerinde de uygulanır (aşağıda, Mini uygulamalar bölümünde).
 - `mini_app_releases` yalnızca eklenir: bir uygulama kaydının her yayını, ayar değişikliği ve geri
@@ -329,9 +334,8 @@ Protokolün tamamı `packages/contracts/src/bridge.ts` dosyasındadır; kabuk ve
 
 Paket platformu, yol haritasındaki adımlar kırılmadan eklenebilecek biçimde kuruldu:
 
-- **İnceleyen kimliği.** Yükleme, karar ve yayın kayıtları "kim yaptı" bilgisini (`actor`) taşır.
-  Bugün tek yönetici anahtarı olduğu için değer sabittir; yönetici hesapları geldiğinde aynı
-  sütunlara hesabın kimliği yazılır.
+- **İnceleyen kimliği.** Yükleme, gönderme, karar ve yayın kayıtları "kim yaptı" bilgisini taşır;
+  2.4'ten beri bu sütunlara panel hesabının kimliği yazılır (önceki kayıtlarda `admin`).
 - **Bağlantı parametreleri.** `app.getContext()` yanıtındaki `params` alanı, QR kodundan gelen
   parametreler (masa numarası gibi) için ayrılmıştır; bu sürümde boştur.
 - **Depo sağlayıcısı.** `PackageStore` arayüzü iki işlemden ibarettir (`put`, `read`); S3 uyumlu bir
@@ -380,11 +384,45 @@ uygulama içeriğe güvenmez.
 ## Yönetim paneli
 
 Panel tarayıcıdan API'ye doğrudan bağlanmaz. Sayfalar sunucuda çizilir; panel sunucusu API'yi
-yönetici anahtarıyla çağırır. Anahtar tarayıcıya hiç gitmez. Panelin tamamı HTTP Basic girişinin
-arkasındadır ve giriş, sunucu işlevlerinin içinde ikinci kez doğrulanır.
+yönetici anahtarıyla çağırır. Anahtar tarayıcıya hiç gitmez.
+
+### Hesaplar, oturum ve yetki
+
+Kimliği API doğrular. Hesaplar, parolalar, ikinci adım ve oturumlar API'nin veritabanında durur
+(`modules/admin-accounts`). Panel yalnızca yöneticinin oturum belirtecini taşır:
+
+```
+Tarayıcı ──(çerez: oturum belirteci)──► Panel sunucusu ──(anahtar + Bearer belirteç)──► API
+                                                                     oturum geçerli mi?
+                                                                     hesap etkin mi?
+                                                                     rolde bu izin var mı?
+```
+
+- **Giriş iki adımdır.** Parola doğrulanınca yalnızca ikinci adıma yarayan bir yarım oturum açılır
+  (`stage = 'second_factor'`). İkinci adım (TOTP ya da kurtarma kodu) geçilince yarım oturum
+  kapanır ve yeni bir belirteçle tam oturum açılır. Panel iki belirteci ayrı çerezlerde tutar.
+- **İki katman.** Yönetici anahtarı isteğin panel sunucusundan geldiğini, oturum isteği yapan
+  hesabı kanıtlar. Panelin sunucu işlevleri doğrudan POST isteğiyle de çağrılabildiği için yetki
+  panelde değil, her çağrıda API'de denetlenir; panelin `proxy.ts` dosyası yalnızca oturumu
+  olmayanı giriş sayfasına gönderir.
+- **İzin uçta bildirilir.** İzin listesi ve rol-izin tablosu sözleşmededir
+  (`ADMIN_ROLE_PERMISSIONS`). Her yönetim ucu rota ayarında gerektirdiği erişimi yazar
+  (`adminAccess("packages.review")`, ya da `session`, `second_factor`, `public`).
+  `collectAdminRoutes`, erişim bildirmeyen bir `/v1/admin/` ucunu kayıt sırasında reddeder;
+  `adminGuard` anahtarı, oturumu ve izni ucun bildirdiğine göre denetler. Bildirilen erişimlerin
+  listesi testlere açıktır: izin tablosu testi her ucu her rolle çağırır.
+- **Yetki ve kapsam ayrı düşünüldü.** Bu sürümde rol yalnızca "ne yapılabilir" sorusunu yanıtlar;
+  bütün hesaplar bütün kayıtlar üzerinde çalışır. İşletme sahiplerinin yalnızca kendi kaydını
+  yöneteceği hesaplar (2.5) hesaba bir kapsam alanı ve servislerde kapsam süzgeci ekleyerek gelir;
+  izin tablosu ve uçların izin bildirimi değişmez.
+- **Dört göz.** Paket sürümünü yükleyen (`uploaded_by`) ya da incelemeye gönderen
+  (`submitted_by`) hesap onu onaylayamaz. Servis kuralı denetler; `package_versions_review_guard`
+  tetikleyicisi aynı kuralı veritabanında uygular.
 
 API'den gelen her yanıt sözleşme şemasıyla doğrulanır; panel ile API'nin sürümleri uyuşmazsa bu,
-sessiz bir boş ekran olarak değil, açık bir hata olarak ortaya çıkar.
+sessiz bir boş ekran olarak değil, açık bir hata olarak ortaya çıkar. Oturum geçersizse panel giriş
+sayfasına, parolanın değişmesi gerekiyorsa "Hesabım" sayfasına, rolün göremediği bir bölüm
+açılırsa yetki sayfasına gider.
 
 Paket incelemesi panelde yapılır: sürümün dosyaları, istediği yetkiler, bağlanacağı adresler,
 otomatik bulgular ve önceki onaylı sürüme göre fark aynı sayfada görünür. Paket dosyaları panelde

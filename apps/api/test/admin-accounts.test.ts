@@ -307,6 +307,20 @@ describe("panel hesapları", () => {
       expect((await login(account.username, temporaryPassword)).next).toBe("totp_setup");
     });
 
+    it("beşinci hatalı denemede hesap hemen kilitlenir", async () => {
+      const { account } = await openAccount("auditor");
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await asPanel(app).fail("admin_login_failed", "POST", "/v1/admin/auth/login", {
+          body: { username: account.username, password: `yanlış-parola-${attempt}` },
+        });
+      }
+      const row = await app.db.one<{ locked: boolean }>(sql`
+        select coalesce(locked_until > now(), false) as locked
+        from admin_accounts where id = ${account.id}
+      `);
+      expect(row.locked).toBe(true);
+    });
+
     it("ikinci adımdaki hatalı kodlar da sayılır ve hesabı kilitler", async () => {
       const { account, secret } = await activeAccount("reviewer");
       const pending = await login(account.username, NEW_PASSWORD);
@@ -404,6 +418,31 @@ describe("panel hesapları", () => {
         where account_id = ${old.account.id}
       `);
       await asAdminSession(app, old.token).fail("admin_session_invalid", "GET", "/v1/admin/me");
+    });
+
+    it("aynı kod eş zamanlı iki girişte kullanılırsa yalnızca biri geçer", async () => {
+      const { account, secret } = await activeAccount("auditor");
+      const [first, second] = await Promise.all([
+        login(account.username, NEW_PASSWORD),
+        login(account.username, NEW_PASSWORD),
+      ]);
+      const code = codeFor(secret, 1);
+      const responses = await Promise.all(
+        [first, second].map((pending) =>
+          asAdminSession(app, pending.token).request("POST", "/v1/admin/auth/second-factor", {
+            body: { code },
+          }),
+        ),
+      );
+      expect(responses.map((response) => response.status).sort()).toEqual([200, 401]);
+    });
+
+    it("hesap veritabanında kapatılırsa açık oturumu da geçmez", async () => {
+      const { account, token } = await activeAccount("auditor");
+      await app.db.execute(
+        sql`update admin_accounts set status = 'disabled' where id = ${account.id}`,
+      );
+      await asAdminSession(app, token).fail("admin_session_invalid", "GET", "/v1/admin/me");
     });
 
     it("çıkış oturumu kapatır", async () => {

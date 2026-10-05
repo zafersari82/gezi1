@@ -11,13 +11,13 @@ vereceği belirlenmelidir; bu sürümde tanımlı bir adres yoktur.
 
 ## Güven sınırları
 
-| Taraf             | Güven                                                                                               |
-| ----------------- | --------------------------------------------------------------------------------------------------- |
-| API               | Tek karar noktası. Her yetki ve her kural burada denetlenir.                                        |
-| Mobil uygulama    | Güvenilmez. Yaptığı denetimler yalnızca kullanıcıya erken bilgi vermek içindir.                     |
-| Mini uygulama     | Güvenilmez üçüncü taraf kodu. İncelenmiş olsa da yalıtılmış çalışır; belirteç, numara, kart görmez. |
-| Yönetim paneli    | Güvenilir ama dar: API'ye yalnızca sunucu tarafından, yönetici anahtarıyla ulaşır.                  |
-| SMS aracı servisi | Doğrulama kodunu görür; yalnızca iç ağdan erişilebilir olmalıdır.                                   |
+| Taraf             | Güven                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| API               | Tek karar noktası. Her yetki ve her kural burada denetlenir.                                                                          |
+| Mobil uygulama    | Güvenilmez. Yaptığı denetimler yalnızca kullanıcıya erken bilgi vermek içindir.                                                       |
+| Mini uygulama     | Güvenilmez üçüncü taraf kodu. İncelenmiş olsa da yalıtılmış çalışır; belirteç, numara, kart görmez.                                   |
+| Yönetim paneli    | Güvenilir ama dar: API'ye yalnızca sunucu tarafından, yönetici anahtarı ve hesabın oturumuyla ulaşır. Hesabı ve yetkiyi API doğrular. |
+| SMS aracı servisi | Doğrulama kodunu görür; yalnızca iç ağdan erişilebilir olmalıdır.                                                                     |
 
 ## Neler korunuyor
 
@@ -204,11 +204,45 @@ yollar "Bilinen sınırlar" bölümündedir.
 
 ### Yönetim
 
-- Yönetim uç noktaları yalnızca yönetici anahtarıyla çağrılır; anahtar zamanlama saldırısına
-  dayanıklı biçimde karşılaştırılır ve tarayıcıya hiç gönderilmez.
-- Panel HTTP Basic girişinin arkasındadır; giriş sunucu işlevlerinde ikinci kez doğrulanır. Canlı
-  ortamda giriş bilgisi tanımlı değilse panel açılmaz.
-- Panelden yapılan her değişiklik denetim kaydına yazılır.
+- Her yönetici kendi hesabıyla girer; paylaşılan kullanıcı adı ve şifre yoktur. Hesaplar,
+  parolalar, ikinci adım ve oturumlar API'nin veritabanındadır. Panel "ben şu yöneticiyim" diye
+  beyan etmez: hesabın oturum belirtecini API'ye taşır, API her istekte oturumu, hesabın durumunu
+  ve rolünün iznini veritabanından doğrular.
+- Yönetim uçları iki katmanla korunur: yönetici anahtarı isteğin panel sunucusundan geldiğini,
+  oturum belirteci isteği yapan hesabı kanıtlar. Biri tek başına yetmez. Anahtar zamanlama
+  saldırısına dayanıklı biçimde karşılaştırılır ve tarayıcıya hiç gönderilmez.
+- Yetki her uçta sunucuda denetlenir. Rol-izin tablosu tek yerdedir (`packages/contracts`); her
+  yönetim ucu gerektirdiği izni bildirir ve izin bildirmeyen uç kaydedilemez (API başlamaz).
+  Otomatik test, kayıtlı her yönetim ucunu her rolle çağırır ve izni olmayan her rolün
+  reddedildiğini doğrular. Panelde menüyü ve düğmeleri gizlemek yalnızca kolaylıktır.
+- Parola scrypt ile (N = 2^15, r = 8, p = 1; hesap başına rastgele tuz) saklanır ve sabit zamanda
+  karşılaştırılır; en az 12 karakterdir. Hesap yoksa da bir özet hesaplanır: "hesap yok", "parola
+  yanlış", "hesap kapalı" ve "hesap kilitli" yanıtı da süresi de aynıdır.
+- Parola ve ikinci adım denemeleri birlikte sayılır; beş hatalı denemeden sonra hesap 15 dakika
+  kilitlenir. Sayaç karşılaştırmadan önce artırılır; eş zamanlı denemeler sınırı aşamaz. Giriş
+  uçlarına ayrıca IP başına dakikada 30 istek sınırı uygulanır.
+- İkinci adım bütün hesaplarda zorunludur: doğrulama uygulamasının kodu (TOTP, RFC 6238) ya da
+  tek kullanımlık kurtarma kodu. Kabul edilen son kodun zaman adımı saklanır; aynı kod ve ondan
+  eskisi ikinci kez geçmez. Kurtarma kodları 80 bit rastgeledir, yalnızca SHA-256 özetleri
+  saklanır ve her biri bir kez geçer. Uygulama RFC 4226 ve RFC 6238'in sınama vektörleriyle
+  sınanır.
+- Parola doğrulanınca açılan yarım oturum yalnızca ikinci adıma yarar ve 10 dakikada kapanır;
+  ikinci adım geçilince belirteç değişir. Tam oturum belirteci 256 bit rastgeledir, veritabanında
+  SHA-256 özeti saklanır; 30 dakika kullanılmazsa ya da 12 saat dolunca kapanır. Çerez
+  `HttpOnly`, `SameSite=Strict` ve canlı ortamda `Secure`'dur.
+- Parola değişince hesabın diğer oturumları; rol değişince, hesap kapatılınca, parola ya da ikinci
+  adım sıfırlanınca bütün oturumları kapanır. Yönetici kendi oturumlarını görür ve uzaktan kapatır.
+- İlk hesap yalnızca sunucuda, komut satırından açılır; varsayılan parola yoktur. Yöneticinin
+  belirlediği geçici parolayla açılan hesap, parolasını değiştirene kadar hiçbir izni kullanamaz.
+- Son etkin sahip hesabı sahiplikten çıkarılamaz ve kapatılamaz; kural veritabanında da durur.
+- **Dört göz ilkesi:** paket sürümünü yükleyen ya da incelemeye gönderen hesap onu onaylayamaz.
+  Kural serviste ve veritabanında (tetikleyici, doğrudan SQL ile sınanır) uygulanır.
+- Panelden yapılan her değişiklik, girişler, başarısız girişler, hatalı ikinci adım kodları,
+  ikinci adımın kurulması ve sıfırlanması, parola ve rol değişiklikleri denetim kaydına hesabın
+  kimliğiyle yazılır.
+- Canlı ortamda demo modu açılamaz; bu yüzden demo modundaki `000000` ikinci adım kolaylığı canlıya
+  sızmaz. Paylaşılan eski panel değişkenleri (`VADO_PORTAL_USER`, `VADO_PORTAL_PASSWORD`) canlı
+  panelde hâlâ tanımlıysa panel açılmaz.
 
 ## Bilinen sınırlar
 
@@ -219,9 +253,16 @@ Bunlar hata değil, bu sürümün bilinçli sınırlarıdır; yayın kararını 
 - **Fotoğraf adresleri oturum istemez.** Adres tahmin edilemez ama adresi öğrenen herkes fotoğrafı
   açabilir. Sohbetten çıkarılan bir üye, daha önce gördüğü fotoğrafların adresini kullanmaya devam
   edebilir.
-- **Panelde tek hesap vardır.** Yöneticiler aynı kullanıcı adı ve şifreyi paylaşır; denetim
-  kaydında kimin yaptığı ayırt edilemez. İki adımlı doğrulama yoktur. Paneli VPN ya da IP kısıtıyla
-  koruyun.
+- **Panel hesaplarının sınırları.** İkinci adımın sırrı (TOTP) çalışabilmek için veritabanında
+  açık durur; veritabanını okuyabilen biri kodları üretebilir (parolayı yine bilmesi gerekir).
+  Donanım anahtarı (WebAuthn, passkey) desteklenmez. Kilitlenme hesap adına göredir: hesap adını
+  bilen biri yanlış parolalarla hesabı 15 dakikalık aralarla kilitli tutabilir; bunu IP başına
+  istek sınırı yavaşlatır ama durdurmaz. Hesabın IP adresi ve tarayıcısı panel sunucusunun
+  ilettiği başlıktan okunur (anahtarı bilen panel sunucusuna güvenilir). Eski kayıtlarda (2.4'ten
+  önce) işlemi yapan "Ortak panel hesabı (2.3)" olarak görünür; o kayıtlarda kişi ayırt edilemez.
+  Paneli yine de VPN ya da IP kısıtıyla koruyun.
+- **Sürümün son kararı tek alanda tutulur.** Onaylı bir sürüm geri çekilince "son karar veren"
+  alanına geri çeken yazılır; onaylayanın kim olduğu denetim kaydında kalır.
 - **Web önizlemesinde belirteç tarayıcı deposundadır.** Web sürümü deneme amaçlıdır.
 - **İstek sınırı IP adresine göredir.** Çok sayıda adres kullanan bir saldırganı durdurmaz; aynı
   adresi paylaşan gerçek kullanıcıları etkileyebilir.
@@ -290,9 +331,9 @@ Bunlar hata değil, bu sürümün bilinçli sınırlarıdır; yayın kararını 
   çizer. Bu sınırların içinde kalan kötü niyet mümkündür: paket, kullanıcının izniyle aldığı adı
   ve takma kimliği, bildirim dosyasında yazan adreslere gönderebilir. İnceleyen, özellikle
   bağlanılan adreslere ve istenen yetkilere bakmalıdır.
-- **Yükleyen ile onaylayan ayrılmaz.** Panelde tek hesap olduğu için paketi yükleyen kişi onu
-  onaylayabilir; dört göz ilkesi ve geliştirici hesapları yoktur. Paketin kimden geldiği bir imzayla
-  değil, panele erişimle belirlenir.
+- **Geliştirici hesapları ve paket imzası yoktur.** Paketi panel hesabı olan biri yükler; paketin
+  kimden geldiği bir imzayla değil, panele erişimle belirlenir. Yükleyen ile onaylayan ayrıdır
+  (dört göz ilkesi) ama iki hesabın aynı kişiye verilmesini sistem engelleyemez.
 - **Geri çekilen dosyalar geri toplanamaz.** Sarmalayıcı belge ve paketin giriş belgesi her
   açılışta sunucuya sorulur; geri çekilen sürümde ikisi de artık sunulmaz. Paketin diğer dosyaları
   (betik, stil, görsel) değişmez olduğu için uzun süre önbelleklenir ve daha önce indirmiş bir
@@ -351,7 +392,7 @@ kararlı olduğunda yükseltmek bu uyarıyı kaldırır.
 - TLS: API ve panel yalnızca `https` üzerinden yayınlanmalıdır.
 - `/v1/admin/` yolu internete kapatılmalıdır (Nginx örneğinde kapalıdır).
 - Anahtarlar (`VADO_OTP_KEYS`, `VADO_QR_KEYS`, `VADO_OPENID_KEY`, `VADO_ADMIN_API_KEY`, veritabanı
-  ve panel şifreleri) rastgele, birbirinden farklı olmalı ve depoya eklenmemelidir.
+  şifresi) rastgele, birbirinden farklı olmalı ve depoya eklenmemelidir.
   `VADO_OPENID_KEY` ayrıca yedeklenmelidir (bkz. [docs/ANAHTARLAR.md](docs/ANAHTARLAR.md)).
 - PostgreSQL ve Redis dışarıya açılmamalıdır (örnek Compose dosyasında kapalıdır).
 - Paket deposu (`VADO_PACKAGE_DIR`) veritabanıyla birlikte yedeklenmeli; yedekten dönüşten sonra

@@ -12,7 +12,7 @@ Bunlar olmadan uygulama gerçek kullanıcılara açılmamalıdır.
 | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | Gerçek telefonda deneme                       | Uygulama yalnızca tarayıcı önizlemesinde denendi. Kamera, fotoğraf seçme, konum, klavye ve mini uygulama penceresi telefonda ilk kez çalışacak; düzeltme gerekebilir.                                                                                     | KURULUM.md, "Kendi telefonunuzda" |
 | Mini uygulama yalıtımının telefonda sınanması | Yalıtım iki masaüstü tarayıcı motorunda (Chromium, WebKit) ölçüldü; telefondaki kabuk, köprünün taşıması ve gezinme kilidi Android WebView ve iOS WKWebView üzerinde yalnızca derlendi. Güvenlik iddiaları cihazda doğrulanmadan paket yayınlanmamalıdır. | Aşağıda, "Mini uygulamalar"       |
-| İnceleme süreci                               | Paketleri kimin, hangi ölçütlerle inceleyeceği belirlenmeli. Panelde tek hesap olduğu için yükleyen kişi onaylayabilir.                                                                                                                                   | SECURITY.md, "Bilinen sınırlar"   |
+| İnceleme süreci                               | Paketleri kimin, hangi ölçütlerle inceleyeceği belirlenmeli. Panelde roller ve dört göz ilkesi var (2.4); inceleyen hesaplarının kime verileceği ve inceleme ölçütleri yazılı değil.                                                                      | SECURITY.md, "Bilinen sınırlar"   |
 | SMS aracı servisi                             | Canlı ortamda kodlar SMS ile gitmelidir.                                                                                                                                                                                                                  | YAYIN.md, "SMS"                   |
 | Hukuki metinler                               | Uygulamadaki metinler yer tutucudur.                                                                                                                                                                                                                      | TURKIYE_UYUM.md                   |
 | Yaş kuralı                                    | 1 Kasım 2026'da uygulanmaya başlayan 15 yaş kuralı; uygulamada yaş doğrulama yok.                                                                                                                                                                         | TURKIYE_UYUM.md, "5651"           |
@@ -103,9 +103,10 @@ engeller. Eksik kalanlar, önerilen sırayla:
 8. **İncelemede önizleme.** İnceleyen sürümün dosyalarını, bulgularını ve farkını okur ama sürümü
    yayınlamadan çalışırken göremez. Gereken: incelemedeki sürümü yalnızca inceleyenin açabildiği
    bir deneme kaydı.
-9. **Geliştirici hesapları ve imza.** Paketi kimin yüklediği panele erişimle belirlenir. Gereken:
-   geliştiricinin kendi paketini yükleyebildiği hesaplar, yükleyen ile onaylayanın ayrılması ve
-   paketin geliştirici anahtarıyla imzalanması.
+9. **Geliştirici hesapları ve imza.** Paketi kimin yüklediği panel hesabıyla belirlenir; yükleyen ile
+   onaylayan 2.4'ten beri ayrıdır. Gereken: geliştiricinin yalnızca kendi paketini yükleyebildiği
+   hesaplar (2.4'teki rol modeline bir kapsamla eklenir) ve paketin geliştirici anahtarıyla
+   imzalanması.
 10. `@vado/miniapp-sdk` paketinin ve paketleme komutunun npm'de yayınlanması; şimdilik yalnızca bu
     depodaki mini uygulamalar kullanabilir.
 11. Hazır motorlar (rezervasyon, sipariş) ve kod yazmadan mini uygulama kuran bir araç: işletmelerin
@@ -115,9 +116,17 @@ engeller. Eksik kalanlar, önerilen sırayla:
 ### Moderasyon ve yönetim
 
 - Şikayet edilen mesajı ve paylaşımı panelde gösterme, kaldırma; kaldırma kararının denetim kaydı.
-- Panelde yönetici hesapları, roller ve iki adımlı doğrulama. Şu an tek kullanıcı adı ve şifre
-  vardır; denetim kaydında, paket yüklemelerinde ve inceleme kararlarında işlemi yapan kişi ayırt
-  edilemez (`admin` yazar). Bu alanlar hesaplar geldiğinde doldurulacak biçimde hazırdır.
+- Panel hesapları için donanım anahtarı (WebAuthn, passkey) ile giriş; TOTP'ye ek ya da onun
+  yerine.
+- İkinci adım sırrının (TOTP) veritabanında şifreli saklanması: bugün açık durur (bkz. SECURITY.md).
+  Gereken: ayrı bir anahtar ailesi (`docs/ANAHTARLAR.md` deseninde) ve anahtar değişiminde sırların
+  yeniden şifrelenmesi.
+- Panel girişinde kilitlenmenin kötüye kullanımı: hesap adını bilen biri hesabı kilitli tutabilir.
+  Seçenekler: IP'ye göre artan bekleme, CAPTCHA, kilitli hesabın sahibine bildirim.
+- Sahibin başka hesapların açık oturumlarını görüp kapatabilmesi (bugün rol değişikliği ya da
+  hesabı kapatma bütün oturumları kapatır; tek oturum kapatılamaz).
+- Paket sürümünde onaylayan ile geri çeken ayrı alanlarda tutulmalı: bugün geri çekme "son karar
+  veren" alanını değiştirir, onaylayan yalnızca denetim kaydında kalır.
 - Panel listelerinde sayfalama: kullanıcı, işletme ve şikayet listeleri en yeni 200 kaydı gösterir.
 - Saklama süresi dolan kayıtları (ödeme, şikayet, denetim kaydı, silinmiş hesapların mesajları) silen
   zamanlanmış görev.
@@ -162,7 +171,8 @@ engeller. Eksik kalanlar, önerilen sırayla:
 
 ## 4. Geliştirme altyapısı
 
-- **Tarayıcı senaryoları depoda değil.** Kayıt, mesajlaşma, Anlar, paketli mini uygulamalar, ödeme,
+- **Tarayıcı senaryoları depoda değil.** 2.4'te panel girişi değiştiği için senaryolar ve geçiş
+  denemesi yeniden yazıldı; bunlar da depoda değildir. Kayıt, mesajlaşma, Anlar, paketli mini uygulamalar, ödeme,
   panel ve Nginx arkasındaki canlı ortam düzeni geliştirme sırasında tarayıcıda (Playwright ile)
   uçtan uca çalıştırıldı; 2.2'den geçiş, yedekten dönüş ve dayanıklılık denemeleri de betiklerle
   yapıldı. Bu betikler depoya alınmadı. Depoya eklenip CI'da çalıştırılması, sonraki değişikliklerde
@@ -176,20 +186,21 @@ engeller. Eksik kalanlar, önerilen sırayla:
 ## Platform sürümlerinde sıra
 
 2.2'de anahtar ayrımı ve anahtar değiştirme, 2.3'te paketli mini uygulama platformu, 2.3.1'de
-paketin sarmalayıcı belgeyle yalıtılması tamamlandı. Sıradakiler:
+paketin sarmalayıcı belgeyle yalıtılması, 2.4'te panel hesapları, roller, iki adımlı doğrulama ve
+yükleyen ile onaylayanın ayrılması tamamlandı. Sıradakiler:
 
 | Sürüm | Konu                                                                                                                                                                     |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2.4   | Panelde yönetici hesapları, roller ve iki adımlı doğrulama; yükleyen ile onaylayanın ayrılması                                                                           |
 | 2.5   | Kimlik belirteci, parametreli QR, anlık bildirim, işletme girişi                                                                                                         |
 | 2.6   | Rezervasyon motoru                                                                                                                                                       |
 | 2.7   | Sipariş motoru                                                                                                                                                           |
 | 2.8   | Kod yazmadan mini uygulama kurma aracı                                                                                                                                   |
 | 3.0   | Gerçek ödeme (lisanslı kuruluş), gerçek cihazda cihaz doğrulama (Play Integrity, App Attest) ve WebView için yerel güvenlik kodu (istek süzgeci, WebRTC'nin kapatılması) |
 
-2.3'ün mimarisi 2.4 ve 2.5'i kırmadan alacak biçimde kuruldu: kararları ve yüklemeleri yapanın
-kimliği için sütunlar, bağlantı parametreleri için köprüde alan ve depo için değiştirilebilir bir
-arayüz hazırdır (bkz. [MIMARI.md](MIMARI.md), "Sonraki sürümlere açık yerler").
+2.5'teki işletme girişi 2.4'ün hesap ve rol altyapısına oturur: rol "ne yapılabilir" sorusunu
+yanıtlar, hesaba eklenecek bir kapsam alanı "hangi kayıtlar üzerinde" sorusunu yanıtlayacaktır
+(bkz. [MIMARI.md](MIMARI.md), "Hesaplar, oturum ve yetki"). Bağlantı parametreleri için köprüde alan
+ve depo için değiştirilebilir bir arayüz de hazırdır.
 
 ## Önerilen sıra
 

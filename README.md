@@ -4,14 +4,16 @@ Türkiye için mesajlaşma, mini uygulama ve ödeme platformu. Telefon numarası
 birebir ve grup sohbetleri, Anlar, QR ile ekleme, uygulama içinde açılan mini uygulamalar, ödeme
 onayı ve işletme hesapları tek bir uygulamada toplanır.
 
-Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu depo 2.3.1) yama olarak değil, o
+Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu depo 2.4.0) yama olarak değil, o
 temelin üzerine aynı standartla eklenir. Standart yalnızca belgede durmaz; biçim, lint, proje
 kuralları, tip denetimi ve testler `npm run check` komutuyla makine tarafından denetlenir.
 
 2.3'ün getirdiği: mini uygulamalar artık geliştiricinin sunucusundan değil, VADO'ya yüklenen,
 incelenen ve değişmez sürümler hâlinde saklanan **paketlerden** açılır. 2.3.1 ile paket, VADO'nun
 kendi sarmalayıcı sayfasının içindeki korumalı çerçevede çalışır: başka bir adrese gitmesini
-tarayıcı motoru, istek gönderilmeden engeller (bkz. [Değişiklikler](CHANGELOG.md)).
+tarayıcı motoru, istek gönderilmeden engeller. 2.4 ile yönetim panelinde ortak şifre kalktı: her
+yönetici kendi hesabıyla ve iki adımlı doğrulamayla girer, rolüne göre yetkilidir; paketi yükleyen
+onu onaylayamaz (bkz. [Değişiklikler](CHANGELOG.md)).
 
 | ![Karşılama](docs/gorseller/karsilama.png) | ![Sohbetler](docs/gorseller/sohbetler.png) | ![Sohbet](docs/gorseller/sohbet.png) | ![Mini uygulama](docs/gorseller/mini-uygulama.png) |
 | :----------------------------------------: | :----------------------------------------: | :----------------------------------: | :------------------------------------------------: |
@@ -64,8 +66,16 @@ npm run mobile     # telefonda Expo Go ile (önce: npm run lan)
 | Can Öztürk   | 0555 000 00 04 | Ayşe'ye kişi isteği göndermiş              |
 
 İki kişiyi iki ayrı tarayıcı penceresinde (biri gizli pencere) açarsanız mesajların, okundu
-bilgisinin ve "yazıyor" göstergesinin anında karşıya geçtiğini görürsünüz. Yönetim paneli
-`http://localhost:3000` adresindedir; geliştirmede şifre sormaz.
+bilgisinin ve "yazıyor" göstergesinin anında karşıya geçtiğini görürsünüz.
+
+Yönetim paneli `http://localhost:3000` adresindedir. Örnek veri üç yönetici açar; parola
+`vado-gelistirme`, demo modunda ikinci adım kodu `000000`:
+
+| Kullanıcı adı | Kişi         | Rol       | Not                                         |
+| ------------- | ------------ | --------- | ------------------------------------------- |
+| `sahip`       | Deniz Arslan | Sahip     | Her şey; panel hesaplarını yönetir          |
+| `operator`    | Okan Şahin   | Operatör  | Paket yükler, kayıtları yönetir ve yayınlar |
+| `inceleyen`   | İpek Aydın   | İnceleyen | Paket sürümlerini onaylar ve reddeder       |
 
 ## Komutlar
 
@@ -79,6 +89,7 @@ bilgisinin ve "yazıyor" göstergesinin anında karşıya geçtiğini görürsü
 | `npm run db:migrate`      | Bekleyen şema değişikliklerini uygular                                          |
 | `npm run db:seed`         | Örnek veriyi yükler; yeniden çalıştırılabilir                                   |
 | `npm run keys`            | Canlı ortamın imza anahtarlarını üretir, değiştirir ve denetler                 |
+| `npm run admins`          | Panel hesaplarını açar, listeler; parolayı ve ikinci adımı sıfırlar             |
 | `npm run miniapp:pack`    | Derlenmiş bir mini uygulamayı denetler ve yüklenmeye hazır pakete çevirir       |
 | `npm run packages:verify` | Paket deposunun veritabanıyla tutarlı olduğunu denetler                         |
 | `npm run check`           | Biçim, lint, proje kuralları, tip denetimi, testler ve derlemeler: hepsi birden |
@@ -116,6 +127,10 @@ bilgisinin ve "yazıyor" göstergesinin anında karşıya geçtiğini görürsü
 - **İşletme hesapları:** başvuru, panelden onay, Keşfet'te listeleme, mini uygulamaya bağlama.
 - **Şikayet:** kullanıcı, mesaj, paylaşım, işletme ve mini uygulama şikayet edilebilir; şikayetler
   panele düşer.
+- **Panel hesapları:** her yönetici kendi hesabıyla, parola ve iki adımlı doğrulamayla (doğrulama
+  uygulaması ya da kurtarma kodu) girer. Beş rol: sahip, inceleyen, operatör, destek, denetçi.
+  Yetki her uçta sunucuda denetlenir; paketi yükleyen ya da incelemeye gönderen onu onaylayamaz.
+  Oturumlar listelenir ve uzaktan kapatılır; denetim kaydında işlemi yapan adıyla görünür.
 - **Yönetim paneli:** bekleyen işler, kullanıcı askıya alma, işletme onayı, paket yükleme ve
   inceleme, uygulama kayıtları ve yayınları, şikayetler, denetim kaydı.
 - **KVKK:** açık onay, aydınlatma metni, numarayla bulunmayı kapatma, hesabı ve verileri silme.
@@ -133,8 +148,9 @@ Dürüst bir liste; ayrıntısı ve önerilen sıra [docs/YOL_HARITASI.md](docs/
 - **Uçtan uca şifreleme yok.** Mesajlar aktarımda TLS ile korunur, sunucuda düz metin saklanır.
 - **İçerik kaldırma ve yaş doğrulama yok.** Şikayet edilen mesaj ya da paylaşım panelden
   kaldırılamaz, yalnızca hesap askıya alınabilir. Kayıtta yaş doğrulanmaz.
-- **Geliştirici ve inceleyen hesapları yok.** Panelde tek hesap vardır: paketi yükleyen kişi onu
-  onaylayabilir. Yönetici hesapları, roller ve iki adımlı doğrulama sıradaki sürümün işidir.
+- **Geliştirici ve işletme hesapları yok.** Panel hesapları VADO yöneticileri içindir; paketleri
+  geliştiricinin kendisi yükleyemez, işletme sahibi kendi kaydını yönetemez (işletme girişi 2.5'in
+  işi). Paket geliştirici anahtarıyla imzalanmaz.
 - **Mini uygulamaya kimlik belirteci, parametreli QR ve bildirim yok.** Mini uygulamanın kendi
   sunucusu kullanıcıyı VADO'dan doğrulayamaz; QR kodu masa numarası gibi bir parametre taşıyamaz.
 - **Mini uygulamalarda WebRTC kapatılamıyor.** Tarayıcılar WebRTC bağlantılarını güvenlik
@@ -214,8 +230,8 @@ Denenmedi:
 - [API](docs/API.md): uç noktalar, hata biçimi, gerçek zamanlı olaylar
 - [Mini uygulama geliştirme](docs/MINI_UYGULAMA_GELISTIRME.md): paket, bildirim dosyası, işletme
   ayarları, yükleme, inceleme ve yayın
-- [Yayın](docs/YAYIN.md): sunucuya kurulum, 2.2'den geçiş, yedek, mobil uygulamayı mağazaya
-  hazırlama
+- [Yayın](docs/YAYIN.md): sunucuya kurulum, ilk panel hesabı, 2.3.1'den geçiş, yedek, mobil
+  uygulamayı mağazaya hazırlama
 - [Anahtarlar](docs/ANAHTARLAR.md): imza anahtarlarını üretme, 2.1'den geçiş, anahtar değiştirme
 - [Türkiye'de mevzuat](docs/TURKIYE_UYUM.md): KVKK, BTK, 5651, ödeme hizmetleri
 - [Yol haritası](docs/YOL_HARITASI.md)
