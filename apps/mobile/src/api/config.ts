@@ -27,4 +27,4 @@ export const JITSI_URL = (process.env.EXPO_PUBLIC_JITSI_URL ?? "https://meet.jit
   "",
 );
 
-export const APP_VERSION = Constants.expoConfig?.version ?? "2.3.1";
+export const APP_VERSION = Constants.expoConfig?.version ?? "2.4.0";

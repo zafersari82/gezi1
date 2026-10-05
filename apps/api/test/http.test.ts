@@ -16,7 +16,7 @@ describe("HTTP katmanı", () => {
 
   it("sağlık uç noktası veritabanını da yoklar", async () => {
     const response = await anonymous(app).request("GET", "/health");
-    expect(response).toEqual({ status: 200, body: { status: "ok", version: "2.3.1" } });
+    expect(response).toEqual({ status: 200, body: { status: "ok", version: "2.4.0" } });
   });
 
   it("bilinmeyen adres için sözleşmedeki hata biçimini döndürür", async () => {
