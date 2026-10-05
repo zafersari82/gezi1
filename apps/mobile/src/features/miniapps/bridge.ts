@@ -27,6 +27,8 @@ import {
  */
 export interface BridgeHost {
   miniApp: MiniAppDetail;
+  /** Uygulamayı açan QR kodunun imzalı parametreleri; listeden açıldıysa boş. */
+  launchParams: Record<string, string>;
   containerInfo: () => ContainerInfo;
   close: () => void;
   /** Kullanıcı bu yetkiye daha önce kalıcı izin vermiş mi? */
@@ -72,11 +74,11 @@ const handlers: Handlers = {
     host.close();
     return null;
   },
-  "app.getContext": ({ miniApp }) => ({
+  "app.getContext": ({ miniApp, launchParams }) => ({
     appId: miniApp.id,
     version: miniApp.version,
     config: miniApp.config,
-    params: {},
+    params: launchParams,
   }),
   "identity.getProfile": (host) => host.getIdentity(),
   "identity.getToken": (host) => host.getIdentityToken(),

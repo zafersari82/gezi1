@@ -23,6 +23,7 @@ import { DevelopmentConfigForm } from "@/components/development-config-form";
 import { MerchantForm } from "@/components/merchant-form";
 import { MiniAppForm } from "@/components/mini-app-form";
 import { PageHeader } from "@/components/page-header";
+import { QrForm } from "@/components/qr-form";
 import { SubmitButton } from "@/components/submit-button";
 import { Tag } from "@/components/tag";
 import {
@@ -32,7 +33,7 @@ import {
   setMerchantActive,
   updateMiniApp,
 } from "@/lib/actions";
-import { AdminApiError, adminGet } from "@/lib/api";
+import { AdminApiError, adminGet, getMe } from "@/lib/api";
 import { toConfigFormValues } from "@/lib/config-values";
 import type { MiniAppFormValues } from "@/lib/form-state";
 import { formatDateTime, miniAppStatus, packageStatus, shortDigest } from "@/lib/format";
@@ -102,11 +103,12 @@ function toFormValues(miniApp: AdminMiniApp): MiniAppFormValues {
 export default async function MiniAppPage({ params, searchParams }: PageProps<"/miniapps/[id]">) {
   const { id } = await params;
   const query = querySchema.parse(await searchParams);
-  const [miniApp, businesses, packages, candidate] = await Promise.all([
+  const [miniApp, businesses, packages, candidate, me] = await Promise.all([
     loadMiniApp(id),
     adminGet(listOf(adminBusinessSchema), "/v1/admin/businesses"),
     adminGet(listOf(adminPackageSchema), "/v1/admin/packages"),
     loadCandidate(query.package, query.version),
+    getMe(),
   ]);
   const activeBusinesses = businesses.items.filter((business) => business.status === "active");
   const businessNames = new Map(businesses.items.map((business) => [business.id, business.name]));
@@ -347,6 +349,19 @@ export default async function MiniAppPage({ params, searchParams }: PageProps<"/
           initial={toFormValues(miniApp)}
         />
       </section>
+
+      {me.permissions.includes("miniapps.manage") && (
+        <section aria-labelledby="qr-title">
+          <h2 id="qr-title">QR kodu</h2>
+          <div className="panel">
+            <p className="muted qr-intro">
+              Okutulduğunda bu mini uygulamayı açar. Masa ya da şube gibi parametreler kodun
+              imzasındadır; mini uygulama onları değiştirilmemiş olarak okur.
+            </p>
+            <QrForm miniAppId={miniApp.id} />
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="merchants-title">
         <h2 id="merchants-title">Ödeme alabilen satıcılar</h2>

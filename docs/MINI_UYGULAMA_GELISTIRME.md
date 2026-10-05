@@ -102,8 +102,11 @@ diğerleri `capability_denied` hatası verir.
 Bilmeniz gerekenler:
 
 - **Bağlam.** `getContext()` uygulamanın hangi kayıt olarak açıldığını (`appId`), yayındaki sürümü
-  ve o işletmenin ayarlarını (`config`) verir. `params` ileride QR kodundan gelen parametreler
-  içindir; bu sürümde her zaman boştur.
+  ve o işletmenin ayarlarını (`config`) verir. `params`, uygulamayı açan QR kodunun parametreleridir
+  (masa numarası, şube kodu gibi): kodu VADO panelinde işletme üretir, parametreler kodun imzasının
+  içindedir; kullanıcı ya da bir bağlantı onları değiştiremez. Uygulama listeden ya da parametresiz
+  bir koddan açıldıysa `params` boştur; uygulamanız bu durumda da çalışmalıdır (ör. masayı
+  kullanıcıya sorar).
 - **Kimlik.** `openId`, kullanıcının yalnızca o uygulama kaydındaki kimliğidir: aynı kullanıcı için
   hep aynıdır; başka bir kayıtta, aynı paketi kullansa bile, farklıdır. Telefon numarası ve VADO
   kimliği verilmez.

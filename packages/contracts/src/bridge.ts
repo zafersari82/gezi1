@@ -92,7 +92,10 @@ export interface MiniAppContext {
   version: string;
   /** İşletmeye özel ayarlar; alanları paketin bildirim dosyası tanımlar. */
   config: ConfigValues;
-  /** Uygulamayı açan bağlantının parametreleri. Bu sürümde her zaman boştur. */
+  /**
+   * Uygulamayı açan QR kodunun imzalı parametreleri. Uygulama listeden ya da parametresiz bir
+   * koddan açıldıysa boştur.
+   */
   params: Record<string, string>;
 }
 

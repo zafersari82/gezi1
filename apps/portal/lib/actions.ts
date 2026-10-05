@@ -5,6 +5,7 @@ import {
   adminApproveBodySchema,
   adminChangePasswordBodySchema,
   adminCreateAccountBodySchema,
+  adminIssueMiniAppQrBodySchema,
   adminLoginBodySchema,
   adminLoginResultSchema,
   adminMiniAppSchema,
@@ -28,11 +29,15 @@ import {
   type AdminUpdateUserBody,
   configValuesSchema,
   idSchema,
+  issuedQrSchema,
   type MerchantBinding,
   merchantIdSchema,
   miniAppIdSchema,
   PACKAGE_UPLOAD_FIELD,
   packageIdSchema,
+  QR_PARAM_KEY_PATTERN,
+  QR_PARAM_VALUE_MAX,
+  QR_PARAMS_MAX,
   type ReportStatus,
   versionSchema,
 } from "@vado/contracts";
@@ -59,6 +64,7 @@ import {
   type MiniAppFormValues,
   type NoteFormValues,
   type PackageFormValues,
+  type QrFormState,
   type RevealedSecret,
   type TotpSetupView,
 } from "./form-state";
@@ -771,4 +777,72 @@ export async function setMerchantActive(
     active,
   });
   refresh();
+}
+
+/** `ad=değer` satırlarını parametrelere çevirir; hatalı satırı kullanıcının anlayacağı dille bildirir. */
+function readQrParams(raw: string): { params: Record<string, string> } | { error: string } {
+  const params: Record<string, string> = {};
+  for (const line of raw.split("\n").map((entry) => entry.trim())) {
+    if (line === "") continue;
+    const separator = line.indexOf("=");
+    if (separator <= 0) return { error: `"${line}" satırı ad=değer biçiminde değil.` };
+    const key = line.slice(0, separator).trim();
+    if (key in params) return { error: `"${key}" parametresi iki kez yazılmış.` };
+    params[key] = line.slice(separator + 1).trim();
+  }
+  if (Object.keys(params).length > QR_PARAMS_MAX) {
+    return { error: `En fazla ${String(QR_PARAMS_MAX)} parametre yazılabilir.` };
+  }
+  for (const [key, value] of Object.entries(params)) {
+    if (!QR_PARAM_KEY_PATTERN.test(key)) {
+      return {
+        error: `"${key}" adı geçersiz: küçük harf, rakam ve _ kullan, en fazla 20 karakter.`,
+      };
+    }
+    if (value === "" || value.length > QR_PARAM_VALUE_MAX) {
+      return {
+        error: `"${key}" değeri 1-${String(QR_PARAM_VALUE_MAX)} karakter olmalı.`,
+      };
+    }
+  }
+  return { params };
+}
+
+/**
+ * Mini uygulama için imzalı, isteğe bağlı parametreli QR kodu üretir ve çizer. Kod süresizdir;
+ * basılıp masaya, kapıya konabilir.
+ */
+export async function issueMiniAppQr(
+  miniAppId: string,
+  _previous: QrFormState,
+  formData: FormData,
+): Promise<QrFormState> {
+  const values = { params: text(formData, "params") };
+  const failed = (error: string): QrFormState => ({ error, saved: false, values, qr: null });
+
+  const parsed = readQrParams(values.params);
+  if ("error" in parsed) return failed(parsed.error);
+  const body = adminIssueMiniAppQrBodySchema.safeParse(parsed);
+  if (!body.success) return failed(describeIssues(body.error));
+  try {
+    const issued = await adminCall(
+      issuedQrSchema,
+      "POST",
+      `${miniAppPath(miniAppId)}/qr`,
+      body.data,
+    );
+    const svg = await qrSvg(issued.value, { type: "svg", margin: 2, errorCorrectionLevel: "M" });
+    return {
+      error: null,
+      saved: true,
+      values,
+      qr: {
+        dataUrl: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`,
+        value: issued.value,
+        params: body.data.params,
+      },
+    };
+  } catch (error) {
+    return failed(messageOf(error));
+  }
 }

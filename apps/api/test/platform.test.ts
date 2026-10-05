@@ -27,9 +27,7 @@ import {
   type TestApp,
   type TestUser,
 } from "./support/harness";
-
-let sequence = 0;
-const unique = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(sequence += 1)}`;
+import { unique } from "./support/packages";
 
 type Development = NonNullable<AdminSaveMiniAppBody["development"]>;
 
@@ -305,6 +303,90 @@ describe("mini uygulamalar, işletmeler, QR ve ödemeler", () => {
 
       await admin.done("PATCH", `/v1/admin/miniapps/${id}`, { body: { enabled: false } });
       await client.fail("qr_target_unavailable", "POST", "/v1/qr/resolve", {
+        body: { value: issued.value },
+      });
+    });
+
+    it("panel parametreli kod üretir; parametreler imzalıdır ve okutulunca kayıtla birlikte döner", async () => {
+      const { id } = await publishMiniApp();
+      const client = as(app, user);
+      const params = { masa: "12", sube: "kadikoy" };
+      const issued = await admin.ok(issuedQrSchema, "POST", `/v1/admin/miniapps/${id}/qr`, {
+        body: { params },
+      });
+      expect(issued.expiresAt).toBeNull();
+      const target = await client.ok(qrTargetSchema, "POST", "/v1/qr/resolve", {
+        body: { value: issued.value },
+      });
+      expect(target).toMatchObject({ type: "miniapp", miniApp: { id }, params });
+
+      // Parametreyi değiştirmek imzayı bozar.
+      const body = issued.value.slice(QR_PREFIX.length);
+      const signature = body.slice(body.indexOf(".") + 1);
+      const forged = Buffer.from(
+        JSON.stringify({ t: "miniapp", id, exp: null, p: { masa: "99" } }),
+      ).toString("base64url");
+      await client.fail("qr_invalid", "POST", "/v1/qr/resolve", {
+        body: { value: `${QR_PREFIX}${forged}.${signature}` },
+      });
+
+      // Kullanıcının ürettiği kod parametre taşımaz; gövdeye yazılan parametre yok sayılır.
+      const plain = await client.ok(issuedQrSchema, "POST", "/v1/qr", {
+        body: { type: "miniapp", id, params },
+      });
+      const plainTarget = await client.ok(qrTargetSchema, "POST", "/v1/qr/resolve", {
+        body: { value: plain.value },
+      });
+      expect(plainTarget).toMatchObject({ type: "miniapp", params: {} });
+
+      const [audit] = await app.db.many<{ metadata: unknown }>(sql`
+        select metadata from audit_log
+        where action = 'miniapp.qr_issued' and target_id = ${id}
+      `);
+      expect(audit?.metadata).toEqual({ params });
+    });
+
+    it("parametresiz panel kodu önceki sürümlerin ürettiği kodla aynı biçimdedir", async () => {
+      const { id } = await publishMiniApp();
+      const fromPanel = await admin.ok(issuedQrSchema, "POST", `/v1/admin/miniapps/${id}/qr`, {
+        body: { params: {} },
+      });
+      const fromUser = await as(app, user).ok(issuedQrSchema, "POST", "/v1/qr", {
+        body: { type: "miniapp", id },
+      });
+      expect(fromPanel.value).toBe(fromUser.value);
+    });
+
+    it("parametre sayısı, adı ve uzunluğu sınırlıdır; kayıt yoksa kod üretilmez", async () => {
+      const { id } = await publishMiniApp();
+      const url = `/v1/admin/miniapps/${id}/qr`;
+      const six = Object.fromEntries(["a", "b", "c", "d", "e", "f"].map((key) => [key, "1"]));
+      for (const params of [
+        six,
+        { Masa: "1" },
+        { "masa-no": "1" },
+        { ["a".repeat(21)]: "1" },
+        { masa: "x".repeat(65) },
+        { masa: "" },
+      ]) {
+        await admin.fail("validation_failed", "POST", url, { body: { params } });
+      }
+      const five = Object.fromEntries(
+        ["a", "b", "c", "d", "e"].map((key) => [key, "x".repeat(64)]),
+      );
+      await admin.ok(issuedQrSchema, "POST", url, { body: { params: five } });
+      await admin.fail("miniapp_not_found", "POST", `/v1/admin/miniapps/${unique("yok")}/qr`, {
+        body: { params: {} },
+      });
+    });
+
+    it("yayında olmayan kayda kod üretilir; okutulunca açılamadığı söylenir", async () => {
+      const id = unique("uygulama");
+      await admin.ok(adminMiniAppSchema, "PUT", `/v1/admin/miniapps/${id}`, { body: record({}) });
+      const issued = await admin.ok(issuedQrSchema, "POST", `/v1/admin/miniapps/${id}/qr`, {
+        body: { params: { masa: "1" } },
+      });
+      await as(app, user).fail("qr_target_unavailable", "POST", "/v1/qr/resolve", {
         body: { value: issued.value },
       });
     });

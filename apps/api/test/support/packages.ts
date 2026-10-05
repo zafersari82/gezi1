@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import {
   ADMIN_KEY_HEADER,
   type AdminMiniApp,
@@ -18,8 +20,12 @@ import { writeZip } from "../../src/core/zip";
 import { asAdmin, multipartBody, type TestApp, TINY_PNG } from "./harness";
 
 let sequence = 0;
-/** Çakışmayan bir paket ya da uygulama kaydı kimliği üretir. */
-export const unique = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(sequence += 1)}`;
+/**
+ * Çakışmayan bir paket ya da uygulama kaydı kimliği üretir. Test dosyaları ayrı süreçlerde aynı
+ * veritabanını kullanır; zaman ve sayaç iki süreçte aynı çıkabileceği için rastgele bir ek de taşır.
+ */
+export const unique = (prefix: string) =>
+  `${prefix}-${Date.now().toString(36)}-${randomBytes(2).toString("hex")}-${String((sequence += 1))}`;
 
 export interface PackageSource {
   id: string;

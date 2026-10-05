@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { errorMessage } from "@/api/client";
+import { rememberLaunch } from "@/features/miniapps/launch-params";
 import { QrScanner } from "@/features/qr/qr-scanner";
 import { useResolveQr } from "@/features/qr/queries";
 import { colors } from "@/theme/tokens";
@@ -22,7 +23,10 @@ function openTarget(target: QrTarget): void {
       router.replace({ pathname: "/businesses/[id]", params: { id: target.business.id } });
       break;
     case "miniapp":
-      router.replace({ pathname: "/miniapps/[id]", params: { id: target.miniApp.id } });
+      router.replace({
+        pathname: "/miniapps/[id]",
+        params: { id: target.miniApp.id, launch: rememberLaunch(target.miniApp.id, target.params) },
+      });
       break;
   }
 }

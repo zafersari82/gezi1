@@ -32,6 +32,7 @@ interface HostOptions {
   answer?: boolean;
   scanResult?: string | null;
   paymentResult?: string | null;
+  launchParams?: Record<string, string>;
 }
 
 function createHost(options: HostOptions = {}) {
@@ -61,6 +62,7 @@ function createHost(options: HostOptions = {}) {
 
   const host: BridgeHost = {
     miniApp,
+    launchParams: options.launchParams ?? {},
     containerInfo: () => ({
       platform: "android",
       appVersion: "2.0.0",
@@ -319,5 +321,14 @@ describe("handleBridgeMessage", () => {
       },
     });
     expect(calls).toEqual([]);
+  });
+
+  it("uygulamayı açan kodun imzalı parametrelerini bağlamda verir", async () => {
+    const { host } = createHost({ launchParams: { masa: "12", sube: "kadikoy" } });
+    const response = await handleBridgeMessage(request("app.getContext"), host);
+    expect(response).toMatchObject({
+      ok: true,
+      result: { params: { masa: "12", sube: "kadikoy" } },
+    });
   });
 });

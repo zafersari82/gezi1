@@ -41,7 +41,13 @@ const CLOSED_PAYMENT_MESSAGE =
  * Mini uygulamanın içinde çalıştığı kabuk: üst çubuk, mini uygulama penceresi ve köprünün
  * kullanıcıya gösterdiği pencereler (izin onayı, ödeme onayı, QR okutma).
  */
-export function MiniAppHost({ miniApp }: { miniApp: MiniAppDetail }) {
+export function MiniAppHost({
+  miniApp,
+  launchParams,
+}: {
+  miniApp: MiniAppDetail;
+  launchParams: Record<string, string>;
+}) {
   const me = useMe();
   const insets = useSafeAreaInsets();
   const frame = useRef<MiniAppFrameHandle>(null);
@@ -52,6 +58,7 @@ export function MiniAppHost({ miniApp }: { miniApp: MiniAppDetail }) {
 
   const host: BridgeHost = {
     miniApp,
+    launchParams,
     containerInfo: () => ({
       platform: currentPlatform(),
       appVersion: APP_VERSION,

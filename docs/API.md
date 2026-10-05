@@ -191,6 +191,12 @@ da çözülür. Kişisel kod varsayılan olarak 10 dakika geçerlidir
 (`qr_expired`); işletme kodunu yalnızca işletmenin sahibi üretebilir. Hedef artık yayında değilse
 `qr_target_unavailable` döner.
 
+Mini uygulama kodu, panelden üretildiyse imzalı parametreler taşıyabilir (2.5; masa numarası, şube
+kodu gibi). `resolve` yanıtında `type: "miniapp"` için `params` alanı bulunur; parametresiz kodlarda
+boş nesnedir. Kullanıcının `POST /v1/qr` ile ürettiği kod parametre taşımaz. Parametreler en fazla
+beş tanedir; ad `[a-z0-9_]{1,20}`, değer 1-64 karakterdir. Kabuk parametreleri mini uygulamaya
+`app.getContext().params` olarak verir.
+
 ## İşletmeler ve mini uygulamalar
 
 | Uç nokta                               | Gövde                      | Yanıt                  | Not                                                          |
@@ -449,17 +455,18 @@ Paket incelenen koddur; sürümleri yüklenir, incelenir ve onaylanır. Akışı
 
 ### Uygulama kayıtları
 
-| Uç nokta                                           | İzin                | Gövde                              | Yanıt                       | Not                                            |
-| -------------------------------------------------- | ------------------- | ---------------------------------- | --------------------------- | ---------------------------------------------- |
-| `GET /v1/admin/miniapps?q=`                        | `miniapps.read`     | —                                  | `List<AdminMiniAppSummary>` | Kapalı olanlar dahil; ad ya da kimlik araması  |
-| `GET /v1/admin/miniapps/:id`                       | `miniapps.read`     | —                                  | `AdminMiniApp`              | Yayın geçmişi ve satıcılarıyla                 |
-| `PUT /v1/admin/miniapps/:id`                       | `miniapps.manage`   | `adminSaveMiniAppBodySchema`       | `AdminMiniApp`              | Vitrini oluşturur ya da günceller              |
-| `PATCH /v1/admin/miniapps/:id`                     | `miniapps.manage`   | `adminUpdateMiniAppBodySchema`     | 204                         | Doğrular, açar, kapatır                        |
-| `POST /v1/admin/miniapps/:id/releases`             | `miniapps.publish`  | `adminPublishMiniAppBodySchema`    | `AdminMiniApp`              | Onaylı bir sürümü, ayarlarıyla yayınlar        |
-| `POST /v1/admin/miniapps/:id/disable`              | `emergency.disable` | —                                  | 204                         | Acil kapatma: kaydı kullanıcılara kapatır      |
-| `POST /v1/admin/miniapps/:id/rollback`             | `miniapps.publish`  | —                                  | `AdminMiniApp`              | Bir önceki yayına, o yayının ayarlarıyla döner |
-| `PUT /v1/admin/miniapps/:id/config`                | `miniapps.manage`   | `adminSaveMiniAppConfigBodySchema` | `AdminMiniApp`              | İşletme ayarlarını değiştirir                  |
-| `PUT /v1/admin/miniapps/:id/merchants/:merchantId` | `miniapps.manage`   | `adminSaveMerchantBodySchema`      | 204                         | Satıcıyı kayda bağlar                          |
+| Uç nokta                                           | İzin                | Gövde                              | Yanıt                       | Not                                                           |
+| -------------------------------------------------- | ------------------- | ---------------------------------- | --------------------------- | ------------------------------------------------------------- |
+| `GET /v1/admin/miniapps?q=`                        | `miniapps.read`     | —                                  | `List<AdminMiniAppSummary>` | Kapalı olanlar dahil; ad ya da kimlik araması                 |
+| `GET /v1/admin/miniapps/:id`                       | `miniapps.read`     | —                                  | `AdminMiniApp`              | Yayın geçmişi ve satıcılarıyla                                |
+| `PUT /v1/admin/miniapps/:id`                       | `miniapps.manage`   | `adminSaveMiniAppBodySchema`       | `AdminMiniApp`              | Vitrini oluşturur ya da günceller                             |
+| `PATCH /v1/admin/miniapps/:id`                     | `miniapps.manage`   | `adminUpdateMiniAppBodySchema`     | 204                         | Doğrular, açar, kapatır                                       |
+| `POST /v1/admin/miniapps/:id/releases`             | `miniapps.publish`  | `adminPublishMiniAppBodySchema`    | `AdminMiniApp`              | Onaylı bir sürümü, ayarlarıyla yayınlar                       |
+| `POST /v1/admin/miniapps/:id/disable`              | `emergency.disable` | —                                  | 204                         | Acil kapatma: kaydı kullanıcılara kapatır                     |
+| `POST /v1/admin/miniapps/:id/rollback`             | `miniapps.publish`  | —                                  | `AdminMiniApp`              | Bir önceki yayına, o yayının ayarlarıyla döner                |
+| `PUT /v1/admin/miniapps/:id/config`                | `miniapps.manage`   | `adminSaveMiniAppConfigBodySchema` | `AdminMiniApp`              | İşletme ayarlarını değiştirir                                 |
+| `POST /v1/admin/miniapps/:id/qr`                   | `miniapps.manage`   | `adminIssueMiniAppQrBodySchema`    | `IssuedQr`                  | İmzalı, isteğe bağlı parametreli kod; denetim kaydına yazılır |
+| `PUT /v1/admin/miniapps/:id/merchants/:merchantId` | `miniapps.manage`   | `adminSaveMerchantBodySchema`      | 204                         | Satıcıyı kayda bağlar                                         |
 
 - Yeni kayıt doğrulanmamış ve yayınsız başlar. `AdminMiniApp.offlineReason`, kaydın kullanıcılara
   neden kapalı olduğunu söyler (`disabled`, `unverified`, `unpublished`, `version_unavailable`,

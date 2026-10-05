@@ -27,7 +27,7 @@ export function createServices(context: AppContext) {
   const miniApps = createMiniAppService(context);
   const miniAppAdmin = createMiniAppAdminService(context);
   const packages = createPackageService(context, { miniAppAdmin });
-  const qr = createQrService(context, { users, businesses, miniApps });
+  const qr = createQrService(context, { users, businesses, miniApps, miniAppAdmin });
   const payments = createPaymentService(context);
   const reports = createReportService(context);
   const admin = createAdminService(context, auth);

@@ -1015,3 +1015,34 @@ td.actions.actions-stack form + form {
 .role-form select {
   min-width: 140px;
 }
+
+.qr-issue .field {
+  grid-column: 1 / -1;
+}
+
+.qr-intro {
+  margin: 0;
+  padding: 20px 20px 0;
+}
+
+.qr-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin: 0;
+  padding: 0 20px 20px;
+}
+
+.qr-result img {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.qr-result figcaption {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  overflow-wrap: anywhere;
+}

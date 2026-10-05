@@ -117,3 +117,23 @@ export interface TotpSetupView {
   secret: string;
   qrDataUrl: string;
 }
+
+export interface QrFormValues {
+  /** Her satırda bir parametre: `ad=değer`. */
+  params: string;
+}
+
+export const EMPTY_QR: QrFormValues = { params: "" };
+
+/** Panelde çizilen mini uygulama kodu. */
+export interface IssuedQrView {
+  /** Kodun SVG görüntüsü, `data:` adresi olarak. */
+  dataUrl: string;
+  /** Kodun metni (`vado://q/…`). */
+  value: string;
+  params: Record<string, string>;
+}
+
+export interface QrFormState extends FormState<QrFormValues> {
+  qr: IssuedQrView | null;
+}

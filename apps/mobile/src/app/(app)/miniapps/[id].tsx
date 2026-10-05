@@ -2,13 +2,14 @@ import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { launchParams } from "@/features/miniapps/launch-params";
 import { MiniAppHost } from "@/features/miniapps/mini-app-host";
 import { useMiniApp } from "@/features/miniapps/queries";
 import { Button } from "@/ui/button";
 import { ErrorView, LoadingView } from "@/ui/states";
 
 export default function MiniAppScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, launch } = useLocalSearchParams<{ id: string; launch?: string }>();
   const insets = useSafeAreaInsets();
   const miniApp = useMiniApp(id);
 
@@ -27,5 +28,5 @@ export default function MiniAppScreen() {
       </View>
     );
   }
-  return <MiniAppHost miniApp={miniApp.data} />;
+  return <MiniAppHost miniApp={miniApp.data} launchParams={launchParams(id, launch)} />;
 }

@@ -1,27 +1,46 @@
-import { type IssuedQr, type IssueQrBody, QR_PREFIX, type QrTarget } from "@vado/contracts";
+import {
+  type IssuedQr,
+  type IssueQrBody,
+  QR_PREFIX,
+  type QrParams,
+  qrParamsSchema,
+  type QrTarget,
+} from "@vado/contracts";
 import { z } from "zod";
 
+import { recordAudit } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { AppError } from "../../core/errors";
 import type { BusinessService } from "../businesses/businesses.service";
+import type { MiniAppAdminService } from "../miniapps/miniapp-admin.service";
 import type { MiniAppService } from "../miniapps/miniapps.service";
 import type { UserService } from "../users/users.service";
 
-/** QR kodun içinde taşınan veri. `exp` saniye cinsinden bitiş zamanıdır; `null` ise süresizdir. */
+/**
+ * QR kodun içinde taşınan veri. `exp` saniye cinsinden bitiş zamanıdır; `null` ise süresizdir.
+ * `p`, panelden mini uygulama koduna yazılan parametrelerdir (2.5); yoksa alan hiç yazılmaz, böylece
+ * parametresiz kodlar önceki sürümlerin ürettiğiyle aynı kalır.
+ */
 const payloadSchema = z.object({
   t: z.enum(["user", "business", "miniapp"]),
   id: z.string().min(1).max(64),
   exp: z.number().int().nullable(),
+  p: qrParamsSchema.optional(),
 });
 type Payload = z.infer<typeof payloadSchema>;
 
 const nowInSeconds = () => Math.floor(Date.now() / 1000);
 
 export function createQrService(
-  { config, keys, log }: AppContext,
-  services: { users: UserService; businesses: BusinessService; miniApps: MiniAppService },
+  { config, db, keys, log }: AppContext,
+  services: {
+    users: UserService;
+    businesses: BusinessService;
+    miniApps: MiniAppService;
+    miniAppAdmin: MiniAppAdminService;
+  },
 ) {
-  const { users, businesses, miniApps } = services;
+  const { users, businesses, miniApps, miniAppAdmin } = services;
 
   function encode(payload: Payload): IssuedQr {
     const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -82,6 +101,34 @@ export function createQrService(
     return encode({ t: "miniapp", id: body.id, exp: null });
   }
 
+  /**
+   * Panelden, imzalı parametreli mini uygulama kodu üretir. Kayıt henüz yayında olmasa da kod
+   * üretilebilir (basılı kodlar açılıştan önce hazırlanır); okutulduğunda kayıt açık değilse
+   * kullanıcı "kod geçersiz" değil "şu anda açılamıyor" iletisini görür.
+   */
+  async function issueMiniAppQr(
+    actor: string,
+    miniAppId: string,
+    params: QrParams,
+  ): Promise<IssuedQr> {
+    await miniAppAdmin.get(miniAppId);
+    const hasParams = Object.keys(params).length > 0;
+    const issued = encode({
+      t: "miniapp",
+      id: miniAppId,
+      exp: null,
+      ...(hasParams ? { p: params } : {}),
+    });
+    await recordAudit(db, {
+      actor,
+      action: "miniapp.qr_issued",
+      targetType: "miniapp",
+      targetId: miniAppId,
+      metadata: { params },
+    });
+    return issued;
+  }
+
   /** QR kodu doğrular ve gösterdiği kaydın güncel halini döndürür. */
   async function resolve(userId: string, value: string): Promise<QrTarget> {
     const payload = decode(value);
@@ -100,10 +147,10 @@ export function createQrService(
     }
     const miniApp = await miniApps.find(payload.id);
     if (miniApp === null) throw new AppError("qr_target_unavailable");
-    return { type: "miniapp", miniApp };
+    return { type: "miniapp", miniApp, params: payload.p ?? {} };
   }
 
-  return { issue, resolve };
+  return { issue, issueMiniAppQr, resolve };
 }
 
 export type QrService = ReturnType<typeof createQrService>;

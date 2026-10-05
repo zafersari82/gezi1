@@ -1,4 +1,5 @@
 import {
+  adminIssueMiniAppQrBodySchema,
   adminPublishMiniAppBodySchema,
   adminSaveMerchantBodySchema,
   adminSaveMiniAppBodySchema,
@@ -21,7 +22,7 @@ export function miniAppAdminRoutes(
   server: FastifyInstance,
   { services, adminGuard }: RouteContext,
 ): void {
-  const { miniAppAdmin } = services;
+  const { miniAppAdmin, qr } = services;
 
   server.get("/v1/admin/miniapps", adminAccess("miniapps.read"), async (request) => {
     await adminGuard(request);
@@ -89,6 +90,14 @@ export function miniAppAdminRoutes(
     const { id } = parse(miniAppParamsSchema, request.params);
     const body = parse(adminSaveMiniAppConfigBodySchema, request.body);
     return miniAppAdmin.saveConfig(actor, id, body.config);
+  });
+
+  // Parametreli kod (masa, şube): parametreler imzanın içindedir, mini uygulama onlara güvenebilir.
+  server.post("/v1/admin/miniapps/:id/qr", adminAccess("miniapps.manage"), async (request) => {
+    const { actor } = await adminGuard(request);
+    const { id } = parse(miniAppParamsSchema, request.params);
+    const body = parse(adminIssueMiniAppQrBodySchema, request.body);
+    return qr.issueMiniAppQr(actor, id, body.params);
   });
 
   server.put(
