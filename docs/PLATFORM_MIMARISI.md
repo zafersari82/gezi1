@@ -22,6 +22,11 @@ deneyimini azaltmayız.
    birkaç formdan oluşan mini uygulamalar değil; kendi sektöründe bağımsız bir yazılım şirketinin
    çıkardığı ticari ürün kalitesinde olacaktır (aşağıda, "PRO kalite şartı").
 
+**Yön.** VADO, Türkiye'ye uyarlanmış WeChat tipi bir süper uygulamadır. Restoran PRO ilk büyük
+sektör ürünü ve platformun ilk büyük stres testidir; VADO'nun yönü değildir. Restoran katalog, fiyat,
+QR, gerçek zamanlı sipariş, şube, mutfak, bildirim, teslimat ve işletme operasyonunu aynı anda
+zorladığı için önce gelir; ardından diğer sektörlere geçilir.
+
 ## Katmanlar
 
 ```
@@ -74,7 +79,8 @@ ilk isteyen sürümde yazılır.
 
 ## Motorlar
 
-Yalnızca üç motor vardır. Motor çekirdeği yalnızca gerçekten ortak olan alan mantığını taşır.
+Yalnızca üç motor vardır: Sipariş (Ordering), Rezervasyon (Reservation) ve İş talebi (Work
+Request). Motor çekirdeği yalnızca gerçekten ortak olan alan mantığını taşır.
 
 | Motor           | Temel soru                                | Çekirdek                                                                                                    | Kapsadığı sektörler (örnek)                                                                           |
 | --------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -158,12 +164,77 @@ Bir sektör deneyimi iki yüzlüdür:
 - **Müşteri deneyimi:** VADO uygulamasının içinde açılan, VADO'nun kendisinin yazdığı ve incelediği
   bir paket. Mini uygulama altyapısını (yalıtım, köprü, kimlik, QR parametreleri, bildirim)
   kullanır.
-- **İşletme deneyimi:** işletmenin günlük operasyonunu yürüttüğü panel; telefonda, tablette ve
-  masaüstünde çalışır (sipariş kabulü sesli uyarıyla, mutfak ekranı, takvim). İşletme hesapları ve
-  kapsamı (2.5) üzerine kuruludur.
+- **İşletme deneyimi:** bütün sektörlerin kullandığı **tek** uygulama olan **VADO Business**
+  içinde açılan modüller. Sektör başına ayrı işletme uygulaması yazılmaz. VADO Business zamanla
+  Siparişler, Rezervasyonlar, Müşteriler, Ürünler ve Hizmetler, Şubeler, Personel, Kampanyalar,
+  Mesajlar, Raporlar ve Ayarlar modüllerini taşır; işletme hangi motor ve paketleri kullanıyorsa o
+  modüller açılır. Bugün restoran sipariş, menü, mutfak ve şube modüllerini; yarın kuaför
+  rezervasyon, personel ve takvim modüllerini kullanır. İlk sürüm duyarlı web uygulaması (PWA)
+  olarak telefon, tablet ve masaüstünde aynı üründür; **tablet birinci sınıf senaryodur** (mutfak
+  ve kasa). Yazıcı, arka plan süreçleri ya da donanım gerektiğinde yerel bir kabuk eklenir.
 
 Basit örnek mini uygulama (bugünkü "Randevu" örneği) ile üretim seviyesindeki sektör ürünü ayrı
 kavramlardır. Örnekler geliştiriciler için öğreticidir; PRO ürünü değildir.
+
+## Değişmez teknik kurallar
+
+İlk motor yazılmadan önce kesinleşen ve sonradan gevşetilmeyecek kurallar. Bunlar sonradan
+eklenirse motorların kalbini değiştirmek gerekir; bu yüzden baştan uygulanır.
+
+### İşletme verisinin yalıtımı
+
+Yirmi bin işletme aynı motoru kullanırken bir işletme hiçbir koşulda başka bir işletmenin
+müşterisine, siparişine, ürününe ya da şubesine ulaşamaz. Bu yalnızca uç noktada bir süzgeç
+değildir:
+
+- İşletmeye ait her kayıt bağlamını açıkça taşır: `business_id`, gereken yerde `branch_id` ve
+  `app_instance_id`.
+- Kayıtlar arası bağlar bağlamı da içerir (bileşik yabancı anahtar): bir siparişin satırı yalnızca
+  **aynı işletmenin** ürününe bağlanabilir; veritabanı başka işletmenin kaydına bağı reddeder.
+- Veri erişimi ortak bir katmandan geçer ve **işletme kapsamı olmadan sorgu yazılamaz**: kapsam
+  zorunlu bir parametredir; kapsamsız erişim yalnızca açıkça adlandırılmış platform işlerinde
+  (yedek, VADO ekibinin paneli) vardır.
+- Veritabanı da aynı kuralı uygular (satır düzeyinde güvenlik); uygulamadaki bir hata tek başına
+  sızıntıya yol açmaz.
+- Her yeni motor tablosu, başka işletmenin kaydına erişimi doğrudan SQL ile deneyen testlerle
+  gelir.
+
+### İşletmeye özel müşteri kimliği
+
+- Mini uygulamanın gördüğü `openId` uygulama kaydına özel kalır.
+- Ayrıca işletme genelinde kararlı bir `businessCustomerId` vardır; işletmenin bütün uygulama
+  kayıtlarında ve VADO Business'ta müşteri bu kimlikle görünür.
+- İşletme VADO'nun iç kullanıcı kimliğini hiçbir zaman görmez; telefon numarasını yalnızca
+  kullanıcının o işlem için verdiği izinle (ör. teslimat) görür.
+
+### Sipariş güvenilirliği
+
+Sipariş motoru baştan ciddi bir ticari sistem gibi kurulur:
+
+- **Tekrar koruması (idempotency):** her oluşturma isteği istemcinin ürettiği bir anahtar taşır.
+  Ağ kesilip "Sipariş ver" iki kez basılsa da tek sipariş oluşur; ikinci istek ilkinin yanıtını
+  alır. Aynı anahtarla farklı içerik gönderilirse reddedilir.
+- **Eş zamanlılık:** her siparişin bir sürüm numarası vardır; değişiklik beklenen sürümle yapılır,
+  araya giren değişiklik varsa reddedilir (iyimser kilitleme).
+- **Durum geçişi denetimi:** yalnızca durum makinesinin izin verdiği geçişler yapılır; bitmiş
+  sipariş yeniden açılamaz. Kural serviste ve veritabanında uygulanır; durum geçmişi yalnızca
+  eklenir.
+- **Fiyat anlık görüntüsü:** sipariş, oluştuğu andaki ürün adını, seçenekleri, birim fiyatı, KDV
+  oranını ve toplamı kendi içinde saklar; katalog sonradan değişse de sipariş değişmez. Toplam
+  yalnızca sunucuda hesaplanır.
+- **Olay kaybolmaz (transactional outbox):** "sipariş oluştu" olayı siparişle **aynı işlemde**
+  veritabanına yazılır; ayrı bir dağıtıcı onu tüketicilere (bildirim, mutfak ekranı, analitik)
+  iletir. Sunucu kayıttan sonra çökerse olay yeniden başlangıçta iletilir; tüketiciler aynı olayı
+  iki kez almaya dayanıklıdır. Kafka ya da ayrı servis gerekmez; modüler monolitin içinde çalışır
+  ve ileride ayrılabilir.
+
+### Studio'ya hazır sözleşmeler
+
+VADO Studio (kod yazmadan kurma aracı) 3.x'te gelir; motorlar o gün yeniden yazılmaz. Bu yüzden her
+motor ve yetenek paketi bugünden **makine tarafından okunabilir** bir sözleşme yayımlar: kimlik ve
+sürüm, ayar şeması ve varsayılanlar, bağımlılıklar, izinler, olaylar, durum makinesine eklemeler,
+API yetenekleri, müşteri arayüzü blokları, işletme arayüzü blokları ve doğrulama kuralları. Studio
+bu sözleşmeleri okuyarak arayüz kurar; sözleşmede olmayan bir davranış Studio'dan ayarlanamaz.
 
 ## PRO kalite şartı
 

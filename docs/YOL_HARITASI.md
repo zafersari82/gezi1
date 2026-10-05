@@ -194,16 +194,17 @@ engeller. Eksik kalanlar, önerilen sırayla:
 2.2'de anahtar ayrımı ve anahtar değiştirme, 2.3'te paketli mini uygulama platformu, 2.3.1'de
 paketin sarmalayıcı belgeyle yalıtılması, 2.4'te panel hesapları, roller, iki adımlı doğrulama ve
 yükleyen ile onaylayanın ayrılması, 2.5'te kimlik belirteci, parametreli QR, işletme hesabı ve
-anlık bildirim tamamlandı. 2.6, 2.7 ve 2.8'in her biri işe başlamadan önce bir sayfalık plan ve
-onay ister. Sıradakiler:
+anlık bildirim tamamlandı. Her sürüm işe başlamadan önce tek sayfalık plan ve onay ister; mimari kurallar
+[PLATFORM_MIMARISI.md](PLATFORM_MIMARISI.md) içindedir. Sıradakiler:
 
-| Sürüm | Konu                                                                                                                                                                     |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2.5   | Kimlik belirteci, parametreli QR, anlık bildirim, işletme girişi (tamamlandı)                                                                                            |
-| 2.6   | Rezervasyon motoru                                                                                                                                                       |
-| 2.7   | Sipariş motoru                                                                                                                                                           |
-| 2.8   | Kod yazmadan mini uygulama kurma aracı                                                                                                                                   |
-| 3.0   | Gerçek ödeme (lisanslı kuruluş), gerçek cihazda cihaz doğrulama (Play Integrity, App Attest) ve WebView için yerel güvenlik kodu (istek süzgeci, WebRTC'nin kapatılması) |
+| Sürüm | Konu                                                                                                                                                                          |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.5   | Kimlik belirteci, parametreli QR, anlık bildirim, işletme girişi (tamamlandı)                                                                                                 |
+| 2.6   | Platform temeli (müşteri kimliği, şube, katalog ve fiyat, olay altyapısı, işletme yalıtımı), Sipariş motoru çekirdeği, yetenek paketi altyapısı, VADO Business temeli         |
+| 2.7   | Restoran: masadan QR sipariş, gel-al, ileri saate sipariş, mutfak operasyonu                                                                                                  |
+| 2.8   | Restoran: eve teslim, kurye, kampanya, sadakat, değerlendirme, tekrar sipariş; pilot işletme ve "Restoran PRO"                                                                |
+| 2.9   | Rezervasyon motoru; güzellik, berber ve özel ders ile doğrulama                                                                                                               |
+| 3.x   | VADO Studio (kod yazmadan kurma) ve diğer sektör deneyimleri; gerçek ödeme (lisanslı kuruluş), cihaz doğrulama (Play Integrity, App Attest), WebView için yerel güvenlik kodu |
 
 2.6 ve 2.7'deki motorlar 2.5'in parçalarına dayanır: rezervasyon ve siparişte masa/şube parametreli
 QR'dan, kullanıcı kimlik belirtecinden, işletme ayarları işletme hesabından, hatırlatmalar anlık
