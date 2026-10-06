@@ -104,7 +104,6 @@ Kampanya/kupon/sadakat rezervasyonu ve tüketimi atomiktir.
 - İndirim satırlara deterministik dağıtılır; toplam kuruş kaybı/üretimi olmaz.
 - KDV, indirim sonrası satır tutarı üzerinden doğru görüntülenir; siparişte değişmez anlık görüntü
   saklanır.
-
 - Eşit bölüşüm, tek kuruş artığı ve farklı KDV oranları test edilir.
 - Sadakat kazanımı yalnız sipariş tamamlandığında kesinleşir.
 - İptal/iade kazanılmış puanı geri alır; harcanmış puanı geri verir; tekrar olayları çift etki
@@ -160,14 +159,12 @@ Kapanışta:
 - bozma kataloğu 164'ün üstüne çıkar;
 - kupon limit yarışı, sadakat çift olayı, kurye atama yarışı, KVKK erişim sınırı, iptal/iade ve RLS
   gerçekten bozularak yakalanır;
-
 - 390×844, 768×1024, 1440×900 tarayıcı senaryoları;
 - keşiften tekrar siparişe müşteri E2E ve kabulden teslimata işletme E2E;
 - zayıf ağ, kopma, cevap kaybı, çift dokunma, ters sıralı yanıt;
 - gerçek 2.7→2.8 geçiş, ikinci migrate ve yedekten 2.7 geri dönüş;
 - belgeler: CHANGELOG, SECURITY, API, YAYIN, MIMARI, PLATFORM_MIMARISI, YOL_HARITASI, README,
   restoran işletme belgesi ve THIRD_PARTY_NOTICES;
-
 - sürüm yalnız belirlenmiş VADO sürüm alanlarında 2.8.0 yapılır; kilit dosyası `npm install
   --package-lock-only` ile üretilir.
 
