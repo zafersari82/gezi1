@@ -99,7 +99,10 @@ describe("Konum platform servisi", () => {
         recipientPhone: "+905551112233",
       },
     });
-    expect(created).toMatchObject({ version: 1, businessCustomerId: f.customerScope.businessCustomerId });
+    expect(created).toMatchObject({
+      version: 1,
+      businessCustomerId: f.customerScope.businessCustomerId,
+    });
 
     const other = await createUser(app, "Başka müşteri");
     await app.services.businessManagement.customerScope(other.id, f.businessId, f.instanceId);
@@ -163,9 +166,10 @@ describe("Konum platform servisi", () => {
       role: "staff",
       active: true,
     });
-    expect(
-      await as(app, staff).request("GET", `${root}?branchId=${f.branchId}`),
-    ).toMatchObject({ status: 200, body: { items: [{ id: area.id }] } });
+    expect(await as(app, staff).request("GET", `${root}?branchId=${f.branchId}`)).toMatchObject({
+      status: 200,
+      body: { items: [{ id: area.id }] },
+    });
     expect(
       await as(app, staff).request("POST", root, {
         body: {
@@ -217,9 +221,9 @@ describe("Konum platform servisi", () => {
 
     expect(await app.db.many(sql`select * from location_service_areas`)).toEqual([]);
     await scoped(app.db, a.businessId, async (tx) => {
-      expect(
-        await tx.many(sql`select * from location_service_areas where id=${area.id}`),
-      ).toEqual([]);
+      expect(await tx.many(sql`select * from location_service_areas where id=${area.id}`)).toEqual(
+        [],
+      );
       expect(
         await tx.execute(sql`update location_service_areas set active=false where id=${area.id}`),
       ).toBe(0);
