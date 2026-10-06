@@ -25,40 +25,49 @@ kurye haritası ve sürekli GPS takibi bu sürümde yoktur.
 alanında `npm ci` ve tam `npm run check` geçer; çalıştırılmayan deneme geçti sayılmaz.
 
 1.  **2.7 bulguları + Konum servisi**
-   -  Masa QR düğmesi yalnız yetkili role görünür; personel hem arayüzde hem API'de kullanamaz.
-   -  Teslim/ileri saat gösteriminde şubenin saat dilimi açıkça yazılır.
-   -  Motor-bağımsız Konum servisi: il → ilçe → mahalle adres modeli, müşteri adresleri, şube bazlı
-     hizmet bölgeleri ve bölge eşleştirme sözleşmesi.
+
+- Masa QR düğmesi yalnız yetkili role görünür; personel hem arayüzde hem API'de kullanamaz.
+- Teslim/ileri saat gösteriminde şubenin saat dilimi açıkça yazılır.
+- Motor-bağımsız Konum servisi: il → ilçe → mahalle adres modeli, müşteri adresleri, şube bazlı
+  hizmet bölgeleri ve bölge eşleştirme sözleşmesi.
+
 2.  **Eve teslim + kendi kurye**
-   -  `ordering.delivery`: eve teslim fulfillment, bölgeye göre ücret, minimum sipariş ve tahmini
-     teslim süresi.
-   -  Platformdaki genel teslimat sağlayıcısı arayüzü; ilk uygulama işletmenin kendi kuryesi.
-   -  Kurye hesabı = VADO hesabı + işletme üyeliği/yetkisi; atama, yola çıktı, teslim edildi ve
-     müşteri canlı durum adımları.
+
+- `ordering.delivery`: eve teslim fulfillment, bölgeye göre ücret, minimum sipariş ve tahmini
+  teslim süresi.
+- Platformdaki genel teslimat sağlayıcısı arayüzü; ilk uygulama işletmenin kendi kuryesi.
+- Kurye hesabı = VADO hesabı + işletme üyeliği/yetkisi; atama, yola çıktı, teslim edildi ve
+  müşteri canlı durum adımları.
+
 3.  **Teşvik servisi**
-   -  Platform Teşvik servisi: kampanya, kupon, sadakat.
-   -  Eş zamanlı kullanımda atomik limitler; aynı kupon/ödül limit üstüne çıkamaz.
-   -  Kampanya + kupon birlikte kullanımı işletme ayarıdır; varsayılan **birlikte kullanılamaz**.
-   -  İndirim satırlara deterministik dağıtılır; indirim sonrası KDV görüntüsü ve kuruş yuvarlaması
-     sunucuda hesaplanıp test edilir.
-   -  Sadakat puanı yalnız tamamlanan siparişte kazanılır; iptal/iade kazanılan puanı geri alır,
-     harcanan puanı iade eder; bütün adımlar atomiktir.
+
+- Platform Teşvik servisi: kampanya, kupon, sadakat.
+- Eş zamanlı kullanımda atomik limitler; aynı kupon/ödül limit üstüne çıkamaz.
+- Kampanya + kupon birlikte kullanımı işletme ayarıdır; varsayılan **birlikte kullanılamaz**.
+- İndirim satırlara deterministik dağıtılır; indirim sonrası KDV görüntüsü ve kuruş yuvarlaması
+  sunucuda hesaplanıp test edilir.
+- Sadakat puanı yalnız tamamlanan siparişte kazanılır; iptal/iade kazanılan puanı geri alır,
+  harcanan puanı iade eder; bütün adımlar atomiktir.
+
 4.  **Ortak servisler + sipariş yaşam döngüsü**
-   -  Değerlendirme, favoriler ve var olan Sohbet servisine müşteri–işletme kanalı.
-   -  Tekrar sipariş güncel katalog/fiyat/bulunurlukla yeni sepet kurar; eski sipariş görüntüsünü
-     kör kopyalamaz.
-   -  Duruma/role göre iptal kuralları ve kapıda ödeme iade kayıtları.
-   -  Değerlendirme yalnız tamamlanan siparişe, sipariş başına bir kez yapılır; iptal edilen sipariş
-     değerlendirilemez; moderasyon var olan şikayet altyapısına bağlanır.
+
+- Değerlendirme, favoriler ve var olan Sohbet servisine müşteri–işletme kanalı.
+- Tekrar sipariş güncel katalog/fiyat/bulunurlukla yeni sepet kurar; eski sipariş görüntüsünü
+  kör kopyalamaz.
+- Duruma/role göre iptal kuralları ve kapıda ödeme iade kayıtları.
+- Değerlendirme yalnız tamamlanan siparişe, sipariş başına bir kez yapılır; iptal edilen sipariş
+  değerlendirilemez; moderasyon var olan şikayet altyapısına bağlanır.
+
 5.  **Mevzuat + ürün deneyimi + kapanış**
-   -  Kapıda nakit/kart; online ödeme açılmaz.
-   -  Mesafeli satış ön bilgilendirmesi ve restoran deneyiminde hemen tüketilen yiyecek cayma
-     istisnası.
-   -  İşlemsel/ticari ileti ayrımı; kampanya bildirimi İYS iznine bağlıdır, işlemsel sipariş
-     bildirimi bundan etkilenmez.
-   -  Kapalı şubede ileri sipariş işletme ayarı; varsayılan geriye uyumlu biçimde kapalı.
-   -  Müşteri ve VADO Business ekranları, uçtan uca senaryolar, mimari denetim, belgeler ve sürüm
-     2.8.0.
+
+- Kapıda nakit/kart; online ödeme açılmaz.
+- Mesafeli satış ön bilgilendirmesi ve restoran deneyiminde hemen tüketilen yiyecek cayma
+  istisnası.
+- İşlemsel/ticari ileti ayrımı; kampanya bildirimi İYS iznine bağlıdır, işlemsel sipariş
+  bildirimi bundan etkilenmez.
+- Kapalı şubede ileri sipariş işletme ayarı; varsayılan geriye uyumlu biçimde kapalı.
+- Müşteri ve VADO Business ekranları, uçtan uca senaryolar, mimari denetim, belgeler ve sürüm
+  2.8.0.
 
 ## Konum servisi ve adres verisi
 
@@ -91,14 +100,14 @@ erer. Bu kural servis katmanı, RLS/bileşik kapsam ve doğrudan SQL/bozma testl
 Teşvik platform servisidir; Sipariş, Rezervasyon ve İş Talebi aynı sözleşmeyi kullanabilir.
 Kampanya/kupon/sadakat rezervasyonu ve tüketimi atomiktir.
 
--  Kampanya + kupon birlikte kullanım kuralı işletme ayarıdır; varsayılan kapalıdır.
--  İndirim satırlara deterministik dağıtılır; toplam kuruş kaybı/üretimi olmaz.
--  KDV, indirim sonrası satır tutarı üzerinden doğru görüntülenir; siparişte değişmez anlık görüntü
+- Kampanya + kupon birlikte kullanım kuralı işletme ayarıdır; varsayılan kapalıdır.
+- İndirim satırlara deterministik dağıtılır; toplam kuruş kaybı/üretimi olmaz.
+- KDV, indirim sonrası satır tutarı üzerinden doğru görüntülenir; siparişte değişmez anlık görüntü
   saklanır.
 
--  Eşit bölüşüm, tek kuruş artığı ve farklı KDV oranları test edilir.
--  Sadakat kazanımı yalnız sipariş tamamlandığında kesinleşir.
--  İptal/iade kazanılmış puanı geri alır; harcanmış puanı geri verir; tekrar olayları çift etki
+- Eşit bölüşüm, tek kuruş artığı ve farklı KDV oranları test edilir.
+- Sadakat kazanımı yalnız sipariş tamamlandığında kesinleşir.
+- İptal/iade kazanılmış puanı geri alır; harcanmış puanı geri verir; tekrar olayları çift etki
   üretmez.
 
 ## Değerlendirme, favoriler, sohbet, tekrar sipariş, iptal/iade
@@ -119,10 +128,10 @@ iade gerçek banka hareketi değildir; sebep, tutar, aktör ve zamanla denetlene
 Kabul testinde restoran yetenekleri kapalı, mağaza benzeri bir Sipariş uygulama örneği oluşturulur.
 Bu örnek:
 
--  Konum servisi üzerinden eve teslim bölgesini,
--  `ordering.delivery` üzerinden eve teslimi,
--  Teşvik servisi üzerinden kuponu,
--  platform Değerlendirme servisini
+- Konum servisi üzerinden eve teslim bölgesini,
+- `ordering.delivery` üzerinden eve teslimi,
+- Teşvik servisi üzerinden kuponu,
+- platform Değerlendirme servisini
 
 restoran paketi, masa, mutfak, garson veya restoran SQL işlevi açmadan kullanır. Bu test
 Market/Mağaza'nın Sipariş motorunu çatallanmadan kullanabildiğinin somut regresyon kanıtıdır.
@@ -147,19 +156,19 @@ optimistic locking ve transactional outbox mevcut kurallarla sürer.
 
 Kapanışta:
 
--  mevcut 813 test korunur ve sayı artırılır;
--  bozma kataloğu 164'ün üstüne çıkar;
--  kupon limit yarışı, sadakat çift olayı, kurye atama yarışı, KVKK erişim sınırı, iptal/iade ve RLS
+- mevcut 813 test korunur ve sayı artırılır;
+- bozma kataloğu 164'ün üstüne çıkar;
+- kupon limit yarışı, sadakat çift olayı, kurye atama yarışı, KVKK erişim sınırı, iptal/iade ve RLS
   gerçekten bozularak yakalanır;
 
--  390×844, 768×1024, 1440×900 tarayıcı senaryoları;
--  keşiften tekrar siparişe müşteri E2E ve kabulden teslimata işletme E2E;
--  zayıf ağ, kopma, cevap kaybı, çift dokunma, ters sıralı yanıt;
--  gerçek 2.7→2.8 geçiş, ikinci migrate ve yedekten 2.7 geri dönüş;
--  belgeler: CHANGELOG, SECURITY, API, YAYIN, MIMARI, PLATFORM_MIMARISI, YOL_HARITASI, README,
+- 390×844, 768×1024, 1440×900 tarayıcı senaryoları;
+- keşiften tekrar siparişe müşteri E2E ve kabulden teslimata işletme E2E;
+- zayıf ağ, kopma, cevap kaybı, çift dokunma, ters sıralı yanıt;
+- gerçek 2.7→2.8 geçiş, ikinci migrate ve yedekten 2.7 geri dönüş;
+- belgeler: CHANGELOG, SECURITY, API, YAYIN, MIMARI, PLATFORM_MIMARISI, YOL_HARITASI, README,
   restoran işletme belgesi ve THIRD_PARTY_NOTICES;
 
--  sürüm yalnız belirlenmiş VADO sürüm alanlarında 2.8.0 yapılır; kilit dosyası `npm install
+- sürüm yalnız belirlenmiş VADO sürüm alanlarında 2.8.0 yapılır; kilit dosyası `npm install
   --package-lock-only` ile üretilir.
 
 Docker motoru bu çalışma ortamında yoksa imaj/Compose denemesi **denenmedi** yazılır ve Claude
