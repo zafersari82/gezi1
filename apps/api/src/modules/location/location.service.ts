@@ -97,10 +97,7 @@ export function createLocationService({ db }: AppContext) {
       from location_districts where province_id=${provinceId} order by name,id
     `);
 
-  const neighborhoods = (
-    provinceId: string,
-    districtId: string,
-  ): Promise<LocationNeighborhood[]> =>
+  const neighborhoods = (provinceId: string, districtId: string): Promise<LocationNeighborhood[]> =>
     db.many(sql`
       select id,province_id as "provinceId",district_id as "districtId",name,slug,
         postal_code as "postalCode"
