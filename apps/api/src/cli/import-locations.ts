@@ -29,7 +29,9 @@ async function main(): Promise<void> {
   loadEnvFile();
   const file = process.argv[2];
   if (file === undefined) {
-    throw new Error("Kullanım: npm run locations:import -w @vado/api -- <turkiye-adres-tree-tr.json>");
+    throw new Error(
+      "Kullanım: npm run locations:import -w @vado/api -- <turkiye-adres-tree-tr.json>",
+    );
   }
   const tree = treeSchema.parse(JSON.parse(await readFile(file, "utf8")));
   const config = loadConfig();
@@ -82,7 +84,9 @@ async function main(): Promise<void> {
       }
     }
     await client.query("commit");
-    console.log(`Konum verisi yüklendi: ${tree.length} il, ${districts} ilçe, ${neighborhoods} mahalle.`);
+    console.log(
+      `Konum verisi yüklendi: ${tree.length} il, ${districts} ilçe, ${neighborhoods} mahalle.`,
+    );
   } catch (error) {
     await client.query("rollback");
     throw error;
