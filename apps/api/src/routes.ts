@@ -13,6 +13,7 @@ import { capabilityRoutes } from "./modules/capabilities/capabilities.routes";
 import { catalogRoutes } from "./modules/catalog/catalog.routes";
 import { chatRoutes } from "./modules/chat/chat.routes";
 import { contactRoutes } from "./modules/contacts/contacts.routes";
+import { locationRoutes } from "./modules/location/location.routes";
 import { mediaRoutes } from "./modules/media/media.routes";
 import { miniAppAdminRoutes } from "./modules/miniapps/miniapp-admin.routes";
 import { miniAppDeliveryRoutes } from "./modules/miniapps/miniapp-delivery.routes";
@@ -53,6 +54,7 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   chatRoutes(server, context);
   momentRoutes(server, context);
   mediaRoutes(server, context);
+  locationRoutes(server, context);
   qrRoutes(server, context);
   businessRoutes(server, context);
   businessManagementRoutes(server, context);
