@@ -102,6 +102,35 @@ paketleriyle bunu taşıyamıyor; hangi en az üç sektörü kapsayacak.
 
 **Bir motor, en az üç farklı sektör deneyimini çatallanmadan çalıştıramıyorsa bitmiş sayılmaz.**
 
+### Sektörler motorlara bire bir bağlı değildir
+
+Bir sektör deneyiminin bir **ana motoru** olabilir, ama gerektiğinde diğer motorların yeteneklerini
+de kullanır. Gerçek süper uygulama mimarisi burada ortaya çıkar:
+
+| Sektör deneyimi | Ana motor                     | Ayrıca kullandığı motorlar                                |
+| --------------- | ----------------------------- | --------------------------------------------------------- |
+| Otel            | Rezervasyon (konaklama)       | Sipariş (oda servisi), İş talebi (bakım, temizlik talebi) |
+| Oto servis      | Rezervasyon (bakım randevusu) | İş talebi (arıza, çekici), Sipariş (yedek parça)          |
+| Güzellik salonu | Rezervasyon (randevu)         | Sipariş (kozmetik ürün satışı)                            |
+| Restoran        | Sipariş                       | Rezervasyon (masa rezervasyonu)                           |
+
+Kurallar:
+
+- **Motorlar yine birbirini doğrudan çağırmaz.** Bileşimi sektör deneyimi kurar ve VADO platformu
+  üzerinden yapar: aynı işletme, aynı uygulama örneği, aynı `businessCustomerId`.
+- **Kayıtlar arası bağ platformdadır.** Bir motorun kaydı başka bir motorun kaydına "bağlam" olarak
+  bağlanabilir (oda servisi siparişi → konaklama rezervasyonu; çekici talebi → servis randevusu).
+  Bağ platformun ortak bir bağlam alanıyla (tür + kimlik, aynı işletme içinde, RLS altında) kurulur;
+  motor öteki motorun tablolarını tanımaz.
+- **Motorlar arası tepki olaylarla olur:** "konaklama bitti" olayı açık oda servisi siparişlerini
+  kapatmayı tetikler; bunu motor değil, deneyimin bağladığı yetenek paketi yapar.
+- **VADO Business modülleri sektöre değil açık yeteneklere göre açılır.** Otelde Rezervasyonlar,
+  Odalar, Oda servisi siparişleri ve Talepler aynı uygulamada yan yana durur.
+- **Müşteri tek bir yolculuk görür.** "Konaklamam" ekranında oda servisi siparişleri ve
+  talepler birlikte görünür; arkada üç motor olduğu müşteriye yansımaz.
+- Yeni bir sektör planlanırken soru "hangi motor?" değil, **"hangi motorların hangi yetenekleri?"**
+  olur.
+
 ## Yetenek paketleri
 
 Sektörün ciddi özellikleri bağımsız, yeniden kullanılabilir paketler olarak eklenir. Bir paket şu
