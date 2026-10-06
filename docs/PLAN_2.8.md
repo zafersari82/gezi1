@@ -166,7 +166,7 @@ Kapanışta:
 - belgeler: CHANGELOG, SECURITY, API, YAYIN, MIMARI, PLATFORM_MIMARISI, YOL_HARITASI, README,
   restoran işletme belgesi ve THIRD_PARTY_NOTICES;
 - sürüm yalnız belirlenmiş VADO sürüm alanlarında 2.8.0 yapılır; kilit dosyası `npm install
-  --package-lock-only` ile üretilir.
+--package-lock-only` ile üretilir.
 
 Docker motoru bu çalışma ortamında yoksa imaj/Compose denemesi **denenmedi** yazılır ve Claude
 tarafından ayrıca çalıştırılır.
