@@ -18,6 +18,7 @@ import { createCapabilityService } from "./modules/capabilities/capabilities.ser
 import { createCatalogService } from "./modules/catalog/catalog.service";
 import { createChatService } from "./modules/chat/chat.service";
 import { createContactService } from "./modules/contacts/contacts.service";
+import { createLocationService } from "./modules/location/location.service";
 import { createMediaService } from "./modules/media/media.service";
 import { createMiniAppAdminService } from "./modules/miniapps/miniapp-admin.service";
 import { createMiniAppService } from "./modules/miniapps/miniapps.service";
@@ -49,6 +50,7 @@ export function createServices(context: AppContext) {
   });
   const auth = createAuthService(context, { notifications });
   const media = createMediaService(context);
+  const location = createLocationService(context);
   const chat = createChatService(context, { notifications });
   const users = createUserService(context, { auth, chat });
   const contacts = createContactService(context);
@@ -73,6 +75,7 @@ export function createServices(context: AppContext) {
     events,
     auth,
     media,
+    location,
     chat,
     users,
     contacts,
