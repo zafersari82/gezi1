@@ -46,10 +46,4 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Plan biçim farkı
-        run: |
-          cp docs/PLAN_2.8.md /tmp/PLAN_2.8.md
-          npx prettier --write docs/PLAN_2.8.md
-          git diff -- docs/PLAN_2.8.md
-          cmp -s /tmp/PLAN_2.8.md docs/PLAN_2.8.md
       - run: npm run check
