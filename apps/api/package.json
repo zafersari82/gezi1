@@ -16,7 +16,8 @@
     "packages": "tsx src/cli/packages.ts",
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "locations:import": "tsx src/cli/import-locations.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
