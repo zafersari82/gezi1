@@ -450,6 +450,7 @@ export function App() {
     });
   }
   const selectedBranch = context?.branches.find((b) => b.id === branch);
+  const orderBranch = context?.branches.find((b) => b.id === order?.branchId);
   const canOrder =
     ready &&
     branch !== "" &&
@@ -535,7 +536,7 @@ export function App() {
                   </select>
                 </label>
                 <label>
-                  Teslim zamanı
+                  Teslim zamanı{selectedBranch ? ` · ${selectedBranch.timezone}` : ""}
                   <select
                     value={scheduled}
                     disabled={cart !== null || busy}
@@ -550,7 +551,7 @@ export function App() {
                     </option>
                     {slots.map((at) => (
                       <option key={at} value={at}>
-                        {dateTime(at)}
+                        {dateTime(at, selectedBranch?.timezone)}
                       </option>
                     ))}
                   </select>
@@ -712,7 +713,7 @@ export function App() {
                   <span className="eyebrow">Sipariş #{order.id.slice(0, 8).toUpperCase()}</span>
                   <h2>{states[order.status] ?? order.status}</h2>
                   {order.estimatedReadyAt && (
-                    <p>Tahmini hazır: {dateTime(order.estimatedReadyAt)}</p>
+                    <p>Tahmini hazır: {dateTime(order.estimatedReadyAt, orderBranch?.timezone)}</p>
                   )}
                   {order.rejectionReason && (
                     <p role="alert">Ret gerekçesi: {order.rejectionReason}</p>
