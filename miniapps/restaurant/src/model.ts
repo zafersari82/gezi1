@@ -21,13 +21,16 @@ export function selectionProblem(
 
 export const money = (minor: number): string =>
   new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" }).format(minor / 100);
-export const dateTime = (value: string): string =>
-  new Date(value).toLocaleString("tr-TR", {
+export const dateTime = (value: string, timeZone?: string): string => {
+  const formatted = new Date(value).toLocaleString("tr-TR", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    ...(timeZone === undefined ? {} : { timeZone }),
   });
+  return timeZone === undefined ? formatted : `${formatted} · ${timeZone}`;
+};
 export const states: Readonly<Record<string, string>> = {
   placed: "Kabul bekliyor",
   accepted: "Kabul edildi",
