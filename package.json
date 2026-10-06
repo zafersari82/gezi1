@@ -1,6 +1,6 @@
 {
   "name": "vado",
-  "version": "2.5.0",
+  "version": "2.7.0",
   "private": true,
   "description": "VADO: Türkiye için mesajlaşma, mini uygulama ve ödeme platformu",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -13,13 +13,14 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "concurrently --names api,panel,mini --prefix-colors cyan,blue,magenta \"npm run dev -w @vado/api\" \"npm run dev -w @vado/portal\" \"npm run dev -w @vado/miniapp-appointment\"",
+    "dev": "concurrently --names api,panel,business,mini --prefix-colors cyan,blue,green,magenta \"npm run dev -w @vado/api\" \"npm run dev -w @vado/portal\" \"npm run dev -w @vado/business\" \"npm run dev -w @vado/miniapp-appointment\"",
     "mobile": "npm run start -w @vado/mobile",
     "web": "npm run web -w @vado/mobile",
     "lan": "node scripts/use-lan.mjs",
     "db:up": "docker compose -f infra/docker-compose.yml up -d --wait",
     "db:down": "docker compose -f infra/docker-compose.yml down",
     "db:migrate": "npm run migrate -w @vado/api",
+    "db:roles": "npm run database-roles -w @vado/api",
     "db:seed": "npm run build -w @vado/miniapp-appointment && npm run seed -w @vado/api -- --package miniapps/appointment/dist",
     "keys": "npm run keys -w @vado/api --",
     "admins": "npm run admins -w @vado/api --",

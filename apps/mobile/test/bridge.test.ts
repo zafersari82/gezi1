@@ -141,6 +141,48 @@ describe("sarmalayıcı belgenin ayrılma bildirimi", () => {
 });
 
 describe("handleBridgeMessage", () => {
+  it("sipariş yetkisi olmayan veya bağlamsız uygulamayı reddeder", async () => {
+    const denied = createHost({ capabilities: [] });
+    expect(
+      await handleBridgeMessage(request("ordering.openCart", { branchId: "b" }), denied.host),
+    ).toMatchObject({ ok: false, error: { code: "capability_denied" } });
+    const allowed = createHost({ capabilities: ["ordering.basic"] });
+    expect(
+      await handleBridgeMessage(
+        request("ordering.getCart", { id: "0468d9b0-5837-41c2-bb46-a2ca5a87d8fc" }),
+        allowed.host,
+      ),
+    ).toMatchObject({ ok: false, error: { code: "unavailable" } });
+  });
+
+  it("paketin işletme, uygulama veya oturum seçmesini hiçbir sipariş metodunda kabul etmez", async () => {
+    const { host, calls } = createHost({ capabilities: ["ordering.basic"] });
+    const id = "0468d9b0-5837-41c2-bb46-a2ca5a87d8fc";
+    const cases = [
+      ["ordering.getCatalog", { branchId: id }],
+      ["ordering.openCart", { branchId: id }],
+      ["ordering.getCart", { id }],
+      ["ordering.replaceCart", { id, expectedVersion: 1, lines: [] }],
+      [
+        "ordering.checkout",
+        { id, key: "onay", cartVersion: 1, seenTotalMinor: 0, quoteHash: "a".repeat(64) },
+      ],
+      ["ordering.getOrder", { id }],
+    ] as const;
+    for (const [method, params] of cases) {
+      for (const injected of [
+        { businessId: id },
+        { appInstanceId: id },
+        { session: "gizli" },
+        { userId: id },
+      ]) {
+        expect(
+          await handleBridgeMessage(request(method, { ...params, ...injected }), host),
+        ).toMatchObject({ ok: false, error: { code: "invalid_params" } });
+      }
+    }
+    expect(calls).toEqual([]);
+  });
   it("köprü protokolüne ait olmayan iletileri yok sayar", async () => {
     const { host } = createHost();
     expect(await handleBridgeMessage("bozuk json {", host)).toBeNull();

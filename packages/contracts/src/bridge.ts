@@ -1,11 +1,25 @@
 import { z } from "zod";
 
 import type { Platform } from "./auth";
+import type { LiveReplay } from "./business-live";
 import type { Capability } from "./capabilities";
-import { amountMinorSchema } from "./common";
+import type { Catalog } from "./catalog";
+import { amountMinorSchema, idSchema } from "./common";
 import type { MiniAppIdentity, MiniAppIdentityToken } from "./miniapps";
+import {
+  type Cart,
+  checkoutCartBodySchema,
+  openCartBodySchema,
+  type Order,
+  orderStateSchema,
+  type OrderSummary,
+  replaceCartBodySchema,
+  resetCartBodySchema,
+} from "./ordering";
 import type { ConfigValues } from "./packages";
 import { merchantIdSchema, orderIdSchema, paymentDescriptionSchema } from "./payments";
+import type { RestaurantContext, TableSession } from "./restaurant";
+import { tableRequestBodySchema } from "./restaurant";
 
 /**
  * Mini uygulama ile VADO kabuğu arasındaki köprü protokolü.
@@ -30,6 +44,21 @@ export const BRIDGE_METHODS = {
   "storage.set": "storage.local",
   "storage.remove": "storage.local",
   "share.open": "share.native",
+  "ordering.getCatalog": "ordering.basic",
+  "ordering.openCart": "ordering.basic",
+  "ordering.getCart": "ordering.basic",
+  "ordering.replaceCart": "ordering.basic",
+  "ordering.resetCart": "ordering.basic",
+  "ordering.checkout": "ordering.basic",
+  "ordering.getOrder": "ordering.basic",
+  "ordering.getRestaurant": "ordering.basic",
+  "ordering.getSlots": "ordering.basic",
+  "ordering.joinTable": "ordering.basic",
+  "ordering.getTable": "ordering.basic",
+  "ordering.getBill": "ordering.basic",
+  "ordering.requestService": "ordering.basic",
+  "ordering.getEvents": "ordering.basic",
+  "ordering.listOrders": "ordering.basic",
 } as const satisfies Record<string, Capability | null>;
 
 export type BridgeMethod = keyof typeof BRIDGE_METHODS;
@@ -72,6 +101,40 @@ export const bridgeParamsSchemas = {
   "storage.set": z.object({ key: storageKeySchema, value: z.string().max(STORAGE_VALUE_MAX) }),
   "storage.remove": z.object({ key: storageKeySchema }),
   "share.open": shareParamsSchema,
+  "ordering.getCatalog": z
+    .object({
+      branchId: idSchema,
+      includeUnavailable: z.boolean().optional(),
+      at: z.iso.datetime({ offset: true }).optional(),
+    })
+    .strict(),
+  "ordering.openCart": openCartBodySchema.strict(),
+  "ordering.getCart": z.object({ id: idSchema }).strict(),
+  "ordering.replaceCart": replaceCartBodySchema.extend({ id: idSchema }).strict(),
+  "ordering.resetCart": resetCartBodySchema.extend({ id: idSchema }).strict(),
+  "ordering.checkout": checkoutCartBodySchema
+    .extend({ id: idSchema, key: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/) })
+    .strict(),
+  "ordering.getOrder": z.object({ id: idSchema }).strict(),
+  "ordering.getRestaurant": noParamsSchema,
+  "ordering.getSlots": z.object({ branchId: idSchema }).strict(),
+  "ordering.joinTable": noParamsSchema,
+  "ordering.getTable": z.object({ id: idSchema }).strict(),
+  "ordering.getBill": z.object({ id: idSchema }).strict(),
+  "ordering.requestService": tableRequestBodySchema
+    .extend({ id: idSchema, key: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/) })
+    .strict(),
+  "ordering.getEvents": z
+    .object({ cursor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) })
+    .strict(),
+  "ordering.listOrders": z
+    .object({
+      limit: z.number().int().min(1).max(100).default(30),
+      cursor: idSchema.optional(),
+      active: z.boolean().optional(),
+      status: orderStateSchema.optional(),
+    })
+    .strict(),
 } satisfies Record<BridgeMethod, z.ZodType>;
 
 export type BridgeParams = {
@@ -113,6 +176,26 @@ export interface BridgeResults {
   "storage.set": null;
   "storage.remove": null;
   "share.open": null;
+  "ordering.getCatalog": Catalog;
+  "ordering.openCart": Cart;
+  "ordering.getCart": Cart;
+  "ordering.replaceCart": { type: "cart" | "cart_conflict"; cart: Cart };
+  "ordering.resetCart": { type: "cart" | "cart_conflict"; cart: Cart };
+  "ordering.checkout": { type: "order"; order: Order } | { type: "cart_changed"; cart: Cart };
+  "ordering.getOrder": Order;
+  "ordering.getRestaurant": RestaurantContext;
+  "ordering.getSlots": { items: { at: string }[]; preparationMinutes: number; openNow: boolean };
+  "ordering.joinTable": TableSession;
+  "ordering.getTable": TableSession;
+  "ordering.getBill": { ownTotalMinor: number; ownPaidMinor: number; ownDueMinor: number };
+  "ordering.requestService": {
+    id: string;
+    tableSessionId: string;
+    kind: "waiter" | "bill";
+    label: string;
+  };
+  "ordering.getEvents": LiveReplay;
+  "ordering.listOrders": { items: OrderSummary[]; nextCursor: string | null };
 }
 
 export const bridgeRequestSchema = z.object({
@@ -165,3 +248,10 @@ export interface BridgeError {
 export type BridgeResponse =
   | { vado: typeof BRIDGE_PROTOCOL_VERSION; id: string; ok: true; result: unknown }
   | { vado: typeof BRIDGE_PROTOCOL_VERSION; id: string; ok: false; error: BridgeError };
+
+export const orderingNoticeSchema = z.object({
+  vado: z.literal(BRIDGE_PROTOCOL_VERSION),
+  type: z.literal("event"),
+  name: z.enum(["ordering.changed", "ordering.connection"]),
+  connected: z.boolean().optional(),
+});

@@ -52,6 +52,8 @@ export const ADMIN_PERMISSIONS = [
   "reports.read",
   "reports.manage",
   "audit.read",
+  "events.read",
+  "events.retry",
   "packages.read",
   "packages.upload",
   "packages.review",
@@ -84,6 +86,8 @@ export const ADMIN_ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[
     "emergency.disable",
   ],
   operator: [
+    "events.read",
+    "events.retry",
     "overview.read",
     "businesses.read",
     "businesses.manage",
@@ -131,6 +135,7 @@ export function isScopedRole(role: AdminRole): boolean {
  * hesabıdır ve yalnızca eski kayıtlarda görünür.
  */
 export const SYSTEM_ACTOR_LABELS: Record<string, string> = {
+  ordering: "Sipariş motoru",
   admin: "Ortak panel hesabı (2.3)",
   cli: "Komut satırı",
   anonymous: "Bilinmeyen hesap",

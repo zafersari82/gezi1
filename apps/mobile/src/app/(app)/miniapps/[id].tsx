@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { launchParams } from "@/features/miniapps/launch-params";
+import { launchParams, launchQr } from "@/features/miniapps/launch-params";
 import { MiniAppHost } from "@/features/miniapps/mini-app-host";
 import { useMiniApp } from "@/features/miniapps/queries";
 import { Button } from "@/ui/button";
@@ -28,5 +28,11 @@ export default function MiniAppScreen() {
       </View>
     );
   }
-  return <MiniAppHost miniApp={miniApp.data} launchParams={launchParams(id, launch)} />;
+  return (
+    <MiniAppHost
+      miniApp={miniApp.data}
+      launchParams={launchParams(id, launch)}
+      launchQr={launchQr(id, launch)}
+    />
+  );
 }

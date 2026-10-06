@@ -53,7 +53,7 @@ describe("yönetim uçlarında yetki", () => {
   afterAll(() => app.stop());
 
   it("bütün yönetim uçları erişimini bildirir; panelin kullandığı uçların hepsi listededir", () => {
-    expect(routes.length).toBe(35);
+    expect(routes.length).toBe(37);
     const listed = app.adminRoutes.map((route) => `${route.method} ${route.url}`);
     for (const route of [
       "GET /v1/admin/overview",

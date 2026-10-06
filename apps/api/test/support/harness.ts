@@ -39,6 +39,9 @@ export interface LogEntry {
 export interface TestApp extends App {
   config: Config;
   db: DatabasePool;
+  platformDb: DatabasePool;
+  /** Yalnızca eski kayıt veya bozuk şema hazırlayan testlerin kurulum bağlantısı. */
+  migrationDb: DatabasePool;
   /** Demo modu kapalıyken "gönderilen" doğrulama kodları burada birikir. */
   sentSms: SentSms[];
   /** Sahte sağlayıcının "gönderdiği" anlık bildirimler burada birikir. */
@@ -111,11 +114,15 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
   const config = loadConfig({
     NODE_ENV: "test",
     DATABASE_URL: inject("databaseUrl"),
+    DATABASE_MIGRATE_URL: inject("databaseMigrateUrl"),
+    DATABASE_PLATFORM_URL: inject("databasePlatformUrl"),
     VADO_STORAGE_DIR: join(workDir, "storage"),
     VADO_PACKAGE_DIR: join(workDir, "package-store"),
     ...env,
   });
   const db = createDatabase(config.databaseUrl, 5);
+  const platformDb = createDatabase(config.databasePlatformUrl, 3);
+  const migrationDb = createDatabase(config.databaseMigrateUrl, 2);
   const sentSms: SentSms[] = [];
   const sentPush: PushMessage[] = [];
   const invalidPushTokens = new Set<string>();
@@ -126,6 +133,7 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
   const app = await buildApp({
     config,
     db,
+    platformDb,
     sms: {
       sendOtp(phone, code, purpose) {
         sentSms.push({ phone, code, purpose });
@@ -155,7 +163,9 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
     ...app,
     config,
     db,
+    platformDb,
     sentSms,
+    migrationDb,
     sentPush,
     invalidPushTokens,
     logs,
@@ -164,6 +174,8 @@ export async function startTestApp(env: Record<string, string> = {}): Promise<Te
     async stop() {
       await app.close();
       await db.close();
+      await platformDb.close();
+      await migrationDb.close();
       await rm(workDir, { recursive: true, force: true });
     },
   };
@@ -210,11 +222,7 @@ export async function createAdmin(
 
 /** Sahibiyle birlikte, yayında bir işletme oluşturur ve kimliğini döndürür. */
 export async function createBusiness(db: DatabasePool, name: string): Promise<string> {
-  const owner = await db.one<{ id: string }>(sql`
-    insert into users (phone, display_name, terms_version, terms_accepted_at)
-    values (${randomPhone()}, ${`${name} sahibi`}, 'test', now())
-    returning id
-  `);
+  const owner = await insertFixtureUser(db, `${name} sahibi`);
   const business = await db.one<{ id: string }>(sql`
     insert into businesses (owner_id, name, slug, category, city, verified, status)
     values (
@@ -228,13 +236,9 @@ export async function createBusiness(db: DatabasePool, name: string): Promise<st
 
 /** SMS doğrulamasına girmeden, adı ve az önce açılmış oturumu olan bir kullanıcı oluşturur. */
 export async function createUser(app: TestApp, name: string): Promise<TestUser> {
-  const phone = randomPhone();
+  const user = await insertFixtureUser(app.db, name);
+  const phone = user.phone;
   const token = randomToken();
-  const user = await app.db.one<{ id: string }>(sql`
-    insert into users (phone, display_name, terms_version, terms_accepted_at)
-    values (${phone}, ${name}, 'test', now())
-    returning id
-  `);
   const session = await app.db.one<{ id: string }>(sql`
     insert into sessions (user_id, token_hash, device_name, platform, verified_at, expires_at)
     values (
@@ -243,6 +247,21 @@ export async function createUser(app: TestApp, name: string): Promise<TestUser> 
     returning id
   `);
   return { id: user.id, phone, name, token, sessionId: session.id };
+}
+
+async function insertFixtureUser(
+  db: DatabasePool,
+  name: string,
+): Promise<{ id: string; phone: string }> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const phone = randomPhone();
+    const row = await db.maybeOne<{
+      id: string;
+    }>(sql`insert into users(phone,display_name,terms_version,terms_accepted_at)
+      values(${phone},${name},'test',now()) on conflict(phone) do nothing returning id`);
+    if (row !== null) return { id: row.id, phone };
+  }
+  throw new Error("Test kullanıcısı için benzersiz telefon üretilemedi");
 }
 
 /** İki kullanıcıyı doğrudan birbirinin kişisi yapar. */

@@ -32,10 +32,12 @@ async function main(): Promise<void> {
   const config = loadConfig();
 
   const db = createDatabase(config.databaseUrl, 2);
+  const platformDb = createDatabase(config.databasePlatformUrl, 2);
   try {
     const context: AppContext = {
       config,
       db,
+      platformDb,
       log: { info: () => undefined, warn: () => undefined, error: () => undefined },
       keys: createAppKeys(config.keys),
       storage: await createLocalStorage(config.storageDir, config.publicUrl),
@@ -43,7 +45,14 @@ async function main(): Promise<void> {
       sms: { sendOtp: () => Promise.resolve() },
       // Komut satırından bildirim gönderilmez.
       push: { send: (messages) => Promise.resolve(messages.map(() => "sent" as const)) },
-      realtime: { emit: () => undefined, disconnectSession: () => undefined },
+      realtime: {
+        emit: () => undefined,
+        emitBusiness: () => undefined,
+        emitBusinessLive: () => undefined,
+        emitKitchen: () => undefined,
+        disconnectKitchenDevice: () => undefined,
+        disconnectSession: () => undefined,
+      },
     };
     const report = await createServices(context).packages.verifyStore();
 
@@ -65,6 +74,7 @@ async function main(): Promise<void> {
     console.log("Paket deposu veritabanıyla tutarlı.");
   } finally {
     await db.close();
+    await platformDb.close();
   }
 }
 

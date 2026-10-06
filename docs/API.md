@@ -5,6 +5,24 @@ tanımı kodda, `packages/contracts/src` içindeki şemalardadır; aşağıdaki 
 yanında o şemanın ya da tipin adı yazar. Mobil uygulama ve panel aynı tanımları kullandığı için
 belge ile kod arasında fark görürseniz doğru olan koddur.
 
+## Business canlı bağlantısı
+
+| Uç                                            | Gövde                    | Yanıt                  | Erişim                                |
+| --------------------------------------------- | ------------------------ | ---------------------- | ------------------------------------- |
+| `POST /v1/business/:businessId/socket-ticket` | Boş nesne veya boş gövde | `BusinessSocketTicket` | VADO oturumu ve etkin işletme üyeliği |
+
+Bilet, `ticket`, `expiresAt`, `socketUrl` alanlarını taşır. Socket.IO el sıkışmasına
+`auth: { businessTicket: ticket }` verilir; VADO belirteci birlikte gönderilmez.
+Bir bilet tek kez ve 60 saniye içinde kullanılabilir. Bağlantı en çok beş dakika
+açık kalır; oturum daha önce biterse bağlantı da kapanır. Çıkış açık soketi kapatır.
+`business:order`, `BusinessOrderEvent` biçimindedir: olay, işletme ve sipariş kimliği,
+sıra numarası, `order.placed` veya `order.status_changed` türü. Alıcı güncel üyelikle
+seçilir; bağlantı kurulduğunda veya yeniden kurulduğunda sipariş listesi okunmalıdır.
+
+Business'ın `/api/auth/*`, `/api/selection` ve `/api/business/*` yolları Next.js
+sunucusunun vekil yollarıdır. Oturum çerezden okunur; değişiklik isteğinde tam Origin
+denetlenir. İşletme kimliği doğrulanmış seçimden gelir; vekil yol ve sorguları sınırlıdır.
+
 ## Genel kurallar
 
 - **Adres:** geliştirmede `http://localhost:4000`. Tüm uç noktalar `/v1` ile başlar.
@@ -13,7 +31,7 @@ belge ile kod arasında fark görürseniz doğru olan koddur.
 - **Oturum:** girişten sonra dönen belirteç her istekte `Authorization: Bearer <belirteç>` başlığıyla
   gönderilir. Belirteç istemeyen uç noktalar yalnızca kod isteme, kod doğrulama, `/health`,
   yüklenmiş dosyaların adresleri (`/media/…`) ve yayındaki mini uygulamaların sarmalayıcı belgesi
-  ile paket dosyalarıdır (`/apps/…`). Yönetim uç noktaları belirteç yerine yönetici anahtarı ister.
+  ile paket dosyalarıdır (`/apps/…`). Yönetim uç noktaları panel hesabının belirtecini ve panel sunucusunun yönetici anahtarını birlikte ister. İşletme uçları sıradan VADO oturumu ve işletme üyeliğini doğrular; `/v1/capabilities` açık manifest sözleşmesidir.
 - **Kimlikler** UUID'dir (mini uygulama, paket ve satıcı kimlikleri hariç; onlar `randevu` gibi
   kısa adlardır). **Zamanlar** ISO 8601 biçiminde ve UTC'dir. **Tutarlar** kuruş cinsinden tam sayıdır
   (`65000` = 650,00 TL); tek para birimi `TRY`'dir.
@@ -50,7 +68,7 @@ Durum kodları: 400 geçersiz istek, 401 oturum yok ya da geçersiz, 403 yetki y
 
 ### Sağlık denetimi
 
-`GET /health` veritabanına ulaşabiliyorsa `{ "status": "ok", "version": "2.3.0" }` döndürür.
+`GET /health` veritabanına ulaşabiliyorsa `{ "status": "ok", "version": "2.6.0" }` döndürür.
 
 ## Giriş ve oturumlar
 
@@ -117,7 +135,7 @@ Durum kodları: 400 geçersiz istek, 401 oturum yok ya da geçersiz, 403 yetki y
   bağlanır. Aynı adres başka bir oturumda kayıtlıysa oradan alınır. Çıkışta ve oturum kapatılınca
   silinir. Ayarlar: `pushMessages` (yeni mesaj bildirimi, varsayılan açık) ve `pushPreview`
   (bildirimde gönderen ve metin, varsayılan kapalı). Yeni cihazdan giriş bildirimi kapatılamaz.
-  Bildirimin `data` alanı `{ type: "message", conversationId }` ya da `{ type: "new_device" }`
+  Bildirimin `data` alanı `{ type: "message", conversationId, eventId }` ya da `{ type: "new_device", eventId }`
   biçimindedir (`pushDataSchema`).
 
 ## Kişiler
@@ -558,3 +576,198 @@ curl -s -X POST $API/v1/conversations/SOHBET/messages \
   -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"kind":"text","clientId":"ornek-0001","body":"Merhaba"}'
 ```
+
+## 2.6 ilk aşama: işletme bağlamı
+
+Bu uçlar panel anahtarı yerine kullanıcının kendi VADO oturumunu kullanır. Sahip ve yönetici
+şubeleri, çalışma saatlerini ve uygulama örneklerini yönetir; personel şubeleri okuyabilir.
+Üyelik ekleme veya kapatma yalnızca sahibin yetkisidir. Sahip üyeliğinin kimliği ve rolü
+veritabanında da korunur.
+
+| Yöntem    | Yol                                           | İşlem                                             |
+| --------- | --------------------------------------------- | ------------------------------------------------- |
+| GET       | `/v1/business/memberships`                    | Kendi etkin üyelikleriniz                         |
+| GET, PUT  | `/v1/business/:businessId/members`            | Üyeleri listeleme ve sahip tarafından güncelleme  |
+| GET, POST | `/v1/business/:businessId/branches`           | Şubeler                                           |
+| PUT       | `/v1/business/:businessId/branches/:id`       | Şube güncelleme                                   |
+| GET, PUT  | `/v1/business/:businessId/branches/:id/hours` | Haftalık çalışma aralıkları                       |
+| GET, POST | `/v1/business/:businessId/app-instances`      | Mevcut uygulama-satıcı kaydına bağlı motor örneği |
+| POST      | `/v1/shell/business-context`                  | Kabuk için doğrulanmış işletme ve müşteri bağlamı |
+
+Saat aralığı `weekday` (0=Pazartesi), `opensAt`, `closesAt` alanları taşır; saatler günün
+başından itibaren dakikadır. Geceyi aşan kapanış 1440'tan büyük olabilir; süre en çok 24 saattir.
+Hafta sınırında da çakışma reddedilir. Şubenin IANA saat dilimi ayrıca saklanır.
+
+Kabuk bağlamı `{businessId, appInstanceId}` alır; kalıcı, rastgele `businessCustomerId` döndürür.
+Aynı işletmede farklı uygulama örnekleri aynı müşteri kimliğini kullanır. Başka işletmede kimlik
+farklıdır; hesap silinince kullanıcıyla bağı kopar. Üyelik veya uygulama örneği başka işletmeye
+aitse erişim verilmez. Müşteri bağlamı yalnızca etkin, doğrulanmış işletme ve yayımlanmış,
+satıcı bağı etkin mini uygulama için kurulabilir.
+
+## 2.6 ikinci aşama: ortak katalog
+
+Tutarlar kuruş, `vatBasisPoints` yüzde biriminin yüzde biridir (1000=%10). Para birimi TRY'dir.
+Şube fiyatı varsa genel fiyatın önüne geçer. KDV, seçenek tutarları dahil satırın toplamından
+ayrılır ve satır başına en yakın kuruşa yuvarlanır; hesap BigInt ile yapılır. Aynı satırın
+seçenekleri ürünün KDV oranını kullanır. İstek içindeki fiyat sipariş için yetkili kaynak değildir.
+
+| Yöntem | Yol                                                        | İşlem                              |
+| ------ | ---------------------------------------------------------- | ---------------------------------- |
+| GET    | `/v1/business/:businessId/catalog`                         | İşletmenin bütün kataloğu          |
+| POST   | `/v1/business/:businessId/catalog/categories`              | Kategori oluşturma                 |
+| PUT    | `/v1/business/:businessId/catalog/categories/:id`          | Kategori güncelleme                |
+| POST   | `/v1/business/:businessId/catalog/items`                   | Ürün ve ilk fiyat                  |
+| PUT    | `/v1/business/:businessId/catalog/items/:id`               | Ürün ve fiyat güncelleme           |
+| PUT    | `/v1/business/:businessId/catalog/items/:id/prices`        | Genel veya şube fiyatı             |
+| POST   | `/v1/business/:businessId/catalog/option-groups`           | Seçenek grubu ve seçenekler        |
+| PUT    | `/v1/business/:businessId/catalog/option-groups/:id`       | Grubu güncelleme                   |
+| PUT    | `/v1/business/:businessId/catalog/items/:id/option-groups` | Ürünün grup bağları                |
+| POST   | `/v1/business/:businessId/catalog/quote`                   | Güncel fiyat görüntüsü             |
+| GET    | `/v1/shell/:businessId/:appInstanceId/catalog?branchId=…`  | Doğrulanmış kabuk müşteri kataloğu |
+
+Ürün, kategori, fiyat, grup, seçenek ve bütün bağlar aynı işletmeye ait olmalıdır. Yönetim
+sahip ve yöneticidedir; personel okuyabilir. Müşteri yalnızca etkin ürünleri ve bu ürünlerde
+kullanılan etkin seçenekleri görür. Başka işletmenin şubesi veya kaydı bağlamda kullanılamaz.
+Grup güncellerken mevcut seçenekler `id` ile gönderilir; gönderilmeyenler kapatılır, kimlikleri
+başka gruba taşınmaz. `minSelected` zorunlu seçim sayısı, `maxSelected` üst sınırdır. Doğrudan
+SQL'de de zorunlu grubun yeterli etkin seçeneği olması gerekir.
+
+Fiyat görüntüsü gövdesi `{branchId, lines:[{itemId, quantity, optionIds}]}` biçimindedir.
+Yanıt satırların bulunurluğunu, seçenekleri, birim fiyatlarını, toplam ve KDV'yi taşır. Eksik
+zorunlu seçim veya kapalı ürün `available:false` olur. Bir fiyat görüntüsü işlemi sürerken
+katalog fiyatları ve bağları değiştirilemez; doğrudan SQL de aynı kilit kuralına uyar.
+
+## 2.6 olay teslimi
+
+| Uç                                       | İzin / yanıt                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /v1/admin/events/dead`              | `events.read`; `listOf(deadEventSchema)`, yalnızca kimlik ve teslim metadata'sı |
+| `POST /v1/admin/events/:queue/:id/retry` | `events.retry`; `queue` tenant/platform, gövdesiz 204 ve denetim kaydı          |
+
+Yeni push verisi önceki `message` / `new_device` alanlarına UUID `eventId` ekler; eski
+istemci verisi sözleşmede uyumluluk için kabul edilir. Aynı olay yeniden gönderilebilir.
+Tekrar yardımcısı 24 saatlik anahtarı işletme + uygulama örneği + müşteri + işlemle
+bağlar; aynı gövdeye ilk HTTP yanıtı, farklı gövdeye `409 idempotency_conflict` döner.
+Sepet checkout ucu bu yardımcıyı kullanır.
+
+## 2.6 sunucuda sepet ve sipariş
+
+Kabuk yollarının kökü `/v1/shell/:businessId/:appInstanceId`; oturum kabukta kalır.
+`POST /v1/shell/business-context` isteğine seçili `miniAppId` de eklenebilir;
+eşleşmeyen örnek `business_not_found` alır.
+
+| Yöntem | Kök altındaki yol     | Gövde / yanıt                                                          |
+| ------ | --------------------- | ---------------------------------------------------------------------- |
+| POST   | `/carts`              | `{branchId, fulfilment:"pickup"}` → `Cart`                             |
+| GET    | `/carts/:id`          | Güncel katalogdan yeniden hesaplanmış `Cart`                           |
+| PUT    | `/carts/:id`          | `{expectedVersion,lines:[{itemId,quantity,optionIds}]}`                |
+| POST   | `/carts/:id/checkout` | `Idempotency-Key` + `{cartVersion,seenTotalMinor,quoteHash}` → `Order` |
+| GET    | `/orders/:id`         | Müşterinin kendi sipariş görüntüsü ve geçmişi                          |
+
+Düzenleme çakışması `409 cart_version_conflict`, checkout değişimi
+`409 cart_changed` döndürür; `error.details.cart` güncel sepeti taşır. KDV, seçenek
+fiyatı, bulunurluk veya satır adı toplam aynı kalsa bile `quoteHash` ile karşılaştırılır.
+Yeni onay yeni tekrar anahtarıyla gönderilir. Aynı anahtar/gövde ilk HTTP yanıtını
+(tekrar eden 409 dahil) döndürür; farklı gövde `idempotency_conflict` alır.
+
+İşletme yolları: `GET /v1/business/:businessId/orders` (cursor, limit, status,
+virgülle ayrılmış `statuses`, `active=true|false`),
+`GET /v1/business/:businessId/orders/:id`,
+`PUT /v1/business/:businessId/orders/:id/status` (`{expectedVersion,status}`).
+
+Sipariş süzgeçleri SQL'de **sayfalama öncesinde** uygulanır. Birlikte verilen
+`status`, `statuses` ve `active` koşullarının kesişimi alınır. `active=true` bitiş
+durumlarını dışarıda bırakır; `active=false` yalnız bitiş durumlarını döndürür.
+`statuses` 1–20 benzersiz durum ister. Business, aktif liste ve manifestin hazırlık
+kuyruğu için bu sorguları kullanır; canlı yenilemede yüklenen sayfaları yeniden okur.
+Sahip, yönetici ve personel kendi işletmelerinde okuyup durum değiştirebilir.
+Çakışma `order_version_conflict`, yasak geçiş `order_state_invalid` olur.
+
+SDK `vado.ordering.getCatalog/openCart/getCart/replaceCart/checkout/getOrder`
+yalnızca köprüyü kullanır. Parametreler işletme, uygulama veya oturum içermez.
+`replaceCart` sonucu `type:cart|cart_conflict`, checkout sonucu
+`type:order|cart_changed` ile güncel sepeti veya siparişi taşır.
+
+## 2.6 yetenek sözleşmesi
+
+`GET /v1/capabilities` oturumsuz, veri içeren `{engines,packages}` sözleşmesi
+döndürür. Her kayıt `id`, `version`, `engine`, `dependsOn`, `configSchema`,
+`defaults`, `permissions`, `events`, `stateMachine`, `api`, `customerBlocks`,
+`businessBlocks`, `validation` taşır. `configSchema` depodaki Zod şemasından
+üretilir; müşteri blokları 2.6'da boştur.
+
+İşletme: `GET /v1/business/:businessId/app-instances/:id/capabilities`;
+`PUT /v1/business/:businessId/app-instances/:id/capabilities/:capabilityId`
+gövdesi `{version,enabled,config}`. Okuma sahip/yönetici/personel, değişiklik
+sahip/yöneticidir. Yanıt örnek bağlamını, ayarları, sürümlü paket kimliklerini,
+birleştirilmiş durum grafiğini ve işletme bloklarını verir. Yanlış sürüm,
+bağımlılık veya ayar `validation_failed` olur.
+
+Deneme paketi `ordering.preparation`, sürüm `1.0.0`, ayarı
+`{stationLabel:"Hazırlık"}` (1–40 karakter). Kabulden sonra hazırlanıyor → hazır
+→ tamamlandı ekler; iptal kenarları korunur. Sipariş `capabilities` alanında
+`ordering.preparation@1.0.0` görüntüsü saklar. Paket kapansa da sipariş bu
+akışla biter; yeni sipariş çekirdek akışını kullanır.
+
+## 2.7 restoran, mutfak ve ortak tablet
+
+`POST /v1/shell/:businessId/:appInstanceId/carts/:id/reset`, `{expectedVersion}`
+alır; müşteri/işletme/örnek yalıtımı ve CAS ile açık sepeti `expired` yapar.
+Geçersiz teslim saati bırakmayı engellemez. Aynı bırakma tekrarında aynı son sürüm
+döner; checkout olmuş sepet `cart_closed`, eski sürüm `cart_version_conflict`
+(döndürülen güncel sepet ile) verir. SDK `ordering.resetCart` sonucu
+`type:cart|cart_conflict` taşır.
+
+Sipariş özeti ve ayrıntısı sunucudan çözülmüş `tableLabel: string|null` taşır;
+müşteri ve dar mutfak cihazı için aynı kapsam filtreleri geçerlidir. Sıfır toplam
+`paymentStatus:paid`, `paymentVersion:0` taşır; tahsilat kaydı gerektirmez.
+
+Shell kökü `/v1/shell/:businessId/:appInstanceId`; müşterinin kendi işletme kimliği
+sunucuda çözülür. İşletme kökü `/v1/business/:businessId`; her işlem güncel üyeliği
+doğrular. Şemalar `@vado/contracts` kaynağındadır; bilinmeyen/gereksiz yetki alanı
+kabul edilmez. Katalogda `includeUnavailable` ve teslim zamanı `at` sorgusu vardır.
+
+| Kök         | Yöntem / yol                                                     | İşlev                                                     |
+| ----------- | ---------------------------------------------------------------- | --------------------------------------------------------- |
+| Shell       | `GET /restaurant`                                                | İşletme/örnek, şubeler, açık durumu ve restoran paketleri |
+| Shell       | `GET /fulfilment-slots?branchId=…`                               | Yerel çalışma/prep/istisnaya uygun zamanlar               |
+| Shell       | `GET /orders`                                                    | Yalnız müşterinin kendi sipariş geçmişi                   |
+| Shell       | `POST /table-sessions`                                           | `{qr}` ham imzasını doğrulayarak masaya katılma           |
+| Shell       | `GET /table-sessions/:id`                                        | Kendi katılımının açık/kapalı durumu                      |
+| Shell       | `GET /table-sessions/:id/bill`                                   | Yalnız kendi tutarı, ödenen ve kalan                      |
+| Shell       | `POST /table-sessions/:id/requests`                              | Idempotency-Key + `{kind:"waiter"                         | "bill"}` |
+| Her iki kök | `GET /live-events?cursor=…`                                      | Kapsama göre kalıcı olay imleci                           |
+| İşletme     | `GET /kitchen-queue`                                             | FIFO aktif işler; instance/branch/cursor süzgeci          |
+| İşletme     | `POST /orders/:id/accept`                                        | `{expectedVersion,preparationMinutes}`                    |
+| İşletme     | `POST /orders/:id/reject`                                        | `{expectedVersion,reason}`                                |
+| İşletme     | `POST /orders/:id/payment`                                       | `{expectedPaymentVersion,place,method}`                   |
+| İşletme     | `GET /tables`, `POST /tables`, `PUT /tables/:id`                 | Masa yönetimi; güncelleme expectedVersion ister           |
+| İşletme     | `POST /tables/:id/qr`                                            | İmzalı masa/şube/örnek QR                                 |
+| İşletme     | `GET /table-requests`, `POST /table-requests/:id/resolve`        | Çağrılar ve expectedVersion ile karşılandı                |
+| İşletme     | `GET /table-sessions/:id/bill`, `POST /table-sessions/:id/close` | Birleşik hesap; kapanış expectedVersion ister             |
+| İşletme     | `GET /kitchen-devices`, `POST /kitchen-devices`                  | Cihazlar; onay `{code,label,branchId,appInstanceId}`      |
+| İşletme     | `POST /kitchen-devices/:id/revoke`                               | Cihaz ve açık bağlantısını kapatma                        |
+
+Sepet açma `{branchId,fulfilment,tableSessionId,scheduledAt}` alır; satırlara `note`
+eklenir. Mutfak kabulü 1–240 dakika, ret en az üç karakter ister. Sipariş
+`estimatedReadyAt`, `preparationMinutes`, `rejectionReason`, ayrı `paymentVersion`
+ve `paymentStatus` taşır. `place` table/counter, `method` cash/card; card fiziksel
+POS'tur. Online ödeme bu ucu kullanmaz. Ödeme ek kayıtla atomik tutulur.
+
+Kişisel giriş gerektirmeyen `POST /v1/kitchen-pairings` kısa kod ve gizli poll değeri
+verir; `POST /v1/kitchen-pairings/:id/poll` yalnız o gizli değerle sonuç alınmasını
+sağlar. Gizli değer Business BFF'de HttpOnly çerezdedir. Cihaz bearer ile `/v1/kitchen`
+altında `GET /device`, `/queue`, `/orders`, `/orders/:id`, `/live-events`;
+`POST /orders/:id/accept`, `/reject`, `PUT /orders/:id/status`, `POST /socket-ticket`
+kullanır. Kapsam cihaz kaydından gelir; istemci başka şube/örnek seçemez. Tahsilat,
+ürün/ayar erişimi yoktur. Cihaz ve şube/işletme durumu her işlemde yeniden denetlenir.
+
+Şube işletme kökünde `GET/PUT /branches/:id/ordering-settings`,
+`GET/PUT /branches/:id/hours-exceptions` (yazma gövdesinde tarih),
+`GET /branches/:id/availability`,
+`PUT /catalog/items/:id/availability` (gövdede şube),
+`GET/PUT /catalog/items/:id/menu-windows` ve
+`GET/PUT /catalog/categories/:id/menu-windows` (sorgu/gövdede şube) uçları vardır. Değişiklikler beklenen sürümle
+uygulanır. [RESTORAN_2.7.md](RESTORAN_2.7.md) ve gerçek rota/şema kaynağı kurulumu
+tamamlar. `GET /v1/capabilities` yeni dört paketin tipli manifestinden üretilen
+ayar şeması, uçlar, olaylar ve arayüz bloklarını yayımlar.

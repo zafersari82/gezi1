@@ -29,6 +29,7 @@ import {
 } from "./core/http";
 import { createAppKeys } from "./core/keys";
 import { APPS_ROUTE_PREFIX, createPackageUrls } from "./core/package-urls";
+import { verifyDatabaseRoles } from "./core/platform-scope";
 import { safeEqual } from "./core/security";
 import { createLocalPackageStore } from "./providers/package-store";
 import { createPushProvider, type PushProvider } from "./providers/push";
@@ -38,13 +39,14 @@ import { createRealtime } from "./realtime/realtime";
 import { registerRoutes } from "./routes";
 import { createServices, type Services } from "./services";
 
-export const API_VERSION = "2.5.0";
+export const API_VERSION = "2.7.0";
 
 const JSON_BODY_LIMIT_BYTES = 100_000;
 
 export interface AppOptions {
   config: Config;
   db: Database;
+  platformDb: Database;
   /** Verilmezse yapılandırmadaki sağlayıcı kullanılır; testler sahte sağlayıcı verir. */
   sms?: SmsProvider;
   /** Verilmezse yapılandırmadaki bildirim sağlayıcısı kullanılır; testler sahtesini verir. */
@@ -63,7 +65,15 @@ export interface App {
 }
 
 /** Uygulamayı kurar; dinlemeye başlamaz. Testler ve `main.ts` aynı kurulumu kullanır. */
-export async function buildApp({ config, db, sms, push, log }: AppOptions): Promise<App> {
+export async function buildApp({
+  config,
+  db,
+  platformDb,
+  sms,
+  push,
+  log,
+}: AppOptions): Promise<App> {
+  await verifyDatabaseRoles(db, platformDb);
   const packageUrls = createPackageUrls(config.publicUrl, config.appsOrigin);
   const server = Fastify({
     logger: config.env === "test" ? false : loggerOptions(config.logLevel),
@@ -89,6 +99,7 @@ export async function buildApp({ config, db, sms, push, log }: AppOptions): Prom
     allowedHeaders: [
       "authorization",
       "content-type",
+      "idempotency-key",
       ADMIN_KEY_HEADER,
       ADMIN_CLIENT_IP_HEADER,
       ADMIN_CLIENT_AGENT_HEADER,
@@ -121,6 +132,7 @@ export async function buildApp({ config, db, sms, push, log }: AppOptions): Prom
   const context: AppContext = {
     config,
     db,
+    platformDb,
     log: log ?? server.log,
     keys: createAppKeys(config.keys),
     storage,
@@ -189,11 +201,18 @@ export async function buildApp({ config, db, sms, push, log }: AppOptions): Prom
   server.addHook("preClose", () => {
     realtime.disconnectAll();
   });
-  server.addHook("onClose", () => realtime.close());
+  server.addHook("onClose", async () => {
+    await services.events.stop();
+    await services.notifications.idle();
+    await realtime.close();
+  });
 
   await server.ready();
   await realtime.start(server.server, {
     authenticate: services.auth.authenticate,
+    authenticateKitchenTicket: (ticket) => services.kitchenDevices.consumeTicket(ticket),
+    isKitchenDeviceActive: (id) => services.kitchenDevices.isActive(id),
+    authenticateBusinessTicket: services.businessSockets.consume,
     typingRecipients: services.chat.typingRecipients,
   });
 

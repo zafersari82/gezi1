@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { idSchema } from "./common";
+import { miniAppIdSchema } from "./miniapps";
 
 /** Telefonun bildirim adresi: Expo'nun ürettiği push belirteci (`ExponentPushToken[…]`). */
 export const PUSH_TOKEN_PATTERN = /^(Expo|Exponent)PushToken\[[A-Za-z0-9_-]{1,200}\]$/;
@@ -27,8 +28,16 @@ export type UpdateNotificationSettingsBody = z.infer<typeof updateNotificationSe
 
 /** Bildirimin taşıdığı veri; telefon bildirime dokunulunca hangi ekranı açacağını buradan bilir. */
 export const pushDataSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("message"), conversationId: idSchema }),
-  z.object({ type: z.literal("new_device") }),
+  z.object({ type: z.literal("message"), conversationId: idSchema, eventId: idSchema.optional() }),
+  z.object({ type: z.literal("new_device"), eventId: idSchema.optional() }),
+  z.object({
+    type: z.literal("order"),
+    miniAppId: miniAppIdSchema,
+    businessId: idSchema,
+    appInstanceId: idSchema,
+    orderId: idSchema,
+    eventId: idSchema,
+  }),
 ]);
 export type PushData = z.infer<typeof pushDataSchema>;
 

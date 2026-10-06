@@ -53,6 +53,7 @@ bekler. İlk çalıştırmada imajlar indirildiği için birkaç dakika sürebil
 ## 4. Tabloları ve örnek veriyi yükleyin
 
 ```bash
+DATABASE_BOOTSTRAP_URL=postgres://postgres:vado@localhost:5432/vado npm run db:roles
 npm run db:seed
 ```
 
@@ -78,15 +79,16 @@ değiştirdiyseniz yeniden çalıştırdığınızda yeni hâli bir sonraki sür
 npm run dev
 ```
 
-Üç parça birlikte başlar ve terminal açık kaldığı sürece çalışır:
+Dört parça birlikte başlar ve terminal açık kaldığı sürece çalışır:
 
 | Parça               | Adres                 |
 | ------------------- | --------------------- |
 | API                 | http://localhost:4000 |
-| Yönetim paneli      | http://localhost:3000 |
+| VADO Control        | http://localhost:3000 |
+| VADO Business       | http://localhost:3001 |
 | Örnek mini uygulama | http://localhost:5173 |
 
-Tarayıcıda http://localhost:4000/health adresini açın; `{"status":"ok","version":"2.3.0"}` yazısını
+Tarayıcıda http://localhost:4000/health adresini açın; `{"status":"ok","version":"2.6.0"}` yazısını
 görüyorsanız API çalışıyor demektir.
 
 ## 6. Uygulamayı açın
@@ -139,7 +141,7 @@ tuşuna basmanız yeterlidir.
 
 ## 7. Yönetim panelini açın
 
-http://localhost:3000 adresine gidin. Geliştirme ortamında şifre sormaz. Buradan:
+http://localhost:3000 adresine gidin. Örnek `sahip` hesabıyla, `vado-gelistirme` parolası ve demo ikinci adım kodu `000000` ile giriş yapın. Buradan:
 
 - Uygulamadan yapılan işletme başvurularını onaylayabilir,
 - Mini uygulama paketlerini yükleyip inceleyebilir, işletmeler için uygulama kaydı açıp onaylı bir
@@ -176,7 +178,7 @@ Farklı bir kullanıcı adı, şifre veya port kullanıyorsanız `apps/api/.env.
 | Belirti                                            | Çözüm                                                                                                                                                                          |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run db:seed` "ECONNREFUSED" veriyor           | Veritabanı çalışmıyor. Docker Desktop'ın açık olduğunu kontrol edip `npm run db:up` çalıştırın.                                                                                |
-| `npm run dev` "address already in use" veriyor     | 4000, 3000 veya 5173 portunu başka bir program kullanıyor. O programı kapatın.                                                                                                 |
+| `npm run dev` "address already in use" veriyor     | 4000, 3000, 3001 veya 5173 portunu başka bir program kullanıyor. O programı kapatın.                                                                                           |
 | Uygulama "Sunucuya ulaşılamıyor" diyor             | `npm run dev` terminali kapalı ya da (telefonda) `npm run lan` çalıştırılmamış.                                                                                                |
 | Telefonda fotoğraflar veya mini uygulama açılmıyor | `npm run lan` çalıştırıp `npm run dev` terminalini yeniden başlatın.                                                                                                           |
 | "Çok fazla kod istendi" uyarısı                    | Aynı numaraya on dakikada beş koddan fazlası gönderilmez. Başka bir örnek numarayla deneyin.                                                                                   |
@@ -192,3 +194,28 @@ dosyalardadır:
 - `apps/mobile/.env.example`: uygulamanın bağlanacağı API adresi
 
 Canlı ortama kurulum için [YAYIN.md](YAYIN.md) belgesine bakın.
+
+## 2.6 veritabanı başlangıcı
+
+Yerel PostgreSQL yöneticisi yeni Compose kurulumunda `postgres`, geliştirme parolası `vado`dur.
+`DATABASE_BOOTSTRAP_URL=postgres://postgres:vado@localhost:5432/vado npm run db:roles`
+komutunu bir kez çalıştırın; sonra `npm run db:migrate` ve `npm run db:seed` kullanın.
+API `vado_app`, şema `vado_owner`, platform işleri `vado_platform` ile bağlanır. Yerel örnek
+parolaları canlıda kullanmayın. Testler ayrı geçici veritabanı açar; yönetici bağlantısını
+`DATABASE_TEST_ADMIN_URL` ile verin (varsayılan yerel `postgres` hesabıdır).
+
+## VADO Business'ı açın
+
+`npm run dev` açıkken `http://localhost:3001` adresine gidin. Mevcut VADO telefon
+hesabıyla giriş yapıp işletmenizi seçin. Örnek veride Mehmet'in `0555 000 00 02`
+hesabı işletme sahibidir; demo kodu `000000` olur. Yeni şube ve ürünleri buradan
+ekleyebilirsiniz. Uygulama örneğinin kurulması ve paket ayarları için
+[BUSINESS.md](BUSINESS.md) belgesini okuyun. Canlı yayında Business sunucusunun iç API
+adresini ve tam HTTPS adresini `apps/business/.env.example` üzerinden tanımlayın.
+
+## Restoranı açmak (2.7)
+
+`npm run dev -w @vado/miniapp-restaurant` yerel geliştirme sunucusunu açar. Üretimde
+`npm run build -w @vado/miniapp-restaurant` ile paketlenip Control'da ayrı hesapla
+onaylanan sürümü kullanın; [RESTORAN_2.7.md](RESTORAN_2.7.md) kurulum adımlarını,
+[YAYIN.md](YAYIN.md#26dan-27ye-geçiş-ve-geri-dönüş) geçiş/geri dönüşü anlatır.

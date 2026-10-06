@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { launchParams, rememberLaunch } from "@/features/miniapps/launch-params";
+import { launchParams, launchQr, rememberLaunch } from "@/features/miniapps/launch-params";
 
 describe("QR açılış parametreleri", () => {
   it("okutulan kodun parametreleri yalnızca açılış anahtarıyla ve aynı kayıt için okunur", () => {
@@ -23,4 +23,11 @@ describe("QR açılış parametreleri", () => {
     expect(launchParams("randevu", keys[0])).toEqual({ sira: "1" });
     expect(launchParams("randevu", keys[7])).toEqual({ sira: "8" });
   });
+});
+
+it("masa katılımı için ham QR yalnız aynı açılıştan alınır; parametre metni yerine geçmez", () => {
+  const key = rememberLaunch("restoran", { masa: "12" }, "imzali-qr");
+  expect(launchQr("restoran", key)).toBe("imzali-qr");
+  expect(launchQr("baska", key)).toBeNull();
+  expect(launchQr("restoran", rememberLaunch("restoran", { masa: "12" }))).toBeNull();
 });

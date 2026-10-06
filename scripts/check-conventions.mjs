@@ -128,7 +128,9 @@ const rules = [
     "Renk doğrudan yazılmaz; theme/tokens.ts içindeki adı kullan",
   ),
   lineRule(
-    (file) => file.path.startsWith("apps/portal/") && isCode(file),
+    (file) =>
+      (file.path.startsWith("apps/portal/") || file.path.startsWith("apps/business/")) &&
+      isCode(file),
     RAW_COLOR,
     "Renk doğrudan yazılmaz; app/globals.css içindeki değişkeni kullan",
   ),

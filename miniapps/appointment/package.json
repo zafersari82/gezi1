@@ -1,6 +1,6 @@
 {
   "name": "@vado/miniapp-appointment",
-  "version": "2.5.0",
+  "version": "2.7.0",
   "private": true,
   "description": "Örnek mini uygulama: VADO Randevu",
   "type": "module",
@@ -18,7 +18,7 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "@types/react-dom": "~19.2.3",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "6.1.1",
     "vite": "^8.3.2"
   }
 }

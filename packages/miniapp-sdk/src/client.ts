@@ -3,6 +3,7 @@ import type {
   BridgeConnect,
   BridgeErrorCode,
   BridgeMethod,
+  BridgeParams,
   BridgeRequest,
   BridgeResponse,
   BridgeResults,
@@ -55,6 +56,51 @@ interface PendingCall {
 }
 
 export interface Vado {
+  ordering: {
+    getRestaurant: () => Promise<BridgeResults["ordering.getRestaurant"]>;
+    getSlots: (
+      params: BridgeParams["ordering.getSlots"],
+    ) => Promise<BridgeResults["ordering.getSlots"]>;
+    joinTable: () => Promise<BridgeResults["ordering.joinTable"]>;
+    getTable: (
+      params: BridgeParams["ordering.getTable"],
+    ) => Promise<BridgeResults["ordering.getTable"]>;
+    getBill: (
+      params: BridgeParams["ordering.getBill"],
+    ) => Promise<BridgeResults["ordering.getBill"]>;
+    requestService: (
+      params: BridgeParams["ordering.requestService"],
+    ) => Promise<BridgeResults["ordering.requestService"]>;
+    getEvents: (
+      params: BridgeParams["ordering.getEvents"],
+    ) => Promise<BridgeResults["ordering.getEvents"]>;
+    listOrders: (
+      params: BridgeParams["ordering.listOrders"],
+    ) => Promise<BridgeResults["ordering.listOrders"]>;
+    onChange: (listener: () => void) => () => void;
+    onConnection: (listener: (connected: boolean) => void) => () => void;
+    getCatalog: (
+      params: BridgeParams["ordering.getCatalog"],
+    ) => Promise<BridgeResults["ordering.getCatalog"]>;
+    openCart: (
+      params: BridgeParams["ordering.openCart"],
+    ) => Promise<BridgeResults["ordering.openCart"]>;
+    getCart: (
+      params: BridgeParams["ordering.getCart"],
+    ) => Promise<BridgeResults["ordering.getCart"]>;
+    replaceCart: (
+      params: BridgeParams["ordering.replaceCart"],
+    ) => Promise<BridgeResults["ordering.replaceCart"]>;
+    resetCart: (
+      params: BridgeParams["ordering.resetCart"],
+    ) => Promise<BridgeResults["ordering.resetCart"]>;
+    checkout: (
+      params: BridgeParams["ordering.checkout"],
+    ) => Promise<BridgeResults["ordering.checkout"]>;
+    getOrder: (
+      params: BridgeParams["ordering.getOrder"],
+    ) => Promise<BridgeResults["ordering.getOrder"]>;
+  };
   /** Mini uygulama VADO içinde mi çalışıyor? Tarayıcıda doğrudan açıldığında `false` döner. */
   isAvailable: () => boolean;
   container: {
@@ -122,11 +168,39 @@ function frameParent(host: HostWindow): NonNullable<HostWindow["parent"]> | null
 
 export function createVado(host: HostWindow | undefined): Vado {
   const pending = new Map<string, PendingCall>();
+  const changes = new Set<() => void>();
+  const connections = new Set<(connected: boolean) => void>();
   let counter = 0;
   /** Kabuğa ileti gönderen işlev; ilk çağrıda kurulur. */
   let post: ((message: string) => void) | null = null;
 
   function onMessage(event: MessageEvent): void {
+    if (typeof event.data === "string") {
+      let notice: unknown;
+      try {
+        notice = JSON.parse(event.data);
+      } catch {
+        notice = null;
+      }
+      if (
+        typeof notice === "object" &&
+        notice !== null &&
+        "vado" in notice &&
+        notice.vado === PROTOCOL_VERSION &&
+        "type" in notice &&
+        notice.type === "event" &&
+        "name" in notice
+      ) {
+        if (notice.name === "ordering.changed") for (const listener of changes) listener();
+        if (
+          notice.name === "ordering.connection" &&
+          "connected" in notice &&
+          typeof notice.connected === "boolean"
+        )
+          for (const listener of connections) listener(notice.connected);
+        return;
+      }
+    }
     const response = parseResponse(event.data);
     if (response === null) return;
 
@@ -210,6 +284,37 @@ export function createVado(host: HostWindow | undefined): Vado {
     call(method, params, INTERACTIVE_TIMEOUT_MS);
 
   return {
+    ordering: {
+      getRestaurant: () => quick("ordering.getRestaurant"),
+      getSlots: (params) => quick("ordering.getSlots", params),
+      joinTable: () => quick("ordering.joinTable"),
+      getTable: (params) => quick("ordering.getTable", params),
+      getBill: (params) => quick("ordering.getBill", params),
+      requestService: (params) => quick("ordering.requestService", params),
+      getEvents: (params) => quick("ordering.getEvents", params),
+      listOrders: (params) => quick("ordering.listOrders", params),
+      onChange(listener) {
+        connect();
+        changes.add(listener);
+        return () => {
+          changes.delete(listener);
+        };
+      },
+      onConnection(listener) {
+        connect();
+        connections.add(listener);
+        return () => {
+          connections.delete(listener);
+        };
+      },
+      getCatalog: (params) => quick("ordering.getCatalog", params),
+      openCart: (params) => quick("ordering.openCart", params),
+      getCart: (params) => quick("ordering.getCart", params),
+      replaceCart: (params) => quick("ordering.replaceCart", params),
+      resetCart: (params) => quick("ordering.resetCart", params),
+      checkout: (params) => quick("ordering.checkout", params),
+      getOrder: (params) => quick("ordering.getOrder", params),
+    },
     isAvailable: () =>
       host !== undefined && (host.ReactNativeWebView !== undefined || frameParent(host) !== null),
     container: {

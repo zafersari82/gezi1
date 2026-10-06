@@ -1,5 +1,118 @@
 # Değişiklikler
 
+## 2.7.0 (2026-10-06)
+
+Son incelemede bulunan yedi üretim akışı düzeltildi: canlı menü/şube/saat
+yenileme, geçersiz saatli sepeti sunucuda bırakma, şube menüsü yükleme/kayıt
+yarışı, sıfır tutarlı masa hesabı, bildirimde doğru sipariş, ilk bağlantıda
+yeniden deneme ve mutfakta sunucudan doğrulanmış masa etiketi. Yeni sepet
+bırakma ucu SDK ve mobil köprüde müşteri kapsamı/CAS ile taşınır.
+
+Restoranın iç operasyonu tamamlandı: VADO müşteri mini uygulaması, imzalı masa QR'ı,
+zorunlu/sınırlı seçenekler ve not, saatli/tükenen menü, sunucu sepeti ve fiyat onayı,
+gel-al/ileri saat, canlı kabul/ret ve tahmini süre, garson/hesap, fiziksel tahsilat.
+Business'a gerçek tablet mutfağı, masa/çağrı/hesap ve ortak cihaz yönetimi eklendi.
+İlk dokunuş ses, Wake Lock durum/yenileme, kopma uyarısı, kalıcı olay imleci ve
+sürüm birleştirme vardır. Cihaz tek kullanımlık kısa kodla yönetici onayına bağlı,
+yalnız kendi şube/uygulama mutfağına yetkilidir; uzaktan soketi de kapanır.
+
+0014–0017, RLS/FORCE ve bileşik bağlarla şube/menü operasyonu, masa/tahsilat, cihaz
+ve kalıcı replay ekler. `ordering.table_service`, `ordering.kitchen`, `ordering.pickup`,
+`ordering.scheduling` manifestleri doğrulanan veri olarak yayımlanır; çekirdek
+bitiş durumları korunur. Online ödeme yoktur. Yayımlanmış 0001–0013 değişmedi.
+
+Tarayıcıda checkout yanıtı kaybolup yenilenince önceki siparişin gösterilmesi ve
+mutfak kuyruğunun en yeniyi önce getirmesi düzeltildi. QR taşıma ve yabancı bağlam
+koruma testleri genişletildi. Vite React eklentisi iki pakette 6.1.1'e sabitlendi;
+sürüm yalnız kendi alanlarımızda yükseltildi, kilit dosyası npm ile üretildi.
+Gerçek geri dönüşte eski 0012 işlevinin pg_restore arama yoluyla uyuşmazlığı bulundu;
+eski şema değiştirilmeden hedef işlevin arama yolu veri yüklemeden sabitlenir.
+
+Geçiş: yeni işlemleri durdurup yedek yöneticisiyle veritabanı ve iki dosya deposunu
+yedekleyin; üç rolü koruyup `vado_owner` ile 0014–0017'yi uygulayın. API/Business/kabuğu
+birlikte yükseltin, müşteri paketini ayrı incelemeyle yayımlayın. Geri dönüşte ayrı
+boş veritabanına bölümlü restore ve eski 2.6 kodunu kullanın. Tam adımlar
+[docs/YAYIN.md](docs/YAYIN.md#26dan-27ye-geçiş-ve-geri-dönüş), kurulum
+[docs/RESTORAN_2.7.md](docs/RESTORAN_2.7.md), kanıtlar ve gerçek Docker/fiziksel cihaz
+sınırları [docs/KABUL_2.7.md](docs/KABUL_2.7.md) içindedir.
+
+## 2.6.0 (2026-10-06)
+
+VADO Business eklendi: Next.js PWA, telefon/tablet/masaüstü düzeni; mevcut VADO
+hesabı ve işletme üyeliğiyle giriş; canlı siparişler, ürünler, şubeler ve JSON Schema
+ile paket ayarları. 0013, RLS ve FORCE ile tek kullanımlık kısa süreli soket biletini
+ekler. Güncel üyelikle teslim, oturum ömrüyle sınırlı bağlantı ve sınırlı bilet
+temizliği bulunur. Menü manifest verisinden gelir. Dockerfile, Compose, Nginx ve
+kurulum belgeleri Business için güncellendi.
+
+Son incelemede beş Business sorunu düzeltildi: ürünler arasında kirli seçenek
+seçiminin taşınması, ikinci grup kaydında seçeneklerin yeniden yaratılması, iki
+fiyat formunun eski fiyat/KDV'yi geri yazması, gecikmiş sipariş yanıtının yeni
+sürümü veya seçimi ezmesi, ilk yüz kaydın dışındaki aktif işin görünmemesi ve
+canlı yenilemede eski sayfaların kaybolması. Bunlar geciktirilen gerçek HTTP
+yanıtları ve yüzden fazla siparişle tarayıcıda önce başarısız, sonra başarılı
+senaryolarla doğrulandı. Kapsam nesnesi, dış teslim kaydı, checkout sürümü/tutarı
+ve SQL bilet tüketimi testleri genişletildi. Kilit dosyası paket yöneticisiyle
+üretildi; 1077 üçüncü taraf paket sürümü değişmedi.
+
+Geçiş: API süreçlerini durdurup veritabanı, medya ve paket deposunu yedekleyin;
+`npm run db:roles` ile üç rolü ve eski şema sahipliğini hazırlayın; `vado_owner`
+bağlantısıyla 0013’e kadar `npm run db:migrate` çalıştırın. Business adresini ve CORS
+listesini tanımlayıp servisleri açın. Geri dönüşte yükseltme öncesi yedeği ayrı
+veritabanına ve dosya depolarına geri yükleyip özgün 2.5 koduyla başlatın. 0001–0012
+dosyaları değişmedi. Deneme sonuçları ve Docker çalıştırma sınırı
+[docs/KABUL_2.6.md](docs/KABUL_2.6.md) belgesindedir.
+
+## 2.6.0-alpha.5 (2026-10-05)
+
+Beşinci ara sürüm: 0012 uygulama örneği yetenek ayarları, veri manifesti, Zod
+kaynağından JSON Schema ve `ordering.preparation` deneme paketi. Açık sözleşme
+Studio içindir; paket, sürüm, bağımlılık, ayar ve akış doğrulanır. SQL yalnızca
+bu sürümün incelenmiş grafiğini kabul eder. Başlamış siparişin akış görüntüsü
+paket kapansa da değişmez. İşletme üyelikleri her işlemde yeniden doğrulanır;
+silinen hesap SQL ile etkin üyeliğe geri bağlanamaz. Geçiş: yedek alın,
+`vado_owner` ile `npm run db:migrate` çalıştırın; 0001–0011 değişmedi.
+
+## 2.6.0-alpha.4 (2026-10-05)
+
+Dördüncü ara sürüm: 0011 sunucuda sepet, beklenen sürümle düzenleme, tek işlemde sipariş,
+değişmez fiyat/KDV görüntüsü ve çekirdek durum geçişleri. Geçmiş ve outbox olayı SQL
+tetikleyicisiyle birlikte yazılır. Kabuk ve SDK sipariş köprüsü işletme kapsamını
+kendisi ekler; müşteriye yeni ekran eklenmez. Terk edilen sepetler sınırlı platform
+bakımıyla temizlenir. Geçiş: yedek alın, `vado_owner` ile `npm run db:migrate`
+çalıştırın; önceki 0001–0010 dosyaları değişmedi.
+
+Düzeltilen (ara sürümün incelemesinde): sürüm yükseltilirken `package-lock.json` içindeki
+`@vitejs/plugin-react` paketinin kendi sürümü de yanlışlıkla `2.6.0-alpha.4` yapılmıştı; `npm ci`
+çalışmıyordu (`6.1.1`'e döndürüldü). Yedi dosya Prettier biçimine uymuyordu; `npm run check`
+biçim denetiminde düşüyordu (biçimlendirildi).
+
+## 2.6.0-alpha.3 (2026-10-05)
+
+Üçüncü ara sürüm: 0010 işletme ve platform olay kuyrukları, kısa kiralama, sıralı teslim,
+iç tüketici teslim kayıtları ve müşteriye bağlı 24 saatlik tekrar koruması. Sohbet ve yeni
+cihaz bildirimleri iş kaydıyla aynı SQL işleminde kalıcı olur. Ölü olaylar panelde görünür;
+yetkili yeniden deneme denetime yazılır. Mobilde kalıcı olay kimliği denetimi ve Expo
+birleştirme alanları, dış alıcılar için imzalı webhook vardır. Şema geçişi: yedek alın,
+`vado_owner` ile `npm run db:migrate` çalıştırın; eski dosyalar değişmedi. API yeniden
+başlarken önceki kuyrukları devralır. Dış teslimin tekrar edebileceği belgelenmiştir.
+
+## 2.6.0-alpha.2 (2026-10-05)
+
+İkinci ara sürüm: 0009 ortak katalog, kategori, ürün, seçenek grubu, seçenek, ürün-grup bağı ve
+şube fiyatları. Kuruş ve KDV hesabı satır başına, seçenekler dahil yapılır. Altı tablonun RLS,
+FORCE ve çapraz bağ korumaları gerçek uygulama rolüyle sınanır. Yükseltme: yedek alın,
+`vado_owner` bağlantısıyla `npm run db:migrate` çalıştırın. Önceki dosyalar değişmez.
+
+## 2.6.0-alpha.1 (2026-10-05)
+
+İlk ara sürüm: 0008 platform tabloları, zorunlu RLS/FORCE, ayrı veritabanı rolleri, VADO hesabıyla
+işletme üyelikleri, şubeler ve çalışma saatleri, kalıcı işletme müşterisi ve uygulama örnekleri.
+2.5 sahipleri üyeliğe dönüştürülür. Önce veritabanını yedekleyin; kurulum yöneticisiyle
+`npm run db:roles`, sonra `vado_owner` bağlantısıyla `npm run db:migrate` çalıştırın. API
+`vado_app`, platform işleri ayrı `vado_platform` bağlantısını kullanır. Geri dönüş yedekten
+yeni bir ortamda yapılır; adımlar docs/YAYIN.md içindedir.
+
 ## 2.5.0 (2026-10-05)
 
 Mini uygulamalar için sunucuda doğrulanabilen kimlik belirteci, panelden parametreli QR kodu,
@@ -535,3 +648,8 @@ Ayrıntılar: [docs/YOL_HARITASI.md](docs/YOL_HARITASI.md).
 ## 1.1.0 ve öncesi
 
 Önceki paketin değişiklik kaydı o paketin kendi `CHANGELOG.md` dosyasındadır.
+
+2.6.0-alpha.2 güvenlik düzeltmesi: ilk ara sürümün ardından eklenen yarış testi, hesap silindikten
+sonra geç kalan isteğin müşteri bağını yeniden kurabildiğini gösterdi. Koruma 0009'a eklendi;
+0008 değiştirilmedi. Bağ kurma ve silme aynı kullanıcı kilidini aynı sırayla alır. Silinmiş
+kullanıcıya doğrudan SQL ile bağ kurma da reddedilir.

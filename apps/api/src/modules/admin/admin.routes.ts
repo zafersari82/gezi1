@@ -4,6 +4,7 @@ import {
   adminUpdateReportBodySchema,
   adminUpdateUserBodySchema,
   pageQuerySchema,
+  retryEventParamsSchema,
 } from "@vado/contracts";
 import type { FastifyInstance } from "fastify";
 
@@ -17,6 +18,21 @@ import type { RouteContext } from "../../routes";
  */
 export function adminRoutes(server: FastifyInstance, { services, adminGuard }: RouteContext): void {
   const { admin } = services;
+
+  server.get("/v1/admin/events/dead", adminAccess("events.read"), async (request) => {
+    await adminGuard(request);
+    return { items: await admin.listDeadEvents() };
+  });
+  server.post(
+    "/v1/admin/events/:queue/:id/retry",
+    adminAccess("events.retry"),
+    async (request, reply) => {
+      const { actor } = await adminGuard(request);
+      const { queue, id } = parse(retryEventParamsSchema, request.params);
+      await admin.retryEvent(actor, queue, id);
+      return noContent(reply);
+    },
+  );
 
   server.get("/v1/admin/overview", adminAccess("overview.read"), async (request) => {
     await adminGuard(request);

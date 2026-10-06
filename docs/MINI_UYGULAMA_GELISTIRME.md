@@ -508,3 +508,18 @@ pencereden geldiğini kendisi bilir. Protokol sürümü değişirse `vado` alan�
 - [ ] Kullanıcıdan VADO'nun sormadığı kişisel bilgileri (telefon, adres) istiyorsanız kendi
       aydınlatma metninizi gösteriyorsunuz; bu verilerin sorumlusu sizsiniz
       (bkz. [TURKIYE_UYUM.md](TURKIYE_UYUM.md)).
+
+## Restoran sipariş köprüsü (2.7)
+
+SDK'da `ordering.getRestaurant`, `getSlots`, `joinTable`, `getTable`, `getBill`,
+`requestService`, `getEvents`, `listOrders` mevcut katalog/sepet/sipariş yöntemlerine
+eklenir; `onChange` ve `onConnection` canlı bildirim sağlar. Paket doğrudan API
+çağırmaz. Ham imzalı QR kabukta tutulur; `joinTable` onu kullanır, paket parametresi
+kullanmaz. Sipariş ve ödeme sürümleri bağımsız birleştirilir. Checkout anahtarı ve
+gövdesi kesin sonuç gelene kadar saklanır; `cart_changed` yeni fiyatın açık onayını
+ister. Gerçek örnek `miniapps/restaurant` klasöründedir.
+
+2.7 restoran paketinde `vado.ordering.resetCart({id, expectedVersion})` açık
+sepeti sunucuda bırakır (`cart` veya `cart_conflict`). Checkout anahtarı/gövdesi
+beklerken önce aynı checkout sonucu sorgulanmalıdır. `app.getContext().params.orderId`
+bildirim hedefidir; UUID doğrulaması ve kapsamlı `getOrder` ile açılmalıdır.

@@ -377,13 +377,15 @@ async function main(): Promise<void> {
   if (!URL.canParse(miniAppUrl)) {
     throw new StartupError(`VADO_SEED_MINIAPP_URL geçerli bir adres değil: ${miniAppUrl}`);
   }
-  await migrate(config.databaseUrl);
+  await migrate(config.databaseMigrateUrl);
 
   const db = createDatabase(config.databaseUrl, 2);
+  const platformDb = createDatabase(config.databasePlatformUrl, 2);
   try {
     const context: AppContext = {
       config,
       db,
+      platformDb,
       // Betik yalnızca kendi çıktısını yazar; servislerin günlük kayıtları gösterilmez.
       log: { info: () => undefined, warn: () => undefined, error: () => undefined },
       keys: createAppKeys(config.keys),
@@ -393,7 +395,14 @@ async function main(): Promise<void> {
       // Komut satırından bildirim gönderilmez.
       push: { send: (messages) => Promise.resolve(messages.map(() => "sent" as const)) },
       // Betik çalışırken bağlı istemci yoktur; bildirimler gönderilmez.
-      realtime: { emit: () => undefined, disconnectSession: () => undefined },
+      realtime: {
+        emit: () => undefined,
+        emitBusiness: () => undefined,
+        emitBusinessLive: () => undefined,
+        emitKitchen: () => undefined,
+        disconnectKitchenDevice: () => undefined,
+        disconnectSession: () => undefined,
+      },
     };
 
     const admins = await ensureAdmins(db);
@@ -426,6 +435,7 @@ async function main(): Promise<void> {
     console.log("Giriş için: 0555 000 00 01 (Ayşe) … 0555 000 00 04 (Can), kod 000000");
   } finally {
     await db.close();
+    await platformDb.close();
   }
 }
 

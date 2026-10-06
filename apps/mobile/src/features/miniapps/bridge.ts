@@ -21,11 +21,14 @@ import {
   type ShareParams,
 } from "@vado/contracts";
 
+import type { OrderingHost } from "./ordering-host";
+
 /**
  * Köprünün kabuktan beklediği işlevler. Mini uygulama ekranı gerçek uygulamaları verir;
  * bu sayede köprü mantığı telefona ve tarayıcıya bağlı olmadan sınanabilir.
  */
 export interface BridgeHost {
+  ordering?: OrderingHost | undefined;
   miniApp: MiniAppDetail;
   /** Uygulamayı açan QR kodunun imzalı parametreleri; listeden açıldıysa boş. */
   launchParams: Record<string, string>;
@@ -68,7 +71,28 @@ type Handlers = {
   ) => Promise<BridgeResults[Method]> | BridgeResults[Method];
 };
 
+function ordering(host: BridgeHost): OrderingHost {
+  if (host.ordering === undefined)
+    throw new BridgeFailure("unavailable", "Bu uygulamanın sipariş bağlamı yok.");
+  return host.ordering;
+}
+
 const handlers: Handlers = {
+  "ordering.getRestaurant": (host, params) => ordering(host).getRestaurant(params),
+  "ordering.getSlots": (host, params) => ordering(host).getSlots(params),
+  "ordering.joinTable": (host, params) => ordering(host).joinTable(params),
+  "ordering.getTable": (host, params) => ordering(host).getTable(params),
+  "ordering.getBill": (host, params) => ordering(host).getBill(params),
+  "ordering.requestService": (host, params) => ordering(host).requestService(params),
+  "ordering.getEvents": (host, params) => ordering(host).getEvents(params),
+  "ordering.listOrders": (host, params) => ordering(host).listOrders(params),
+  "ordering.getCatalog": (host, params) => ordering(host).getCatalog(params),
+  "ordering.openCart": (host, params) => ordering(host).openCart(params),
+  "ordering.getCart": (host, params) => ordering(host).getCart(params),
+  "ordering.replaceCart": (host, params) => ordering(host).replaceCart(params),
+  "ordering.resetCart": (host, params) => ordering(host).resetCart(params),
+  "ordering.checkout": (host, params) => ordering(host).checkout(params),
+  "ordering.getOrder": (host, params) => ordering(host).getOrder(params),
   "container.getInfo": (host) => host.containerInfo(),
   "container.close": (host) => {
     host.close();

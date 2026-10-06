@@ -73,4 +73,16 @@ describe("Expo bildirim sağlayıcısı", () => {
     expect(await provider.send([message(1)])).toEqual(["sent"]);
     expect(JSON.stringify(log.info.mock.calls)).not.toContain("Yeni mesajın var");
   });
+
+  it("tekrar bildiriminde olay kimliği Expo birleştirme alanlarına taşınır", async () => {
+    const calls = fakeExpo(() => new Response(JSON.stringify({ data: [{ status: "ok" }] })));
+    const provider = createPushProvider({ provider: "expo", accessToken: null }, log);
+    const eventId = "7b1c9a52-3f0e-4d8a-9a51-2b7f7e6c1d40";
+    await provider.send([{ ...message(1), data: { type: "new_device", eventId } }]);
+    expect(calls[0]?.body[0]).toMatchObject({
+      data: { eventId },
+      collapseId: eventId,
+      tag: eventId,
+    });
+  });
 });

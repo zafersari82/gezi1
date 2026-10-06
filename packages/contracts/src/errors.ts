@@ -5,6 +5,14 @@ import { z } from "zod";
  * Yeni bir hata eklemek için yalnızca bu tabloya satır eklenir.
  */
 export const ERROR_MESSAGES = {
+  table_in_use: "Masada açık veya ödenmemiş sipariş var; oturum kapatılamaz.",
+  branch_closed: "Şube şu anda kapalı; sipariş verilemez.",
+  fulfilment_unavailable: "Bu masa veya teslim saati artık uygun değil. Yeniden seçin.",
+  table_session_closed: "Masa oturumu kapandı. Görevliye başvurun.",
+  order_decision_required: "Siparişi kabul ederken süre, reddederken gerekçe gereklidir.",
+  payment_version_conflict: "Ödeme bilgisi değişti. Güncel hesabı yükleyin.",
+  capability_in_use: "Aktif sipariş, masa veya cihaz varken paket kapatılamaz.",
+  settings_version_conflict: "Ayarlar değişti. Güncel değerleri yükleyip yeniden deneyin.",
   // Genel
   validation_failed: "Gönderilen bilgiler geçersiz.",
   unauthorized: "Oturumun sona erdi. Lütfen yeniden giriş yap.",
@@ -12,6 +20,15 @@ export const ERROR_MESSAGES = {
   not_found: "Aradığın kayıt bulunamadı.",
   rate_limited: "Çok fazla istek gönderildi. Biraz sonra tekrar dene.",
   internal_error: "Beklenmeyen bir hata oluştu. Lütfen tekrar dene.",
+  idempotency_conflict:
+    "Bu tekrar anahtarı başka bilgilerle kullanılmış. Yeni bir anahtarla tekrar dene.",
+
+  cart_version_conflict: "Sepetin başka bir cihazda değişti. Güncel sepeti kontrol et.",
+  cart_changed: "Ürün veya fiyat değişti. Güncel sepeti kontrol edip yeniden onayla.",
+  cart_expired: "Sepetinin süresi doldu. Yeni bir sepet oluştur.",
+  cart_closed: "Bu sepet siparişe dönüştürüldü.",
+  order_version_conflict: "Sipariş başka bir cihazda değişti. Güncel durumu kontrol et.",
+  order_state_invalid: "Siparişin mevcut durumunda bu işlem yapılamaz.",
 
   // Kimlik doğrulama
   invalid_phone: "Telefon numarası geçersiz.",

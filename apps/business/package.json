@@ -1,0 +1,31 @@
+{
+  "name": "@vado/business",
+  "version": "2.7.0",
+  "private": true,
+  "description": "VADO hesabınla işletmenin günlük işlerini yönet",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "typegen": "next typegen",
+    "typecheck": "npm run typegen && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vado/contracts": "*",
+    "next": "16.3.8",
+    "qrcode": "^1.5.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "server-only": "^0.0.1",
+    "socket.io-client": "^4.8.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "~19.2.2"
+  }
+}

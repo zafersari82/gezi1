@@ -15,12 +15,37 @@ const DEV_ADMIN_API_KEY = "vado-development-admin-key";
 
 const flagSchema = z.enum(["true", "false"]).transform((value) => value === "true");
 
+const orderWebhookSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9._-]{1,79}$/),
+  businessId: z.uuid(),
+  url: z.url().refine((value) => {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.username === "" && url.password === "";
+  }, "Webhook HTTPS olmalıdır"),
+  secret: z.string().min(32),
+  types: z.array(z.enum(["order.placed", "order.status_changed"])).min(1),
+});
+const orderWebhooksSchema = z
+  .string()
+  .default("[]")
+  .transform((value, context): unknown => {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      context.addIssue({ code: "custom", message: "Webhook ayarı geçerli JSON olmalıdır" });
+      return z.NEVER;
+    }
+  })
+  .pipe(z.array(orderWebhookSchema).max(100));
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
   HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
-  DATABASE_URL: z.string().default("postgres://vado:vado@localhost:5432/vado"),
+  DATABASE_URL: z.string().default("postgres://vado_app:vado@localhost:5432/vado"),
+  DATABASE_MIGRATE_URL: z.string().default("postgres://vado_owner:vado@localhost:5432/vado"),
+  DATABASE_PLATFORM_URL: z.string().default("postgres://vado_platform:vado@localhost:5432/vado"),
   REDIS_URL: z.string().optional(),
   VADO_PUBLIC_URL: z.url().default("http://localhost:4000"),
   VADO_OTP_KEYS: z.string().optional(),
@@ -33,7 +58,9 @@ const envSchema = z.object({
   VADO_PAYMENT_MODE: paymentModeSchema.default("sandbox"),
   VADO_CORS_ORIGINS: z
     .string()
-    .default("http://localhost:8081,http://localhost:3000,http://localhost:5173"),
+    .default(
+      "http://localhost:8081,http://localhost:3000,http://localhost:3001,http://localhost:5173",
+    ),
   VADO_SESSION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   VADO_USER_QR_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(600),
   VADO_STORAGE_DIR: z.string().default("storage"),
@@ -54,6 +81,7 @@ const envSchema = z.object({
   VADO_PUSH_PROVIDER: z.enum(["log", "expo"]).default("log"),
   /** Expo hesabında "Enhanced push security" açıksa gerekir; değilse boş kalabilir. */
   VADO_EXPO_ACCESS_TOKEN: z.string().optional(),
+  VADO_ORDER_WEBHOOKS: orderWebhooksSchema,
 });
 
 export type SmsConfig = { provider: "log" } | { provider: "webhook"; url: string; secret: string };
@@ -66,6 +94,8 @@ export interface Config {
   host: string;
   logLevel: string;
   databaseUrl: string;
+  databaseMigrateUrl: string;
+  databasePlatformUrl: string;
   redisUrl: string | null;
   /** API'nin dışarıdan erişilen adresi; medya bağlantıları bununla kurulur. */
   publicUrl: string;
@@ -107,6 +137,7 @@ export interface Config {
   rateLimitPerMinute: number;
   sms: SmsConfig;
   push: PushConfig;
+  orderWebhooks: z.infer<typeof orderWebhookSchema>[];
 }
 
 export class ConfigError extends StartupError {
@@ -195,6 +226,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
     host: env.HOST,
     logLevel: env.LOG_LEVEL,
     databaseUrl: env.DATABASE_URL,
+    databaseMigrateUrl: env.DATABASE_MIGRATE_URL,
+    databasePlatformUrl: env.DATABASE_PLATFORM_URL,
     redisUrl: env.REDIS_URL ?? null,
     publicUrl,
     keys,
@@ -215,6 +248,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
     trustProxy: env.VADO_TRUST_PROXY,
     rateLimitPerMinute: env.VADO_RATE_LIMIT_PER_MINUTE,
     sms,
+    orderWebhooks: env.VADO_ORDER_WEBHOOKS,
     push:
       env.VADO_PUSH_PROVIDER === "expo"
         ? { provider: "expo", accessToken: expoAccessToken === "" ? null : expoAccessToken }

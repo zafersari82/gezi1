@@ -11,10 +11,10 @@ import {
   adminTotpSetupSchema,
   listOf,
 } from "@vado/contracts";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { CLI_ACTOR } from "../src/core/audit";
-import { type Database, sql } from "../src/core/database";
+import { compile, type Database, sql } from "../src/core/database";
 import { base32Decode, hotp, totpStep } from "../src/core/totp";
 import { createAdminAccountService } from "../src/modules/admin-accounts/admin-accounts.service";
 import {
@@ -426,15 +426,46 @@ describe("panel hesapları", () => {
         login(account.username, NEW_PASSWORD),
         login(account.username, NEW_PASSWORD),
       ]);
+      const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now());
       const code = codeFor(secret, 1);
-      const responses = await Promise.all(
-        [first, second].map((pending) =>
-          asAdminSession(app, pending.token).request("POST", "/v1/admin/auth/second-factor", {
-            body: { code },
-          }),
-        ),
-      );
-      expect(responses.map((response) => response.status).sort()).toEqual([200, 401]);
+      let arrived = 0;
+      let release: (() => void) | undefined;
+      const together = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const timeout = setTimeout(() => {
+        release?.();
+      }, 4000);
+      const execute = app.db.execute;
+      // İki doğrulama eski adımı okusun; SQL güncellemeleri aynı anda ilerlesin.
+      const barrier = vi.spyOn(app.db, "execute").mockImplementation(async (query) => {
+        const compiled = compile(query);
+        if (
+          compiled.text.replace(/\s+/g, " ").includes("update admin_accounts set totp_last_step") &&
+          compiled.values.includes(account.id)
+        ) {
+          arrived++;
+          if (arrived === 2) release?.();
+          await together;
+        }
+        return execute(query);
+      });
+      try {
+        const responses = await Promise.all(
+          [first, second].map((pending) =>
+            asAdminSession(app, pending.token).request("POST", "/v1/admin/auth/second-factor", {
+              body: { code },
+            }),
+          ),
+        );
+        expect(arrived).toBe(2);
+        expect(responses.map((response) => response.status).sort()).toEqual([200, 401]);
+      } finally {
+        clearTimeout(timeout);
+        release?.();
+        barrier.mockRestore();
+        clock.mockRestore();
+      }
     });
 
     it("hesap veritabanında kapatılırsa açık oturumu da geçmez", async () => {

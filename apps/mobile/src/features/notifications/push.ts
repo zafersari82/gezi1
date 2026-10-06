@@ -1,9 +1,14 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import { api } from "@/api/client";
+
+import { createPushDeduplicator } from "./push-dedup";
+
+const deduplicator = createPushDeduplicator(AsyncStorage);
 
 /**
  * Bildirim adresinin kaydı. `registered`: adres sunucuya yazıldı. `denied`: kullanıcı izin vermedi.
@@ -15,13 +20,12 @@ export type PushRegistration = "registered" | "denied" | "unsupported" | "not_co
 /** Uygulama açıkken bildirim afişi gösterilmez: yeni mesaj zaten ekranda görünür. */
 export function configureForegroundNotifications(): void {
   Notifications.setNotificationHandler({
-    handleNotification: () =>
-      Promise.resolve({
-        shouldShowBanner: false,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
+    handleNotification: async (notification) => ({
+      shouldShowBanner: false,
+      shouldShowList: await deduplicator.shouldShow(notification.request.content.data),
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
   });
 }
 

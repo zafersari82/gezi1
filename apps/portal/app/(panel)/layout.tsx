@@ -45,6 +45,7 @@ function navItems(me: AdminMe, overview: AdminOverview | null): NavItem[] {
       count: overview?.openReports,
       permission: "reports.read",
     },
+    { href: "/events", label: "Olay teslimleri", permission: "events.read" },
     { href: "/audit", label: "Denetim kaydı", permission: "audit.read" },
     { href: "/accounts", label: "Panel hesapları", permission: "accounts.manage" },
   ];

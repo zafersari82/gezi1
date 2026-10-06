@@ -1,6 +1,6 @@
 {
   "name": "@vado/api",
-  "version": "2.5.0",
+  "version": "2.7.0",
   "private": true,
   "description": "VADO API: REST uç noktaları ve gerçek zamanlı bildirim katmanı",
   "type": "module",
@@ -8,6 +8,7 @@
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "migrate": "tsx src/cli/migrate.ts",
+    "database-roles": "tsx src/cli/database-roles.ts",
     "seed": "tsx src/cli/seed.ts",
     "keys": "tsx src/cli/keys.ts",
     "admins": "tsx src/cli/admins.ts",

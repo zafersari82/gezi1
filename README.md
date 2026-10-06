@@ -4,7 +4,7 @@ Türkiye için mesajlaşma, mini uygulama ve ödeme platformu. Telefon numarası
 birebir ve grup sohbetleri, Anlar, QR ile ekleme, uygulama içinde açılan mini uygulamalar, ödeme
 onayı ve işletme hesapları tek bir uygulamada toplanır.
 
-Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu depo 2.4.0) yama olarak değil, o
+Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu depo 2.7.0) yama olarak değil, o
 temelin üzerine aynı standartla eklenir. Standart yalnızca belgede durmaz; biçim, lint, proje
 kuralları, tip denetimi ve testler `npm run check` komutuyla makine tarafından denetlenir.
 
@@ -29,6 +29,7 @@ onu onaylayamaz (bkz. [Değişiklikler](CHANGELOG.md)).
 | ---------------------- | ------------------------------------------------------------------------------- |
 | `apps/mobile`          | Android ve iOS uygulaması (Expo, React Native). Tarayıcıda da önizlenebilir.    |
 | `apps/api`             | Sunucu: REST uç noktaları ve gerçek zamanlı bildirimler (Fastify, Socket.IO)    |
+| `apps/business`        | VADO Business: VADO hesabıyla canlı sipariş, ürün, şube ve yetenek ayarları     |
 | `apps/portal`          | VADO Control: paket incelemesi, uygulama kayıtları, işletme, şikayet, kullanıcı |
 | `packages/contracts`   | API, mobil uygulama ve panelin paylaştığı tipler, şemalar ve hata iletileri     |
 | `packages/miniapp-sdk` | Mini uygulamaların VADO ile konuşmasını sağlayan küçük kitaplık                 |
@@ -43,10 +44,11 @@ kolay [Docker Desktop](https://www.docker.com/products/docker-desktop/) ile çal
 Windows için adım adım anlatım: [docs/KURULUM.md](docs/KURULUM.md).
 
 ```bash
-npm install        # bağımlılıkları kurar
+npm ci             # kilit dosyasındaki bağımlılıkları kurar
 npm run db:up      # PostgreSQL'i Docker ile başlatır
+DATABASE_BOOTSTRAP_URL=postgres://postgres:vado@localhost:5432/vado npm run db:roles
 npm run db:seed    # tabloları oluşturur, örnek veriyi ve örnek mini uygulama paketini yükler
-npm run dev        # API (4000), panel (3000) ve örnek mini uygulama (5173)
+npm run dev        # API (4000), Control (3000), Business (3001), örnek mini uygulama (5173)
 ```
 
 İkinci bir terminalde uygulamayı açın:
@@ -83,11 +85,12 @@ hesabı açar; parola
 
 | Komut                     | Ne yapar                                                                        |
 | ------------------------- | ------------------------------------------------------------------------------- |
-| `npm run dev`             | API, panel ve örnek mini uygulamayı birlikte başlatır                           |
+| `npm run dev`             | API, Control, Business ve örnek mini uygulamayı birlikte başlatır               |
 | `npm run web`             | Mobil uygulamayı tarayıcıda açar                                                |
 | `npm run mobile`          | Expo geliştirme sunucusunu başlatır (telefon veya emülatör)                     |
 | `npm run lan`             | Telefonla denemek için adresleri bilgisayarın ağ adresine çevirir               |
 | `npm run db:up`           | Geliştirme veritabanını (ve Redis'i) Docker ile başlatır                        |
+| `npm run db:roles`        | İlk kurulumda üç veritabanı rolünü oluşturur, eski şemanın sahipliğini taşır    |
 | `npm run db:migrate`      | Bekleyen şema değişikliklerini uygular                                          |
 | `npm run db:seed`         | Örnek veriyi yükler; yeniden çalıştırılabilir                                   |
 | `npm run keys`            | Canlı ortamın imza anahtarlarını üretir, değiştirir ve denetler                 |
@@ -272,3 +275,87 @@ Denenmedi:
 - [Yol haritası](docs/YOL_HARITASI.md) · [2.6 planı ve devir notu](docs/PLAN_2.6.md)
 - [Değişiklikler](CHANGELOG.md) · [Güvenlik](SECURITY.md) · [Lisans](LICENSE.md) ·
   [Üçüncü taraf bildirimleri](THIRD_PARTY_NOTICES.md)
+
+## 2.6 ilk ara sürüm
+
+`2.6.0-alpha.1`: platform veri modeli, işletme üyelikleri, şubeler, çalışma saatleri ve kabuk
+müşteri bağlamı. API'nin işletme verisi gerçek PostgreSQL'de `vado_app` rolüyle yalıtılır.
+Kurulum ve yükseltmede önce `npm run db:roles`, sonra `npm run db:migrate` kullanın; ayrıntılar
+[Kurulum](docs/KURULUM.md) ve [Yayın](docs/YAYIN.md) belgelerindedir.
+
+Başlangıçta 2.5.0 için 651 test ve tam `npm run check` çalıştırıldı. Yeni yalıtım testleri
+uygulama rolünü, kapsamsız erişimi, yabancı işletmede okuma/güncelleme/silmeyi, çapraz yabancı
+anahtarları, kapsam sızmasını, üyelik yetkilerini ve hesap silmede müşteri bağının kopmasını
+sınar. Bu ortamda Docker/Compose ve gerçek telefon denenmedi. Altı aşamalı 2.6'nın diğer
+parçaları henüz bu ara sürümde değildir.
+
+## 2.6 ikinci ara sürüm
+
+`2.6.0-alpha.2` ortak katalog, ürün seçenekleri, şubeye özel fiyat ve kuruş bazlı KDV hesabını
+ekler. Katalog için kapsamsız/yabancı okuma, güncelleme, silme ve çapraz bağlantılar doğrudan
+SQL ile sınanır. Fiyat görüntüsü sırasında SQL'den yeni şube fiyatı eklenmesi önce açık bulundu,
+veritabanı kilidi eklendikten sonra aynı deneme engellendi. Docker/Compose ve gerçek telefon
+bu ortamda denenmedi. Olaylar, sepet/sipariş, paketler ve Business sonraki aşamalardır.
+
+İkinci ara sürümde hesap silme yarışı ayrıca sınandı: geç kalan doğrudan SQL bağı, geç kalan
+kabuk isteği ve silmeyle eş zamanlı yirmi kabuk isteği. Silinen hesabın işletme müşteri bağı
+yeniden kurulamaz. Bu düzeltme 0009'a eklendi; ilk teslimdeki 0008 dosyası değişmedi.
+
+## 2.6 üçüncü ara sürüm
+
+`2.6.0-alpha.3`: iş kaydıyla aynı işlemde olay, kısa kira, sıralı teslim, iç etkilerin
+tekrar koruması ve 24 saatlik müşteri anahtarı. 2.5 bildirimleri artık SQL kuyruğundan
+gider; panelde ölü teslim ve denetimli tekrar deneme, mobilde kalıcı olay denetimi,
+dış alıcı için HMAC webhook bulunur. Elli eş zamanlı tekrar isteği, iki dağıtıcı,
+kapsamsız/yabancı SQL erişimi ve gerçek alt süreç ölümü sınandı. Dış gönderim
+tekrar edebilir; gerçek cihaz, Docker/Compose ve gerçek dış sağlayıcı denenmedi.
+Sepet/sipariş, paketler ve Business bu ara sürümün ardından gelir.
+
+Üçüncü ara sürümün tam `npm run check` kontrolü: 132 sözleşme + 11 SDK + 491 API + 69 mobil,
+toplam **703 test**; biçim, lint, proje kuralları, tip denetimi ve tüm derlemeler geçti.
+Yeni panel rotası için eski derleme önbelleği korunarak temiz derleme doğrulandı.
+
+## 2.6 dördüncü ara sürüm
+
+`2.6.0-alpha.4`: sunucuda sürümlü sepet, fiyat değişiminde güncel sepetle 409,
+değişmez sipariş görüntüsü ve sürümlü durum geçişi. Elli eş zamanlı aynı anahtarlı
+HTTP isteği tek sipariş ve tek olay oluşturdu. İki cihazın sepet düzenlemesi ve
+eş zamanlı durum değiştirme denendi: biri kazandı, öteki 409 aldı. Altı yeni
+tablonun RLS/FORCE politikası, yabancı bağlantı ve doğrudan SQL değişmezliği sınandı.
+SQL olay yazımı reddedilince bütün checkout geri alındı. Kabuk işletme/uygulama/
+oturum alanlarını paket parametresinden kabul etmez; SDK yalnızca köprüye ulaşır.
+Müşteri ekranı, Docker/Compose ve gerçek telefon bu aşamada denenmedi. Yetenek
+paketleri ve VADO Business sonraki iki aşamadır.
+
+Tam kontrol: 134 sözleşme + 12 SDK + 504 API + 74 mobil = **724 test**.
+
+## 2.6 beşinci ara sürüm
+
+`2.6.0-alpha.5`: veri manifesti, Zod'dan JSON Schema, sürüm/bağımlılık/ayar
+doğrulaması ve hazırlık deneme paketi. Bilinmeyen kod ve işlev ayarı, döngü,
+erişilemeyen durum, çekirdek bitişine ekleme ve kayıtsız kural reddedilir.
+Paket kapatıldıktan sonra başlamış sipariş hazırlık görüntüsüyle tamamlandı.
+SQL ile manifest aynı grafiği üretti; paket ayarında RLS/FORCE sınandı.
+Rolü değişen, üyeliği kaldırılan veya hesabı silinen kullanıcının önceki
+kapsamı reddedildi. Motorun ayrıcalıklı yolları içe aktarması olumsuz lint
+denemesiyle doğrulandı. Müşteri ekranı eklenmedi; gerçek mutfak ve ses 2.7'dedir.
+
+Tam kontrol: 136 sözleşme + 12 SDK + 517 API + 74 mobil = **739 test**.
+VADO Business ve son kabul denemeleri sıradadır; Docker/Compose ve gerçek
+telefon bu ortamda denenmedi.
+
+## 2.6 işletme platformu
+
+VADO Business `http://localhost:3001` adresindedir; VADO kullanıcı hesabı ve işletme
+üyeliğiyle giriş yapılır. Canlı siparişler, ürünler, şubeler ve manifestten üretilen
+paket ayarları için [Business](docs/BUSINESS.md) belgesini okuyun. Sunucuda işletme
+yalıtımı, üç veritabanı rolü, kalıcı olay kuyruğu ve sürüm kontrollü sepet/sipariş
+çekirdeği bulunur. Geçiş ve geri dönüş adımları [Yayın](docs/YAYIN.md), gerçek deneme
+sonuçları [2.6 kabul kaydı](docs/KABUL_2.6.md) belgesindedir.
+
+## Restoran 2.7
+
+VADO müşteri paketi, imzalı masa QR'ı, gel-al/ileri saat, canlı sipariş, mutfak,
+ortak tablet ve fiziksel tahsilat: [Restoran kurulumu](docs/RESTORAN_2.7.md),
+[kabul kanıtları](docs/KABUL_2.7.md),
+[geçiş ve geri dönüş](docs/YAYIN.md#26dan-27ye-geçiş-ve-geri-dönüş).

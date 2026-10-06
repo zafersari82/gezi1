@@ -645,3 +645,139 @@ npm run miniapp:pack -- miniapps/appointment/dist    # randevu-1.0.0.zip
   için JavaScript paketleri derlendi. Mini uygulama paketlerinin telefondaki kabukta (Android
   WebView, iOS WKWebView) açılması yalnızca derlendi; masaüstü tarayıcı motorlarında denendi.
 - **Gerçek bir sunucuda kurulum** (alan adı, certbot, güvenlik duvarı) denenmedi.
+
+## 2.6 ilk aşama: veritabanı rolleri ve 2.5'ten geçiş
+
+Önce veritabanını ve dosya depolarını yedekleyin, API süreçlerini durdurun. Yayımlanmış
+0001–0007 dosyaları değişmez. Üç ayrı bağlantı kullanın:
+
+| Bağlantı                | Rol             | Kullanım                                                   |
+| ----------------------- | --------------- | ---------------------------------------------------------- |
+| `DATABASE_MIGRATE_URL`  | `vado_owner`    | Şema sahibi ve şema değişiklikleri                         |
+| `DATABASE_URL`          | `vado_app`      | API; sahip, süper kullanıcı ve RLS atlayan rol olamaz      |
+| `DATABASE_PLATFORM_URL` | `vado_platform` | Platform bakım işleri; süper kullanıcı değildir, RLS atlar |
+
+Kurulum yöneticisinin **VADO veritabanına** bağlantısını yalnızca kurulum sırasında
+`DATABASE_BOOTSTRAP_URL` olarak verin. `npm run db:roles` sabit rolleri oluşturur, seçilen
+veritabanının ve eski uygulama tablolarının sahipliğini `vado_owner` rolüne taşır. Başka
+veritabanlarının sahipliği değişmez. Ardından `npm run db:migrate` çalıştırın. Kurulum yöneticisi
+ve şema sahibi parolalarını API süreçlerine vermeyin. Parolalarda URL için ayrılmış karakterleri
+bağlantı adresinde yüzde kodlamasıyla yazın.
+
+Yeni Compose kurulumunda önce PostgreSQL'i başlatın, ardından `--profile setup run --rm
+ database-roles`, sonra normal `up -d --build` çalıştırın. Eski birimde başlangıç yöneticisi
+`vado` olabilir: `POSTGRES_USER` değişkenini değiştirmek mevcut rolü değiştirmez; kurulum
+komutuna `-e DATABASE_BOOTSTRAP_URL=...` ile gerçek yönetici bağlantısını verin. API yalnızca
+uygulama ve platform parolalarını, migrate işi ayrıca şema sahibi parolasını alır.
+
+2.6 tablolarında kapsam işlem başına kurulur. Kapsamsız sorgu sıfır satır döndürür; yazma
+reddedilir. `FORCE ROW LEVEL SECURITY` açık olduğu için şema sahibiyle yapılan sıradan sorgu
+bile kapsam gerektirir. Global işletme dizini ve 2.5'in uygulama kayıtları eski işlevlerini korur;
+yeni işletme operasyon tabloları bu dizine bağlı ayrı kayıtlardır.
+
+Geri dönüşte 2.5 kodunu tek başına başlatmayın: 0008 işletme başvurusuna üyelik tetikleyicisi
+ekler. Önce yükseltmeden önce alınmış veritabanı ve dosya yedeğini ayrı ortamda geri yükleyin,
+sonra 2.5 sürümünü onunla çalıştırın. Bu yöntem 2.6'daki yeni operasyon kayıtlarını geri dönüş
+ortamına taşımaz; bu nedenle yükseltme öncesi yedek ve değişiklik penceresi zorunludur.
+
+İkinci ara sürüm `2.6.0-alpha.2` 0009 katalog şemasını ekler. Aynı üç rol ile
+`npm run db:migrate` çalıştırın; önceki şema dosyalarında değişiklik yoktur. Yeni tablolara
+uygulama erişimi 0008'in varsayılan yetkileriyle verilir, RLS/FORCE ayrıca zorlanır. Geri dönüş
+önceki sürümün yedeğini ayrı ortama geri yükleyerek yapılır.
+
+0009 ayrıca ilk ara sürümün müşteri bağı korumasını güçlendirir: silinmiş hesaba yeni müşteri
+bağı kurulamaz. Silme ve bağ kurma kilit sırası servislerde birlikte güncellendiği için bu
+ara sürümün API kodunu ve şemasını birlikte yükseltin; yalnızca şemayı değiştirmeyin.
+
+## 2.6 üçüncü ara sürümün olay kuyruğu
+
+Önce yedek alın; `vado_owner` ile 0010'a kadar `npm run db:migrate` çalıştırın. API
+`vado_app` ve ayrı `DATABASE_PLATFORM_URL` bağlantılarıyla başlar. Dağıtıcı API
+sürecinde başlar; yeniden başlatmada önceki kiraların dolmasını bekleyip devam eder.
+Kapanış mevcut dağıtımı bekler. Ölü teslimleri panelin Olay teslimleri bölümünden
+inceleyin; alıcı sorunu giderilince yetkili hesapla yeniden deneyin.
+
+İsteğe bağlı `VADO_ORDER_WEBHOOKS` JSON dizisidir. Her kayıtta tekil `id`, `businessId`,
+HTTPS `url`, en az 32 karakter rastgele `secret`, `types` (`order.placed`,
+`order.status_changed`) bulunur. Aynı alıcı için `id` sabit tutulur. Gerçek değerleri
+`.env` veya gizli değişken yönetiminde tutun, kaynak veya zip'e eklemeyin. Alıcı HMAC
+imzasını, zaman damgasını ve olay kimliğini doğrulamalıdır; sipariş üretimi dördüncü
+ara sürümde başlar. Yerel HTTP HMAC denemesi yapıldı; gerçek webhook alıcısı ve
+Expo/APNs/FCM ya da gerçek telefon bu ortamda denenmedi.
+
+## 2.6 dördüncü ara sürüm geçişi
+
+Önce yedek alın; `vado_owner` ile 0011'e kadar `npm run db:migrate` çalıştırın.
+API yine `vado_app`, olay ve sepet bakımı ayrı `vado_platform` bağlantısıyla çalışır.
+24 saat sonra terk edilmiş sepet expired olur, yedi gün daha sonra sınırlı bakım
+partisinde silinir. Siparişe dönüşen sepetler fiyat görüntüsüyle birlikte korunur.
+Müşteri sipariş arayüzü ve yeni Business bu ara sürümde yoktur.
+
+## 2.6 beşinci ara sürüm geçişi
+
+Yedekten sonra `vado_owner` ile 0012'ye kadar `npm run db:migrate` çalıştırın.
+Yeni npm bağımlılığı yoktur. Motor ve paket manifest sürümü `1.0.0`, ürün
+sürümü `2.6.0-alpha.5` ile ayrı anlamdadır; SQL ve kayıt listesi birlikte
+yayımlanır. Harici kod yüklenmez. Hazırlık açma/kapama yeni siparişlere
+uygulanır; sürmekteki siparişler kayıtlı akışlarıyla tamamlanır.
+
+## 2.6 VADO Business yayını
+
+Yedek ve rol kurulumunun ardından `vado_owner` ile 0013'e kadar geçişleri uygulayın.
+API, platform işleri ve şema kurulumu üç ayrı bağlantı kullanır. API süreçlerinin
+oturum ve imza anahtarlarını koruyun; 2.5 kullanıcı ve oturumları taşınır. Business
+için `VADO_API_INTERNAL_URL` ve `VADO_BUSINESS_PUBLIC_URL` tanımlayın; dış adres HTTPS
+olmalıdır ve API CORS listesinde bulunmalıdır. Nginx ve sertifikaya Business alan
+adını ekleyin. `infra/docker-compose.prod.yml` içindeki Business servisi 3001 portunu
+yalnızca 127.0.0.1'e açar, API'ye iç ağ üzerinden ulaşır.
+
+```bash
+docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d postgres redis
+docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production --profile setup run --rm database-roles
+docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d --build
+```
+
+Bu komutları yayın öncesinde Docker çalıştırabilen sınama sunucusunda doğrulayın.
+Bu teslimin gerçek denemeleri ve ortamda çalıştırılamayan Docker adımı
+[KABUL_2.6.md](KABUL_2.6.md) belgesinde ayrılır. Geri dönüş, yükseltme öncesindeki
+veritabanı ve iki dosya deposu yedeğini ayrı ortama geri yükleyerek yapılır; ardından
+özgün 2.5 kodu o ortamda başlatılır. Geçişten sonra alınmış yeni siparişler eski yedekte
+bulunmaz; geçiş penceresi boyunca yeni işlem kabulünü durdurun.
+
+## 2.6'dan 2.7'ye geçiş ve geri dönüş
+
+Önce API süreçlerini ve yeni işlem kabulünü durdurun. PostgreSQL veritabanını,
+medya deposunu ve paket deposunu yükseltmeden önce yedekleyin; 2.6.0 kodunu saklayın.
+FORCE RLS nedeniyle `vado_owner` tam veri yedeği alamaz: kurulum/yedek yöneticisi
+bağlantısıyla `pg_dump --format=custom` kullanın. Compose'un ilk PostgreSQL yöneticisi
+`vado` bu yetkiye sahiptir; API'ye bu bağlantıyı vermeyin.
+
+2.6'nın üç bağlantısını koruyun: `DATABASE_URL` → `vado_app`,
+`DATABASE_PLATFORM_URL` → `vado_platform`, `DATABASE_MIGRATE_URL` → `vado_owner`.
+Roller yoksa kurulum yöneticisiyle `npm run db:roles` çalıştırın. Şema sahibiyle
+`npm run db:migrate`, sırasıyla `0014_catalog_operations.sql`, `0015_restaurant.sql`,
+`0016_kitchen_devices.sql`, `0017_live_replay.sql` dosyalarını uygular. Yayımlanmış
+0001–0013 değişmez. İkinci migrate boş olmalıdır. API/Business/mobil kabuğu birlikte
+2.7.0'a yükseltin. Paket açılmadan eski Sipariş akışları korunur; Restoran kurulumu
+[RESTORAN_2.7.md](RESTORAN_2.7.md) belgesindedir. Mevcut kimlik ve imza anahtarlarını
+koruyun. Hesap, oturum, işletme, şube ve açık sipariş kayıtları taşınır.
+
+Geri dönüşte yeni işlemleri durdurun. Önceki yedeği **ayrı, boş veritabanına**, eski
+medya/paket depolarıyla birlikte yükleyin. Rolleri önceden kurun, veritabanının
+sahibini `vado_owner` yapın; yedek yöneticisi aşağıdaki sırayı uygulamalıdır.
+`VADO_RESTORE_URL` yalnız geri yükleme hedefinin yönetici bağlantısıdır.
+
+```bash
+pg_restore --exit-on-error --section=pre-data --dbname="$VADO_RESTORE_URL" before-2.7.dump
+psql "$VADO_RESTORE_URL" -v ON_ERROR_STOP=1 -c 'ALTER FUNCTION public.ordering_graph_allowed(jsonb,jsonb) SET search_path=pg_catalog,public;'
+pg_restore --exit-on-error --section=data --section=post-data --dbname="$VADO_RESTORE_URL" before-2.7.dump
+```
+
+Bu sıra gerçek eski sipariş bulunan yedekte denendi. 0012'nin SQL akış doğrulama
+işlevi, `pg_restore` arama yolu boşken çekirdek işlevini bulamaz; hedefteki işlevin
+arama yolu veri yüklenmeden sabitlenir. Eski şema dosyası değiştirilmez, RLS
+kapatılmaz. Eski 2.6 API'yi geri yükleme ortamının üç rolüyle açın; `/health` 2.6.0,
+geçiş sayısı 13 olmalı; aynı hesap, oturum ve sipariş görüntüsü doğrulanmalıdır.
+Yükseltmeden sonra alınan yeni siparişler eski yedekte yoktur; bakım penceresini
+buna göre yönetin. [KABUL_2.7.md](KABUL_2.7.md) gerçek kanıtları ve çalıştırılmayan
+Docker/cihaz adımlarını belirtir.

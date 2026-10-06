@@ -6,22 +6,17 @@ belgesindedir.
 
 ## Büyük resim
 
-```
- Telefon (apps/mobile)                 Yönetici tarayıcısı
-   │  REST + Socket.IO                    │  HTTPS (hesap + ikinci adım, oturum çerezi)
-   ▼                                      ▼
- ┌──────────────────────┐ anahtar + oturum     ┌─────────────────────┐
- │  API (apps/api)      │◄─────────────────────│  Panel (apps/portal) │
- │  Fastify + Socket.IO │                      │  Next.js             │
- └───┬────────┬─────────┘                      └─────────────────────┘
-     │        │
-     ▼        ▼
- PostgreSQL  Redis (yalnızca birden çok API süreci varsa)
-
- Mini uygulama (VADO'ya yüklenmiş, incelenmiş paket; dosyalarını API sunar)
-   ▲  köprü protokolü
-   │
- Telefondaki VADO kabuğu (WebView)
+```mermaid
+flowchart TD
+  M["VADO mobil"] --> API["REST ve Socket.IO"]
+  C["VADO Control"] --> API
+  B["VADO Business"] --> API
+  API --> A["vado_app: işletme kapsamı"]
+  API --> P["vado_platform: olaylar ve bakım"]
+  S["Kurulum ve geçiş"] --> O["vado_owner: şema"]
+  A --> DB[("PostgreSQL 16")]
+  P --> DB
+  O --> DB
 ```
 
 Dört kural her yerde geçerlidir:
@@ -384,7 +379,7 @@ Expo Push Service'e 100'lük gruplar halinde gönderir. Doğrudan FCM/APNs'e ge�
 sağlayıcı yazmaktır.
 
 `modules/notifications` mesaj ve yeni cihaz olaylarında alıcıları tek sorguda bulur (sohbet üyeleri,
-açık oturumlarındaki adresler, kullanıcının ayarları) ve gönderimi arka planda yapar; isteği yapan
+açık oturumlarındaki adresler, kullanıcının güncel ayarları) ve SQL outbox dağıtıcısıyla gönderir; isteği yapan
 kullanıcı beklemez, sağlayıcı hatası yanıta yansımaz. Sağlayıcı bir adresi geçersiz sayarsa adres
 silinir. Testler gönderimin bitmesini `notifications.idle()` ile bekler.
 
@@ -472,3 +467,79 @@ iletir, kuralları API uygular.
 - **Mobil:** telefondan bağımsız mantık (köprü, sohbet listesi, biçimlendirme) birim testleriyle
   sınanır. Ekranlar tarayıcıda uçtan uca senaryolarla denendi; bu senaryolar depoya dahil değildir
   (bkz. YOL_HARITASI.md).
+
+## 2.6 ilk aşama: platform temeli
+
+`business-management` VADO hesabını üyelikle veya kabuk müşterisiyle doğrular ve `TenantScope`
+üretir. Motor erişimi `withTenant` içinde işlem başına kapsam kurar; ayrı havuzdaki
+`platformScope` yalnızca platform işleri içindir. Yeni uygulama örneği eski mini uygulama ve
+satıcı kaydının işletme bağını bileşik yabancı anahtarla taşır. Şube ve haftalık çalışma
+aralıkları işletmeye bağlıdır; gece ve hafta sınırı çakışmaları doğrudan SQL ile de reddedilir.
+0008 eski işletme sahiplerini üyeliğe dönüştürür ve sonraki başvuruları otomatik bağlar.
+
+## 2.6 ikinci aşama: katalog ve fiyat görüntüsü
+
+0009 altı işletme tablosunu RLS/FORCE ile ekler. `catalog` yalnızca `TenantContext` (uygulama
+bağlantısı) alır; platform bağlantısını alamaz. Kategori, ürün, grup, seçenek, ürün-grup bağı ve
+fiyat bileşik yabancı anahtarlarla bağlanır. Fiyatlar genel veya şubeye özeldir; seçenek tutarı
+satıra eklenir, vergi BigInt ile satır başına ayrılır. Fiyat görüntüsü, katalog satırlarını okuma
+kilidiyle tutar. Fiyat ve bağ yazma tetikleyicileri üst kaydı kilitlediği için araya yeni bir şube
+fiyatı eklenmesi de engellenir. Sepet ve sipariş aynı hesaplayıcıyı kullanacaktır.
+
+## 2.6 kalıcı olay dağıtımı
+
+`appendEvent(tx, TenantScope, data)` iş kaydının işlemi içinde olay yazar. Genel sohbet
+ve girişte ayrı `appendPlatformEvent` vardır; işletme kimliğini nullable yaparak RLS
+gevşetilmez. Ana süreç `services.events.start()` ile eski kuyruğu da tarar; süreç içi
+hızlandırma yalnızca commit sonrasında çalışır ve kalıcılığın kaynağı değildir.
+
+Dağıtıcı `FOR UPDATE SKIP LOCKED` ile kısa işlemde 30 saniye kira alır ve kilidi bırakır.
+Teslimde tüketici adı + olay kimliği kaydı aranır. İç tüketicide etki ve teslim aynı
+işlemde, dış tüketicide ağ çağrısından sonra yazılır. Kira belirteciyle koşullu teslim
+onayı eski dağıtıcının yeni kirayı bitirmesini engeller. Hata artan bekleme, sekiz
+deneme ve ölü kayıtla sonuçlanır; ölü önceki olay siparişin sonrakilerini bekletir.
+
+Kayıtlı tüketiciler depodaki koddan kurulur. Webhook konfigürasyonu veri olarak alınır;
+HTTPS zorunludur, yönlendirme izlenmez, her işletmenin alıcısı yalnızca kendi olayını
+alır. Dış tüketicinin çift teslimi olağandır. Testlerde gerçek alt süreç SIGKILL ile
+öldürüldü: iç etki bir kez, yerel HTTP alıcısında dış etki aynı kimlikle bir/iki kez oldu.
+
+## 2.6 sipariş çekirdeği
+
+`ordering` yalnızca `TenantContext` ve ortak katalog hesaplayıcısı alır. Sepet satırları
+ürün/seçenek/adet ile bilgi amaçlı görülen fiyatı taşır. Okuma yeniden fiyatlar;
+quote hash bütün fiyat görüntüsünü kapsar. Checkout anahtar kilidi → sepet yazma
+kilidi → katalog okuma kilidi sırasını izler. Sipariş akışı ve paket kimlikleri
+oluşturma anında görüntülenir; daha sonraki ayar değişimi mevcut siparişi değiştirmez.
+
+0011 sipariş oluşturma ve her geçişte geçmiş + olayı otomatik ekler; ertelenmiş
+kısıt tetikleyicisi satır toplamı/KDV/seçenek tutarını doğrular. Sonradan fiyat
+satırı eklemek işlem kimliğiyle engellenir. Denetim tüketicisi etkisini ve teslimi
+bir işlemde yazar. İşletmeler arası terk edilmiş sepet bakımı motor dışındaki
+`tenant-maintenance` ve açık platform havuzundadır; 1000 kayıtla sınırlıdır.
+
+## 2.6 bildirimsel paket derleyicisi
+
+Statik `capabilities.registry` motor ve incelenmiş paket kodunu kurar. Manifest
+JSON'dur; Zod yapılandırması sunucu kodunda kalır ve JSON Schema olarak
+yayımlanır. Bağımlılıklar bu aşamada açık, tam yayımlanmış sürüm ister.
+Çekirdek `accepted → completed` noktasını açar; hazırlık bu noktaya iki
+ara adım ekler. Derleyici grafiği ve kayıtlı kural adlarını üretir. Sipariş
+motoruna geçiş kuralı işlevi bağımlılık olarak verilir; motor kapsam
+kurucusuna, platform havuzuna veya dağıtıcıya erişmez.
+
+0012 yalnızca aynı iki incelenmiş grafiği kabul eden SQL işlevlerini ekler;
+0011 değiştirilmez. Paket yazımı uygulama örneğini kilitler; müşteri işlemi
+aynı örneği okuma kilidinde tutar. Ayar değişimi checkout fiyat/akış
+görüntüsünün ortasına giremez. Business blokları etkin paketten ve yalnızca
+veri ayarından türetilir; `stationLabel` blok başlığını belirler.
+
+## İşletme uygulaması
+
+`apps/business` Next.js sunucusu VADO kullanıcı oturumunu çerezde tutar. İşletme
+seçimi güncel üyelikle doğrulanır. Sayfalar, rol ve manifestten gelen menü blokları
+üzerinden açılır; paket ayar formları JSON Schema'dan üretilir. Aynı uygulama telefon,
+tablet ve masaüstünde kullanılır. Canlı bağlantı kısa süreli ve tek kullanımlık
+biletle açılır; outbox'taki sipariş olayı güncel üyelere küçük bir değişim sinyali
+gönderir. Liste ve sipariş ayrıntıları yetkili HTTP isteğiyle yenilenir. Uygulama
+kullanımı [BUSINESS.md](BUSINESS.md) belgesindedir.

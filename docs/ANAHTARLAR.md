@@ -236,3 +236,11 @@ imzalamayı sürdürür), sonra ilk sıraya alıp yeniden başlatın.
 Hata iletisi sorunun hangi değişkende ve hangi anahtarda olduğunu söyler; anahtarın kendisini
 yazmaz. Süresi dolmuş bir doğrulama anahtarı başlangıcı engellemez: günlüğe bir uyarı düşer, anahtar
 halkadan silinebilir.
+
+## Mutfak eşleştirme anahtarı (2.7)
+
+Beş dakikalık eşleştirme sonucunu almak için kullanılan cihaz belirteci, mevcut
+kalıcı `VADO_OPENID_KEY` ailesinden ayrı alan adıyla türetilir; veritabanında yalnız
+özeti tutulur. Bu anahtar normal işletimde değiştirilmez. Acil değişimde bekleyen
+eşleştirmeleri önce tamamlayın veya yeni kod üretin; eski bekleyen kodun sonucunu
+yeni anahtarla alamazsınız. Onaylanmış cihazın erişimi güncel cihaz kaydıyla sınırlıdır.

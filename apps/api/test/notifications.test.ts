@@ -10,6 +10,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { sql } from "../src/core/database";
+import { platformScope } from "../src/core/platform-scope";
 import {
   anonymous,
   as,
@@ -62,6 +63,80 @@ describe("anlık bildirimler", () => {
     await app.services.notifications.idle();
   }
 
+  it("mesaj ve kalıcı bildirim olayı aynı işlemde tek kez oluşur", async () => {
+    const { ayse, mehmet, id } = await directChat();
+    await register(mehmet);
+    const body = { kind: "text", clientId: clientId(), body: "Kalıcı bildirim" };
+    const client = as(app, ayse);
+    await client.ok(messageSchema, "POST", `/v1/conversations/${id}/messages`, { body });
+    await client.ok(messageSchema, "POST", `/v1/conversations/${id}/messages`, { body });
+    await app.services.notifications.idle();
+    const events = await platformScope(app.platformDb, (tx) =>
+      tx.many<{ id: string }>(sql`
+      select id from platform_outbox_events where type = 'push.message' and payload->>'conversationId' = ${id}
+    `),
+    );
+    expect(events).toHaveLength(1);
+    expect(app.sentPush).toHaveLength(1);
+    expect(app.sentPush[0]?.data).toMatchObject({ eventId: events[0]?.id });
+  });
+
+  it("olay kaydı başarısızsa mesaj da kaydedilmez", async () => {
+    const { ayse, id } = await directChat();
+    await app.db.execute(
+      sql`update users set display_name = 'Olay atomiklik sınaması' where id = ${ayse.id}`,
+    );
+    await app.migrationDb
+      .execute(sql`create function notification_atomic_test() returns trigger language plpgsql as $$
+      begin
+        if new.type = 'push.message' and exists (select 1 from messages m join users u on u.id=m.sender_id
+          where m.id=(new.payload->>'messageId')::uuid and u.display_name='Olay atomiklik sınaması') then
+          raise exception 'Test için olay kaydı reddedildi' using errcode='23514';
+        end if;
+        return new;
+      end $$;
+      create trigger notification_atomic_test before insert on platform_outbox_events
+        for each row execute function notification_atomic_test()`);
+    try {
+      await as(app, ayse).fail("internal_error", "POST", `/v1/conversations/${id}/messages`, {
+        body: { kind: "text", clientId: clientId(), body: "Geri alınmalı" },
+      });
+      expect(
+        await app.db.many(
+          sql`select * from messages where conversation_id = ${id} and kind = 'text'`,
+        ),
+      ).toEqual([]);
+    } finally {
+      await app.migrationDb.execute(
+        sql`drop trigger notification_atomic_test on platform_outbox_events; drop function notification_atomic_test()`,
+      );
+    }
+  });
+
+  it("gecikmiş teslim alıcının güncel bildirim tercihini okur", async () => {
+    const { ayse, mehmet, id } = await directChat();
+    await register(mehmet);
+    const eventId = await app.db.transaction(async (tx) => {
+      const row = await tx.one<{
+        id: string;
+      }>(sql`insert into messages(conversation_id,sender_id,kind,body,client_id)
+        values (${id},${ayse.id},'text','Geç teslim',${clientId()}) returning id`);
+      return app.services.notifications.enqueueMessage(tx, {
+        messageId: row.id,
+        conversationId: id,
+        senderId: ayse.id,
+        kind: "text",
+        body: "Geç teslim",
+      });
+    });
+    await as(app, mehmet).ok(notificationSettingsSchema, "PATCH", "/v1/me/notifications", {
+      body: { pushMessages: false },
+    });
+    if (eventId === null) throw new Error("Bildirim olayı oluşmadı");
+    await app.services.events.drain({ eventIds: [eventId] });
+    expect(app.sentPush).toEqual([]);
+  });
+
   it("ayarlar: mesaj bildirimi açık, önizleme kapalı başlar; değiştirilebilir", async () => {
     const user = await createUser(app, "Zeynep");
     const client = as(app, user);
@@ -88,7 +163,7 @@ describe("anlık bildirimler", () => {
         to: mehmetToken,
         title: "VADO",
         body: "Yeni mesajın var",
-        data: { type: "message", conversationId: id },
+        data: { type: "message", conversationId: id, eventId: expect.any(String) as unknown },
       },
     ]);
   });
@@ -136,7 +211,7 @@ describe("anlık bildirimler", () => {
         to: loudToken,
         title: "Ayşe · Hafta Sonu",
         body: "Kahvaltı 10:30",
-        data: { type: "message", conversationId: group.id },
+        data: { type: "message", conversationId: group.id, eventId: expect.any(String) as unknown },
       },
     ]);
   });
@@ -218,7 +293,7 @@ describe("anlık bildirimler", () => {
         to: token,
         title: "Yeni cihazdan giriş",
         body: 'Hesabına "Yabancı Telefon" cihazından giriş yapıldı. Sen değilsen Ben › Oturumlar ekranından bu oturumu kapat.',
-        data: { type: "new_device" },
+        data: { type: "new_device", eventId: expect.any(String) as unknown },
       },
     ]);
   });

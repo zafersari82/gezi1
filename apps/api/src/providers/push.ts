@@ -66,7 +66,14 @@ function createExpoProvider(accessToken: string | null, log: Logger): PushProvid
         ...(accessToken === null ? {} : { authorization: `Bearer ${accessToken}` }),
       },
       body: JSON.stringify(
-        batch.map((message) => ({ ...message, sound: "default", priority: "high" })),
+        batch.map((message) => ({
+          ...message,
+          sound: "default",
+          priority: "high",
+          ...(message.data.eventId === undefined
+            ? {}
+            : { collapseId: message.data.eventId, tag: message.data.eventId }),
+        })),
       ),
       signal: AbortSignal.timeout(EXPO_TIMEOUT_MS),
     });

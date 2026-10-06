@@ -11,6 +11,7 @@ import { recordAudit } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { isUniqueViolation, sql, type SqlFragment } from "../../core/database";
 import { AppError } from "../../core/errors";
+import { platformScope } from "../../core/platform-scope";
 import type { AuthService } from "../auth/auth.service";
 import type { ChatService } from "../chat/chat.service";
 import { deleteUnusedMedia, removeFiles, requireOwnedMedia } from "../media/media.service";
@@ -27,7 +28,7 @@ interface ProfileRow extends UserRefRow {
 }
 
 export function createUserService(
-  { db, storage, realtime }: AppContext,
+  { db, platformDb, storage, realtime }: AppContext,
   { auth, chat }: { auth: AuthService; chat: ChatService },
 ) {
   async function getMe(userId: string): Promise<Me> {
@@ -82,7 +83,11 @@ export function createUserService(
    * tarafın sohbet geçmişinde "Silinmiş Hesap" adıyla kalır.
    */
   async function deleteMe(userId: string): Promise<void> {
-    const { affectedUserIds, unusedKeys } = await db.transaction(async (tx) => {
+    const { affectedUserIds, unusedKeys } = await platformScope(platformDb, async (tx) => {
+      // Müşteri bağı kurma aynı kullanıcıyı önce kilitler; sıra silme yarışı ve kilit döngüsünü önler.
+      await tx.execute(sql`select 1 from users where id = ${userId} for update`);
+      await tx.execute(sql`update business_customers set user_id = null where user_id = ${userId}`);
+      await tx.execute(sql`update business_members set active = false where user_id = ${userId}`);
       const related = await tx.many<{ id: string }>(sql`
         select contact_id as id from contacts where user_id = ${userId}
         union

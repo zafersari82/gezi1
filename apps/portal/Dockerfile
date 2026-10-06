@@ -11,7 +11,9 @@ COPY packages/miniapp-sdk/package.json packages/miniapp-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/
 COPY apps/portal/package.json apps/portal/
+COPY apps/business/package.json apps/business/
 COPY miniapps/appointment/package.json miniapps/appointment/
+COPY miniapps/restaurant/package.json miniapps/restaurant/
 RUN npm ci --workspace @vado/portal --include-workspace-root
 COPY tsconfig.base.json ./
 COPY packages/contracts packages/contracts

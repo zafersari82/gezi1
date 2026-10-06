@@ -19,6 +19,7 @@ type RealtimeSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 interface RealtimeContextValue {
   /** Karşı tarafa "yazıyor" bildirimi gönderir; bağlantı yoksa sessizce atlanır. */
+  subscribeOrdering: (listener: (connected: boolean | null) => void) => () => void;
   sendTyping: (conversationId: string) => void;
 }
 
@@ -35,6 +36,7 @@ function refreshConversations(): void {
  */
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const socket = useRef<RealtimeSocket | null>(null);
+  const orderingListeners = useRef(new Set<(connected: boolean | null) => void>());
 
   useEffect(() => {
     const token = apiSession.getToken();
@@ -53,8 +55,15 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         invalidateRelations();
       }
       connectedBefore = true;
+      for (const listener of orderingListeners.current) listener(true);
     });
 
+    connection.on("order:changed", () => {
+      for (const listener of orderingListeners.current) listener(null);
+    });
+    connection.on("disconnect", () => {
+      for (const listener of orderingListeners.current) listener(false);
+    });
     connection.on("message:new", ({ conversationId, message }) => {
       addMessageToCache(message);
       if (message.senderId !== null) clearTyping(conversationId, message.senderId);
@@ -100,6 +109,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: RealtimeContextValue = {
+    subscribeOrdering(listener) {
+      orderingListeners.current.add(listener);
+      listener(socket.current?.connected ?? false);
+      return () => {
+        orderingListeners.current.delete(listener);
+      };
+    },
     sendTyping(conversationId) {
       socket.current?.emit("conversation:typing", { conversationId });
     },

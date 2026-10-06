@@ -4,14 +4,18 @@ import {
   type PushData,
   type UpdateNotificationSettingsBody,
 } from "@vado/contracts";
+import { z } from "zod";
 
 import type { AppContext } from "../../core/context";
-import { sql } from "../../core/database";
+import { type Database, sql } from "../../core/database";
 import type { AuthContext } from "../../core/http";
+import { appendPlatformEvent } from "../../core/outbox-events";
+import { createOutboxWorker, type OutboxConsumer } from "../../core/outbox-worker";
 import type { PushMessage } from "../../providers/push";
 
 /** Mesaj bildiriminin hazırlanması için gereken, gönderilmiş mesajın özeti. */
 export interface SentMessage {
+  messageId: string;
   conversationId: string;
   senderId: string;
   kind: "text" | "image" | "system";
@@ -31,19 +35,46 @@ function shorten(text: string): string {
   return single.length <= PUSH_PREVIEW_MAX ? single : `${single.slice(0, PUSH_PREVIEW_MAX - 1)}…`;
 }
 
-/**
- * Anlık bildirimler. Bildirim istekleri yanıtı bekletmez: gönderim arka planda yapılır, hata
- * günlüğe yazılır ve isteği yapan kullanıcıya yansımaz. Bildirim yalnızca açık oturumlardaki
- * adreslere gider; sağlayıcının geçersiz dediği adres silinir.
- */
-export function createNotificationService({ db, log, push }: AppContext) {
-  const pending = new Set<Promise<void>>();
+/** Kalıcı olay dağıtımı. Süreç içi bekleme yalnızca teslimi hızlandırır; kaynak SQL kuyruğudur. */
+export function createNotificationService({ db, platformDb, log, push }: AppContext) {
+  const pending = new Set<Promise<unknown>>();
+  const consumer: OutboxConsumer = {
+    name: "notifications.push",
+    kind: "external",
+    types: ["push.message", "push.new_device"],
+    async deliver(event) {
+      if (event.type === "push.message") {
+        const { messageId } = z.object({ messageId: z.uuid() }).parse(event.payload);
+        const message = await db.maybeOne<{
+          conversation_id: string;
+          sender_id: string;
+          kind: string;
+          body: string;
+        }>(sql`
+          select m.conversation_id, m.sender_id, m.kind, m.body from messages m
+          join users u on u.id = m.sender_id and u.status = 'active' where m.id = ${messageId}
+        `);
+        if (message === null || message.kind === "system") return;
+        await deliverMessage(message, event.id);
+      } else {
+        const { newSessionId } = z.object({ newSessionId: z.uuid() }).parse(event.payload);
+        const session = await db.maybeOne<{ user_id: string; device_name: string }>(sql`
+          select s.user_id, s.device_name from sessions s join users u on u.id=s.user_id
+          where s.id=${newSessionId} and s.revoked_at is null and u.status='active'
+        `);
+        if (session !== null)
+          await deliverNewDevice(session.user_id, newSessionId, session.device_name, event.id);
+      }
+    },
+  };
+  const worker = createOutboxWorker({ platformDb, log, consumers: [consumer] });
 
-  /** İşi arka planda başlatır; testler `idle()` ile bitmesini bekler. */
-  function inBackground(task: () => Promise<void>): void {
-    const running = task()
+  function kick(eventId: string | null): void {
+    if (eventId === null) return;
+    const running = worker
+      .drain({ eventIds: [eventId] })
       .catch((error: unknown) => {
-        log.error({ err: error }, "Bildirim gönderilemedi");
+        log.error({ err: error }, "Bildirim teslimi duraksadı");
       })
       .finally(() => pending.delete(running));
     pending.add(running);
@@ -65,6 +96,9 @@ export function createNotificationService({ db, log, push }: AppContext) {
     if (invalid.length > 0) {
       await db.execute(sql`delete from push_tokens where token = any(${invalid}::text[])`);
       log.info({ count: invalid.length }, "Geçersiz bildirim adresleri silindi");
+    }
+    if (outcomes.length !== recipients.length || outcomes.some((outcome) => outcome === "failed")) {
+      throw new Error("Bildirim sağlayıcısı teslimi tamamlayamadı");
     }
   }
 
@@ -118,65 +152,80 @@ export function createNotificationService({ db, log, push }: AppContext) {
    * Yeni mesajı sohbetin diğer üyelerine bildirir. Mesaj bildirimini kapatan üyeye gitmez;
    * önizlemesi kapalı üyeye gönderen ve metin yazılmaz. Sistem iletileri bildirilmez.
    */
-  function notifyMessage(message: SentMessage): void {
-    if (message.kind === "system") return;
-    inBackground(async () => {
-      const recipients = await db.many<Recipient & { preview: boolean }>(sql`
-        select p.session_id, p.user_id, p.token, u.push_preview as preview
-        from conversation_members cm
-        join users u on u.id = cm.user_id
-        join push_tokens p on p.user_id = cm.user_id
-        join sessions s on s.id = p.session_id
-        where cm.conversation_id = ${message.conversationId}
-          and cm.user_id <> ${message.senderId}
-          and u.status = 'active'
-          and u.push_messages
-          and s.revoked_at is null
-          and s.expires_at > now()
-      `);
-      if (recipients.length === 0) return;
-      const context = await db.one<{ sender: string; kind: string; title: string | null }>(sql`
-        select
-          coalesce(u.display_name, 'VADO kullanıcısı') as sender, c.kind, c.title
-        from conversations c, users u
-        where c.id = ${message.conversationId} and u.id = ${message.senderId}
-      `);
-      const title =
-        context.kind === "group" && context.title !== null
-          ? `${context.sender} · ${context.title}`
-          : context.sender;
-      const text = message.kind === "image" ? "📷 Fotoğraf" : shorten(message.body);
-      const data: PushData = { type: "message", conversationId: message.conversationId };
-      await deliver(recipients, (recipient) => ({
-        to: recipient.token,
-        ...(recipient.preview ? { title, body: text } : PREVIEW_HIDDEN),
-        data,
-      }));
+  async function enqueueMessage(tx: Database, message: SentMessage): Promise<string | null> {
+    if (message.kind === "system") return null;
+    return appendPlatformEvent(tx, {
+      type: "push.message",
+      payload: { messageId: message.messageId, conversationId: message.conversationId },
     });
   }
 
-  /** Hesaba yeni bir cihazdan girildiğini kullanıcının diğer cihazlarına bildirir. */
-  function notifyNewDevice(userId: string, newSessionId: string, deviceName: string): void {
-    inBackground(async () => {
-      const recipients = await db.many<Recipient>(sql`
-        select p.session_id, p.user_id, p.token
-        from push_tokens p
-        join sessions s on s.id = p.session_id
-        where p.user_id = ${userId}
-          and p.session_id <> ${newSessionId}
-          and s.revoked_at is null
-          and s.expires_at > now()
-      `);
-      await deliver(recipients, (recipient) => ({
-        to: recipient.token,
-        title: "Yeni cihazdan giriş",
-        body: `Hesabına "${shorten(deviceName)}" cihazından giriş yapıldı. Sen değilsen Ben › Oturumlar ekranından bu oturumu kapat.`,
-        data: { type: "new_device" },
-      }));
-    });
+  async function deliverMessage(
+    message: { conversation_id: string; sender_id: string; kind: string; body: string },
+    eventId: string,
+  ): Promise<void> {
+    const recipients = await db.many<Recipient & { preview: boolean }>(sql`
+      select p.session_id, p.user_id, p.token, u.push_preview as preview
+      from conversation_members cm
+      join users u on u.id = cm.user_id join push_tokens p on p.user_id = cm.user_id
+      join sessions s on s.id = p.session_id
+      where cm.conversation_id = ${message.conversation_id} and cm.user_id <> ${message.sender_id}
+        and u.status = 'active' and u.push_messages and s.revoked_at is null and s.expires_at > now()
+    `);
+    if (recipients.length === 0) return;
+    const context = await db.one<{ sender: string; kind: string; title: string | null }>(sql`
+      select coalesce(u.display_name, 'VADO kullanıcısı') as sender, c.kind, c.title
+      from conversations c, users u where c.id = ${message.conversation_id} and u.id = ${message.sender_id}
+    `);
+    const title =
+      context.kind === "group" && context.title !== null
+        ? `${context.sender} · ${context.title}`
+        : context.sender;
+    const text = message.kind === "image" ? "📷 Fotoğraf" : shorten(message.body);
+    const data: PushData = { type: "message", conversationId: message.conversation_id, eventId };
+    await deliver(recipients, (recipient) => ({
+      to: recipient.token,
+      ...(recipient.preview ? { title, body: text } : PREVIEW_HIDDEN),
+      data,
+    }));
   }
 
-  return { saveToken, removeToken, settings, updateSettings, notifyMessage, notifyNewDevice, idle };
+  function enqueueNewDevice(tx: Database, newSessionId: string): Promise<string> {
+    return appendPlatformEvent(tx, { type: "push.new_device", payload: { newSessionId } });
+  }
+
+  async function deliverNewDevice(
+    userId: string,
+    newSessionId: string,
+    deviceName: string,
+    eventId: string,
+  ): Promise<void> {
+    const recipients = await db.many<Recipient>(sql`
+      select p.session_id, p.user_id, p.token from push_tokens p
+      join sessions s on s.id = p.session_id join users u on u.id = p.user_id and u.status = 'active'
+      where p.user_id = ${userId} and p.session_id <> ${newSessionId}
+        and s.revoked_at is null and s.expires_at > now()
+        and exists (select 1 from sessions opened where opened.id = ${newSessionId} and opened.revoked_at is null)
+    `);
+    await deliver(recipients, (recipient) => ({
+      to: recipient.token,
+      title: "Yeni cihazdan giriş",
+      body: `Hesabına "${shorten(deviceName)}" cihazından giriş yapıldı. Sen değilsen Ben › Oturumlar ekranından bu oturumu kapat.`,
+      data: { type: "new_device", eventId },
+    }));
+  }
+
+  return {
+    saveToken,
+    removeToken,
+    settings,
+    updateSettings,
+    enqueueMessage,
+    enqueueNewDevice,
+    kick,
+    idle,
+    consumer,
+  };
 }
 
 export type NotificationService = ReturnType<typeof createNotificationService>;

@@ -1,3 +1,4 @@
+import type { BusinessOrderEvent, LiveEvent } from "./business-live";
 import type { Message } from "./chat";
 
 /**
@@ -6,6 +7,11 @@ import type { Message } from "./chat";
  * tek istisna, kalıcı olmayan "yazıyor" bildirimidir.
  */
 export interface ServerToClientEvents {
+  "business:live": (event: LiveEvent) => void;
+  "order:changed": (event: LiveEvent) => void;
+  "kitchen:event": (event: LiveEvent) => void;
+  "kitchen:revoked": () => void;
+  "business:order": (event: BusinessOrderEvent) => void;
   "message:new": (event: { conversationId: string; message: Message }) => void;
   "conversation:read": (event: {
     conversationId: string;

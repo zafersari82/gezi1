@@ -2,7 +2,13 @@ import type { EventEmitter } from "node:events";
 import type { Server as HttpServer } from "node:http";
 
 import { createAdapter } from "@socket.io/redis-adapter";
-import { type ClientToServerEvents, idSchema, type ServerToClientEvents } from "@vado/contracts";
+import {
+  type BusinessOrderEvent,
+  type ClientToServerEvents,
+  idSchema,
+  type LiveEvent,
+  type ServerToClientEvents,
+} from "@vado/contracts";
 import type { FastifyBaseLogger } from "fastify";
 import { createClient } from "redis";
 import { Server } from "socket.io";
@@ -11,11 +17,26 @@ import { z } from "zod";
 import type { Config } from "../core/config";
 import type { AuthContext } from "../core/http";
 
+export interface BusinessSocketAuth extends AuthContext {
+  businessId: string;
+  liveUntil: number;
+}
+export interface KitchenSocketAuth {
+  kind: "kitchen";
+  businessId: string;
+  branchId: string;
+  appInstanceId: string;
+  deviceId: string;
+  liveUntil: number;
+}
+type RealtimeAuth =
+  (AuthContext & { kind?: never; businessId?: string; liveUntil?: number }) | KitchenSocketAuth;
+
 type RealtimeServer = Server<
   ClientToServerEvents,
   ServerToClientEvents,
   Record<string, never>,
-  AuthContext
+  RealtimeAuth
 >;
 
 const TYPING_MIN_INTERVAL_MS = 1000;
@@ -23,9 +44,19 @@ const typingEventSchema = z.object({ conversationId: idSchema });
 
 const userRoom = (userId: string) => `user:${userId}`;
 const sessionRoom = (sessionId: string) => `session:${sessionId}`;
+const businessRoom = (businessId: string, userId: string) =>
+  `business:${businessId}:user:${userId}`;
+
+const kitchenRoom = (businessId: string, branchId: string, instanceId: string) =>
+  `kitchen:${businessId}:${branchId}:${instanceId}`;
+const deviceRoom = (id: string) => `kitchen-device:${id}`;
 
 /** Servislerin istemcilere bildirim göndermek için kullandığı arayüz. */
 export interface RealtimePublisher {
+  emitBusinessLive: (businessId: string, userIds: readonly string[], event: LiveEvent) => void;
+  emitKitchen: (event: LiveEvent) => void;
+  disconnectKitchenDevice: (deviceId: string) => void;
+  emitBusiness: (businessId: string, userIds: readonly string[], event: BusinessOrderEvent) => void;
   /** Olayı verilen kullanıcıların bağlı tüm cihazlarına gönderir. */
   emit: <Event extends keyof ServerToClientEvents>(
     userIds: readonly string[],
@@ -37,7 +68,10 @@ export interface RealtimePublisher {
 }
 
 export interface RealtimeHandlers {
+  authenticateKitchenTicket: (ticket: string) => Promise<KitchenSocketAuth>;
+  isKitchenDeviceActive: (deviceId: string) => Promise<boolean>;
   authenticate: (token: string) => Promise<AuthContext>;
+  authenticateBusinessTicket: (ticket: string) => Promise<BusinessSocketAuth>;
   /** "Yazıyor" bildiriminin iletileceği kullanıcılar; gönderen sohbet üyesi değilse boş döner. */
   typingRecipients: (userId: string, conversationId: string) => Promise<string[]>;
 }
@@ -86,7 +120,25 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
 
   return {
     emit,
+    emitBusiness(businessId, userIds, event) {
+      if (userIds.length > 0)
+        io.to(userIds.map((id) => businessRoom(businessId, id))).emit("business:order", event);
+    },
 
+    emitBusinessLive(businessId, userIds, event) {
+      if (userIds.length > 0)
+        io.to(userIds.map((id) => businessRoom(businessId, id))).emit("business:live", event);
+    },
+    emitKitchen(event) {
+      io.to(kitchenRoom(event.businessId, event.branchId, event.appInstanceId)).emit(
+        "kitchen:event",
+        event,
+      );
+    },
+    disconnectKitchenDevice(id) {
+      io.to(deviceRoom(id)).emit("kitchen:revoked");
+      io.in(deviceRoom(id)).disconnectSockets(true);
+    },
     disconnectSession(sessionId) {
       io.to(sessionRoom(sessionId)).emit("session:revoked");
       io.in(sessionRoom(sessionId)).disconnectSockets(true);
@@ -107,15 +159,46 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
 
       io.use((socket, next) => {
         const token: unknown = socket.handshake.auth.token;
-        if (typeof token !== "string" || token === "") {
+        const ticket: unknown = socket.handshake.auth.businessTicket;
+        const kitchenTicket: unknown = socket.handshake.auth.kitchenTicket;
+        let authentication: Promise<RealtimeAuth>;
+        if (typeof kitchenTicket === "string" && ticket === undefined && token === undefined) {
+          authentication = handlers.authenticateKitchenTicket(kitchenTicket);
+        } else if (
+          typeof ticket === "string" &&
+          token === undefined &&
+          kitchenTicket === undefined
+        ) {
+          authentication = handlers.authenticateBusinessTicket(ticket);
+        } else if (
+          typeof token === "string" &&
+          token !== "" &&
+          ticket === undefined &&
+          kitchenTicket === undefined
+        ) {
+          authentication = handlers.authenticate(token);
+        } else {
           next(new Error("unauthorized"));
           return;
         }
-        handlers
-          .authenticate(token)
+        authentication
           .then(async (auth) => {
             socket.data = auth;
-            await socket.join([userRoom(auth.userId), sessionRoom(auth.sessionId)]);
+            if (auth.kind === "kitchen") {
+              await socket.join([
+                kitchenRoom(auth.businessId, auth.branchId, auth.appInstanceId),
+                deviceRoom(auth.deviceId),
+              ]);
+              if (!(await handlers.isKitchenDeviceActive(auth.deviceId)))
+                throw new Error("unauthorized");
+            } else {
+              await socket.join([
+                auth.businessId === undefined
+                  ? userRoom(auth.userId)
+                  : businessRoom(auth.businessId, auth.userId),
+                sessionRoom(auth.sessionId),
+              ]);
+            }
             next();
           })
           .catch(() => {
@@ -125,8 +208,34 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
 
       io.on("connection", (socket) => {
         let lastTypingAt = 0;
+        if (socket.data.liveUntil !== undefined) {
+          const timer = setTimeout(
+            () => socket.disconnect(true),
+            Math.max(0, socket.data.liveUntil - Date.now()),
+          );
+          timer.unref();
+          socket.once("disconnect", () => {
+            clearTimeout(timer);
+          });
+        }
 
+        if (socket.data.kind === "kitchen") {
+          const deviceId = socket.data.deviceId;
+          const timer = setInterval(() => {
+            handlers
+              .isKitchenDeviceActive(deviceId)
+              .then((active) => {
+                if (!active) socket.disconnect(true);
+              })
+              .catch(() => socket.disconnect(true));
+          }, 10_000);
+          timer.unref();
+          socket.once("disconnect", () => {
+            clearInterval(timer);
+          });
+        }
         socket.on("conversation:typing", (event) => {
+          if (socket.data.kind === "kitchen" || socket.data.businessId !== undefined) return;
           const parsed = typingEventSchema.safeParse(event);
           const now = Date.now();
           if (!parsed.success || now - lastTypingAt < TYPING_MIN_INTERVAL_MS) return;

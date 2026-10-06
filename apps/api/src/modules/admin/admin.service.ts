@@ -17,6 +17,7 @@ import { recordAudit, resolveActors } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { sql } from "../../core/database";
 import { AppError } from "../../core/errors";
+import { createOutboxAdmin } from "../../core/outbox-admin";
 import type { AuthService } from "../auth/auth.service";
 import { BUSINESS_COLUMNS, type BusinessRow, toBusiness } from "../businesses/business-rows";
 import { miniAppLive } from "../miniapps/miniapp-rows";
@@ -67,7 +68,9 @@ function containsPattern(query: string): string {
   return `%${query.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
-export function createAdminService({ config, db, storage }: AppContext, auth: AuthService) {
+export function createAdminService(context: AppContext, auth: AuthService) {
+  const { config, db, storage } = context;
+  const outboxAdmin = createOutboxAdmin(context);
   async function overview(): Promise<AdminOverview> {
     const counts = await db.one<{
       users: number;
@@ -325,6 +328,7 @@ export function createAdminService({ config, db, storage }: AppContext, auth: Au
   }
 
   return {
+    ...outboxAdmin,
     overview,
     listUsers,
     updateUserStatus,

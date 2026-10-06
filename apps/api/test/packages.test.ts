@@ -579,7 +579,7 @@ describe("paketler", () => {
       const url = versionUrl(id, "1.0.0");
       // 2.3.1 veritabanındaki durum: ortak hesapla yüklenmiş ve incelemeye gönderilmiş, göndereni
       // yazılmamış sürüm. 0005'ten önceki durumu kurmak için tetikleyiciler bu işlemde kapatılır.
-      await app.db.transaction(async (tx) => {
+      await app.migrationDb.transaction(async (tx) => {
         await tx.execute(sql`alter table package_versions disable trigger user`);
         await tx.execute(sql`
           update package_versions
@@ -653,7 +653,10 @@ describe("paketler", () => {
         `),
         /yalnızca taslak sürüme eklenebilir/,
       );
-      await expectRefused(app.db.execute(sql`truncate package_files`), /boşaltılamaz/);
+      await expect(app.db.execute(sql`truncate package_files`)).rejects.toMatchObject({
+        code: "42501",
+      });
+      await expectRefused(app.migrationDb.execute(sql`truncate package_files`), /boşaltılamaz/);
     });
 
     it("sürümün içerik alanları ve özeti değiştirilemez; sürüm silinemez", async () => {

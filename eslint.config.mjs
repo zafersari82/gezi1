@@ -55,7 +55,48 @@ export default tseslint.config(
 
   // React kullanan çalışma alanları
   {
-    files: ["apps/mobile/**/*.{ts,tsx}", "apps/portal/**/*.{ts,tsx}", "miniapps/**/*.{ts,tsx}"],
+    files: ["apps/api/src/modules/{catalog,ordering,capabilities}/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "pg", message: "Motor yalnızca kapsamlı erişim katmanını kullanır." }],
+          patterns: [
+            {
+              group: ["**/platform-scope", "**/database-roles", "**/business-management.service"],
+              message: "Motor platform yetkisi veya kapsam kurucusu kullanamaz.",
+            },
+            {
+              group: ["**/tenant-scope"],
+              importNames: ["authoriseTenant", "authoriseKitchenTenant"],
+              message: "Motor kendine işletme kapsamı veremez.",
+            },
+            {
+              group: ["**/outbox-events"],
+              importNames: ["appendPlatformEvent"],
+              message: "Motor genel platform kuyruğuna olay ekleyemez.",
+            },
+            {
+              group: ["**/outbox-worker"],
+              message: "Motor ayrıcalıklı olay dağıtıcısı kuramaz.",
+            },
+            {
+              group: ["**/database"],
+              importNames: ["createDatabase"],
+              message: "Motor yeni havuz açamaz.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "apps/mobile/**/*.{ts,tsx}",
+      "apps/portal/**/*.{ts,tsx}",
+      "apps/business/**/*.{ts,tsx}",
+      "miniapps/**/*.{ts,tsx}",
+    ],
     extends: [reactHooks.configs.flat.recommended],
   },
 
@@ -64,6 +105,7 @@ export default tseslint.config(
     files: [
       "apps/mobile/src/app/**/*.tsx",
       "apps/portal/app/**/*.tsx",
+      "apps/business/app/**/*.tsx",
       "**/*.config.{js,mjs,ts,mts}",
       "**/*.d.ts",
     ],
@@ -92,4 +134,5 @@ export default tseslint.config(
   },
 
   prettier,
+  { files: ["apps/business/public/sw.js"], languageOptions: { globals: globals.browser } },
 );

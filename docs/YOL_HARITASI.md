@@ -31,8 +31,7 @@ Bir mesajlaşma uygulamasından beklenip bu sürümde olmayanlar, önerilen sır
    tarafı denenmedi. Eksikler: gerçek telefonda sınama (YAYIN.md, "Cihazda deneme listesi"), Expo
    teslim makbuzlarının (receipts) okunup geçersiz adreslerin onlardan da silinmesi, sohbeti sessize
    alma, okunmamış sayısının uygulama simgesinde gösterilmesi, aynı sohbetten gelen bildirimlerin
-   telefonda gruplanması, gönderimin bir iş kuyruğuna taşınması (bugün API sürecinin içinde, arka
-   planda yapılır; süreç o anda kapanırsa bildirim kaybolur).
+   telefonda gruplanması, 2.6'da kurulan kalıcı outbox'ın gerçek telefonda teslim/yeniden deneme sınaması.
 2. **Mesaj işlemleri.** Silme, yanıtlama, iletme, sohbet içinde arama, sohbeti sessize alma ve
    sabitleme.
 3. **Sesli mesaj, video ve dosya.** Medya katmanı yalnızca fotoğraf kabul eder.
@@ -222,3 +221,53 @@ bildirimden gelir (bkz. [MIMARI.md](MIMARI.md)).
 8. Lisanslı ödeme kuruluşu entegrasyonu ve satıcı bildirimi
 9. SDK'nın yayınlanması ve geliştirici hesapları
 10. Uygulama içi arama, uçtan uca şifreleme
+
+## 2.6 uygulama ilerlemesi
+
+İlk aşamada 0008 platform veri modeli, üç veritabanı rolü, RLS/FORCE, üyelik, şube ve kabuk
+müşteri bağlamı uygulanıyor. Sonraki teslimler sırayla katalog, olaylar, sepet/sipariş,
+yetenek paketleri ve VADO Business'tır. Müşteri sipariş ekranı ile gerçek mutfak ve sesli
+uyarı 2.7 kapsamındadır.
+
+İkinci aşama: ortak katalog, seçenek grupları, şube fiyatı, kuruş ve KDV hesabı eklendi.
+Müşteriye yeni ekran eklenmedi; kabuk için API sözleşmesi hazırlandı. Sıradaki aşama olay modeli
+ve 2.5 bildirimlerinin işlemsel outbox yoluna taşınmasıdır.
+
+## 2.6 üçüncü ara sürüm durumu
+
+Veri/yalıtım, katalog ve kalıcı olaylar tamamlandı. Sunucuda sepet/sipariş, yetenek
+manifesti ve VADO Business sonraki aşamalardır. Gerçek süreç ölümü ve yerel HTTP
+dış teslimi sınandı. Expo cihaz teslimi ve işletim sisteminin arka plan birleştirmesi
+gerçek telefonda henüz denenmedi; foreground kayıt sınırı yedi gün / son 2048 olaydır.
+
+## 2.6 dördüncü ara sürüm durumu
+
+Sunucuda sepet/sipariş, kabuk/SDK köprüsü, değişmez fiyat görüntüsü, çekirdek
+durum geçişi ve SQL korumaları tamamlandı. Yeni müşteri ekranı eklenmedi.
+Yetenek manifesti, `ordering.preparation` deneme paketi ve VADO Business sıradadır.
+
+## 2.6 beşinci ara sürüm durumu
+
+Bildirimsel manifest, bağımlılık/sürüm/ayar doğrulaması, akış derleyicisi,
+Studio sözleşmesi ve hazırlık deneme paketi tamamlandı. Business blokları
+veri olarak yayımlanır; VADO Business arayüzü son aşamadır. Bu paket gerçek
+mutfak ürünü değildir; mutfak ekranı, ses, ortak cihaz ve müşteri sipariş
+ekranı 2.7 kapsamındadır.
+
+## 2.6 kaynak teslimi
+
+Altı uygulama adımı tamamlandı: işletme kapsamı, katalog, kalıcı outbox ve tekrar
+koruması, sepet ve sipariş, kayıtlı yetenekler, VADO Business. `ordering.preparation`
+bir doğrulama paketidir. Müşteri sipariş ekranı, gerçek mutfak ve sesli operasyon
+2.7 kapsamındadır. Kabul kanıtları ve Docker çalıştırma sınırı
+[KABUL_2.6.md](KABUL_2.6.md) belgesinde bulunur.
+
+## 2.7 teslim durumu
+
+Restoranın içi: VADO'nun müşteri paketi, masa QR'ı ve çağrı/hesap, gel-al/ileri saat,
+kabul/ret/ETA, tablet mutfak, ses/Wake Lock yönetimi, ortak cihaz ve dar yetki,
+fiziksel tahsilat, kalıcı canlı replay uygulanmıştır. Üç ekran boyutu, zayıf ağ,
+bozma ve gerçek 2.6 geçiş/geri dönüş kanıtları [KABUL_2.7.md](KABUL_2.7.md)
+belgesindedir. Docker çalıştırması Claude'a, fiziksel tablet sesi/uyku ve native
+telefon denemesi hedef cihaza bırakılmıştır. Eve teslim, kurye, promosyon/sadakat,
+değerlendirme/tekrar sipariş ve iki haftalık pilot 2.8 kapsamındadır.

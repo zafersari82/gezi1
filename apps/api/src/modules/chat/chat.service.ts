@@ -592,7 +592,8 @@ export function createChatService(
     }
     if (body.kind === "image") await requireOwnedMedia(db, userId, [body.mediaId]);
 
-    const inserted = await db.maybeOne<MessageRow>(sql`
+    const { inserted, eventId, duplicate } = await db.transaction(async (tx) => {
+      const inserted = await tx.maybeOne<MessageRow>(sql`
       with m as (
         insert into messages (conversation_id, sender_id, kind, body, media_id, client_id)
         values (
@@ -608,17 +609,17 @@ export function createChatService(
       )
       select ${MESSAGE_COLUMNS} from m left join media md on md.id = m.media_id
     `);
-    if (inserted === null) {
-      const existing = await db.one<MessageRow>(sql`
+      if (inserted === null) {
+        const existing = await tx.one<MessageRow>(sql`
         select ${MESSAGE_COLUMNS}
         from messages m
         left join media md on md.id = m.media_id
         where m.sender_id = ${userId} and m.client_id = ${body.clientId}
       `);
-      return toMessage(existing, NO_NAMES);
-    }
+        return { inserted: existing, eventId: null, duplicate: true };
+      }
 
-    await db.execute(sql`
+      await tx.execute(sql`
       update conversation_members
       set last_read_seq = ${inserted.seq}
       where conversation_id = ${conversationId}
@@ -626,14 +627,20 @@ export function createChatService(
         and last_read_seq < ${inserted.seq}
     `);
 
+      const eventId = await notifications.enqueueMessage(tx, {
+        messageId: inserted.id,
+        conversationId,
+        senderId: userId,
+        kind: inserted.kind,
+        body: inserted.body,
+      });
+      return { inserted, eventId, duplicate: false };
+    });
+    if (duplicate) return toMessage(inserted, NO_NAMES);
+
     const message = toMessage(inserted, NO_NAMES);
     realtime.emit(members, "message:new", { conversationId, message });
-    notifications.notifyMessage({
-      conversationId,
-      senderId: userId,
-      kind: inserted.kind,
-      body: inserted.body,
-    });
+    notifications.kick(eventId);
     return message;
   }
 

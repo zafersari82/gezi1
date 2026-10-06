@@ -11,6 +11,7 @@ export const CAPABILITIES = [
   "payment.request",
   "storage.local",
   "share.native",
+  "ordering.basic",
 ] as const;
 
 export const capabilitySchema = z.enum(CAPABILITIES);
@@ -24,6 +25,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "payment.request": "VADO ödeme ekranını açma",
   "storage.local": "Bu cihazda kendi verisini saklama",
   "share.native": "Telefonun paylaşım menüsünü açma",
+  "ordering.basic": "Bu işletmedeki sepetini ve siparişlerini yönetme",
 };
 
 /**

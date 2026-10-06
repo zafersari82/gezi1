@@ -33,6 +33,25 @@ afterEach(() => {
 });
 
 describe("mini uygulama SDK'sı", () => {
+  it("sipariş isteğini yalnızca kabuk köprüsüne gönderir", async () => {
+    const shell = fakeShell();
+    const vado = createVado(shell.host);
+    const params = {
+      id: "sepet",
+      key: "tekrar-1",
+      cartVersion: 2,
+      seenTotalMinor: 100,
+      quoteHash: "a".repeat(64),
+    };
+    const pending = vado.ordering.checkout(params);
+    expect(shell.last()).toMatchObject({ method: "ordering.checkout", params });
+    shell.reply({
+      id: shell.last().id,
+      ok: true,
+      result: { type: "cart_changed", cart: { version: 3 } },
+    });
+    await expect(pending).resolves.toEqual({ type: "cart_changed", cart: { version: 3 } });
+  });
   it("isteği sürüm numaralı zarfla gönderir ve yanıtı döndürür", async () => {
     const shell = fakeShell();
     const vado = createVado(shell.host);
@@ -237,4 +256,16 @@ describe("mini uygulama SDK'sı", () => {
     await expect(stored).resolves.toBe("13:00");
     port.close();
   });
+});
+
+it("sipariş aboneliği yalnız kabuk bildirimini alır ve kaldırılabilir", () => {
+  const shell = fakeShell();
+  const vado = createVado(shell.host);
+  const listener = vi.fn();
+  const remove = vado.ordering.onChange(listener);
+  shell.deliver(JSON.stringify({ vado: 1, type: "event", name: "ordering.changed" }));
+  expect(listener).toHaveBeenCalledTimes(1);
+  remove();
+  shell.deliver(JSON.stringify({ vado: 1, type: "event", name: "ordering.changed" }));
+  expect(listener).toHaveBeenCalledTimes(1);
 });

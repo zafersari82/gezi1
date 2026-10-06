@@ -1,7 +1,12 @@
-import { BRIDGE_PROTOCOL_VERSION, type MiniAppDetail, type Payment } from "@vado/contracts";
+import {
+  BRIDGE_PROTOCOL_VERSION,
+  businessContextBodySchema,
+  type MiniAppDetail,
+  type Payment,
+} from "@vado/contracts";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal, Share, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,6 +15,7 @@ import { APP_VERSION } from "@/api/config";
 import { PaymentSheet } from "@/features/payments/payment-sheet";
 import { createPayment } from "@/features/payments/queries";
 import { QrScanner } from "@/features/qr/qr-scanner";
+import { useRealtime } from "@/features/realtime/realtime-provider";
 import { ReportSheet } from "@/features/reports/report-sheet";
 import { useMe } from "@/features/session/session-provider";
 import { currentPlatform } from "@/lib/platform";
@@ -27,6 +33,7 @@ import { consentStatusOf, grantConsent, miniAppStorage } from "./consents";
 import { MiniAppFrame } from "./mini-app-frame";
 import type { MiniAppFrameHandle } from "./mini-app-frame.types";
 import { MiniAppIcon } from "./mini-app-icon";
+import { createOrderingHost } from "./ordering-host";
 import { fetchMiniAppIdentity, fetchMiniAppIdentityToken } from "./queries";
 
 /** "Yaklaşık konum" yetkisi: koordinatlar yaklaşık 100 metre duyarlılığa yuvarlanır. */
@@ -44,9 +51,11 @@ const CLOSED_PAYMENT_MESSAGE =
 export function MiniAppHost({
   miniApp,
   launchParams,
+  launchQr = null,
 }: {
   miniApp: MiniAppDetail;
   launchParams: Record<string, string>;
+  launchQr?: string | null;
 }) {
   const me = useMe();
   const insets = useSafeAreaInsets();
@@ -55,8 +64,41 @@ export function MiniAppHost({
   const payment = usePrompt<Payment, boolean>(false);
   const scanner = usePrompt<true, string | null>(null);
   const [reporting, setReporting] = useState(false);
+  const realtime = useRealtime();
+  useEffect(() => {
+    if (!miniApp.capabilities.includes("ordering.basic")) return;
+    return realtime.subscribeOrdering((connected) =>
+      frame.current?.post(
+        JSON.stringify({
+          vado: BRIDGE_PROTOCOL_VERSION,
+          type: "event",
+          name: connected === null ? "ordering.changed" : "ordering.connection",
+          ...(connected === null ? {} : { connected }),
+        }),
+      ),
+    );
+  }, [realtime, miniApp.capabilities]);
+  const context = businessContextBodySchema.safeParse({
+    businessId: launchParams.businessId,
+    appInstanceId: launchParams.appInstanceId,
+    miniAppId: miniApp.id,
+  });
 
   const host: BridgeHost = {
+    ordering: createOrderingHost(
+      context.success ? { ...context.data, miniAppId: miniApp.id } : { miniAppId: miniApp.id },
+      {
+        request: (method, path, body, key) =>
+          method === "GET"
+            ? api.get<unknown>(path)
+            : method === "PUT"
+              ? api.put<unknown>(path, body)
+              : key === undefined
+                ? api.post<unknown>(path, body)
+                : api.postIdempotent<unknown>(path, key, body),
+      },
+      launchQr,
+    ),
     miniApp,
     launchParams,
     containerInfo: () => ({

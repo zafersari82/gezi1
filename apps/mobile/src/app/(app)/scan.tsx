@@ -14,7 +14,7 @@ import { useFeedback } from "@/ui/feedback";
 const RETRY_DELAY_MS = 2000;
 
 /** Okutulan kodun gösterdiği kaydın ekranını, tarama ekranının yerine açar. */
-function openTarget(target: QrTarget): void {
+function openTarget(target: QrTarget, qr: string): void {
   switch (target.type) {
     case "user":
       router.replace({ pathname: "/user/[id]", params: { id: target.user.id } });
@@ -25,7 +25,10 @@ function openTarget(target: QrTarget): void {
     case "miniapp":
       router.replace({
         pathname: "/miniapps/[id]",
-        params: { id: target.miniApp.id, launch: rememberLaunch(target.miniApp.id, target.params) },
+        params: {
+          id: target.miniApp.id,
+          launch: rememberLaunch(target.miniApp.id, target.params, qr),
+        },
       });
       break;
   }
@@ -49,7 +52,9 @@ export default function ScanScreen() {
   function handleScan(value: string) {
     if (resolveQr.isPending || coolingDown) return;
     resolveQr.mutate(value, {
-      onSuccess: openTarget,
+      onSuccess: (target) => {
+        openTarget(target, value);
+      },
       onError: (error) => {
         notify(errorMessage(error));
         setCoolingDown(true);

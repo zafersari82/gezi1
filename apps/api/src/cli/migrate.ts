@@ -6,7 +6,7 @@ import { migrate } from "../core/migrator";
 async function main(): Promise<void> {
   loadEnvFile();
   const config = loadConfig();
-  const applied = await migrate(config.databaseUrl);
+  const applied = await migrate(config.databaseMigrateUrl);
   if (applied.length === 0) {
     console.log("Şema güncel; uygulanacak dosya yok.");
     return;

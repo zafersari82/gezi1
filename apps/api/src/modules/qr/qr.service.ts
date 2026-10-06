@@ -151,7 +151,15 @@ export function createQrService(
     return { type: "miniapp", miniApp, params: payload.p ?? {} };
   }
 
-  return { issue, issueMiniAppQr, resolve };
+  function issueTable(miniAppId: string, params: QrParams): IssuedQr {
+    return encode({ t: "miniapp", id: miniAppId, exp: null, p: params });
+  }
+  function tablePayload(value: string) {
+    const payload = decode(value);
+    if (payload.t !== "miniapp" || payload.p === undefined) throw new AppError("qr_invalid");
+    return { miniAppId: payload.id, params: payload.p };
+  }
+  return { issue, issueMiniAppQr, resolve, issueTable, tablePayload };
 }
 
 export type QrService = ReturnType<typeof createQrService>;

@@ -403,8 +403,8 @@ Bunlar hata değil, bu sürümün bilinçli sınırlarıdır; yayın kararını 
   sunucuya ya da `.env` dosyasına erişen kişi anahtarları okuyabilir.
 - **Parmak izi, yüz ve uygulama kilidi gerçek telefonda denenmedi.** Sunucu tarafı ve SMS koduyla
   doğrulama uçtan uca denendi; cihaz kilidini soran bölüm yalnızca derlendi.
-- **Yeni cihaz uyarısı yalnızca açık cihazlara ulaşır.** Anlık bildirim (push) olmadığı için
-  uygulama kapalıyken uyarı görülmez; oturum listesindeki "Yeni cihaz" işareti kalır.
+- **Yeni cihaz uyarısı açık oturum adreslerine gönderilir.** SQL outbox teslimi kalıcıdır;
+  Expo kabulü cihaz gösterimi garantisi değildir. Gerçek telefon teslimi bu ortamda denenmedi.
 - **Konuma ya da alışılmadık IP adresine göre şüpheli giriş tespiti yoktur.** IP adresi kaydedilir
   ve kullanıcıya gösterilir ama karar vermede kullanılmaz.
 - **Kötüye kullanım tespiti yoktur.** İstenmeyen içerik yalnızca kullanıcı şikayetiyle fark edilir.
@@ -456,3 +456,94 @@ kararlı olduğunda yükseltmek bu uyarıyı kaldırır.
 - İşletim sistemi, Docker ve bağımlılıklar güncel tutulmalıdır (`npm audit`).
 
 Kurulum adımları: [docs/YAYIN.md](docs/YAYIN.md).
+
+## 2.6: işletme yalıtımı
+
+API `vado_app` ile bağlanır; başlangıç kontrolü sahip rolünü, süper kullanıcıyı, RLS atlamayı
+ve ayrıcalıklı rol üyeliğini reddeder. `business_members`, `branches`, `branch_hours`,
+`business_customers`, `app_instances` tablolarında RLS ve FORCE zorunludur. İşlem kapsamı yoksa
+veri görünmez ve yazılamaz. `TenantScope` yalnızca doğrulanmış üyelik veya kabuk bağlamından
+üretilir; iç işlem başka işletmeye geçemez. Bileşik yabancı anahtarlar işletmeler arası bağları
+engeller. Platform erişimi ayrı `vado_platform` bağlantısı ve açık `platformScope` yoluyla
+çalışır; motor modüllerinin bu yolu veya kapsam kurucusunu içe aktarması lint hatasıdır.
+
+Hesap silme işlemi platform yolunda, müşteri bağını ve üyelikleri aynı işlemde temizler.
+İşletmenin rastgele müşteri kimliği kullanıcı kimliğinden türetilmez. Yeni işletmenin sahip
+üyeliği sınırlı veritabanı tetikleyicisiyle kurulur; tetikleyici önceki işlem kapsamını geri yükler.
+
+Katalog tablolarında da RLS/FORCE ve işletme kimliğini içeren yabancı anahtarlar zorunludur.
+Müşteri kataloğu pasif ürünleri ve kullanılmayan seçenek gruplarını açmaz. Fiyat ve seçenek
+bağlarının yazılması, fiyat görüntüsü işleminin kilidini aşamaz. Tutarlar ve vergi oranları
+API'de ve veritabanında sınırlandırılır; seçenek kimliği başka gruba taşınamaz.
+
+0009 hesap silme yarışını da kapatır: müşteri bağı yalnızca etkin kullanıcıya kurulabilir.
+Bağ kurma kullanıcının okuma kilidini, hesap silme aynı kullanıcının yazma kilidini önce alır.
+Böylece silme bittikten sonra bekleyen istek kullanıcı bağını geri kuramaz; veritabanındaki
+silinmiş kullanıcı satırının hâlâ bulunması yeni bir bağ için yeterli değildir.
+
+## 2.6 olay ve tekrar koruması
+
+İşletme olayı, teslim ve tekrar anahtarları RLS/FORCE ile yalıtılır. Sohbet ve giriş
+olayları ayrı platform kuyruğundadır; uygulama bu kuyruğu okuyamaz, teslim kaydı
+yazamaz. Dağıtıcı açık `platformScope` yolu kullanır; motorun bu yola, kapsam kurucusuna
+ve genel olay üreticisine erişimi lint ile yasaktır. Olay içeriği ve teslim kayıtları
+veritabanında değişmez. İşletme/sipariş sırası, önceki olay teslim edilene kadar korunur.
+
+İç etki ve teslim kaydı aynı SQL işleminde yazılır. Dış çağrı sırasında SQL kilidi yoktur;
+başarılı gönderimle teslim kaydı arasındaki çökme çift gönderim doğurabilir. Mobil
+foreground denetimi yedi gün içindeki son 2048 kimliği kalıcı tutar; kayıt başarısızsa
+gösterimi bastırır. İşletim sistemi arka plan gösterimi için Expo `collapseId` ve `tag`
+alanlarına aynı olay kimliği yazılır; gerçek telefonda davranışı bu ortamda denenmedi.
+
+Tekrar anahtarı işletme, uygulama örneği, müşteri ve işlem adına bağlıdır; 24 saatlik
+yanıt başka müşteriye verilmez. Farklı gövde `409 idempotency_conflict` alır. Webhook
+alıcısı olay kimliğini tekilleştirmeli, `vado-timestamp` tazeliğini (örneğin beş dakika)
+ve ham gövde için HMAC-SHA256 imzasını sabit süreli karşılaştırmayla doğrulamalıdır.
+İmza girdisi `<zaman>.<ham JSON>`; başlık `vado-signature: sha256=<hex>`. Gizli anahtar
+manifestte veya istemcide bulunmaz; yalnızca sunucuyu işleten kişi kurar.
+
+## 2.6 sepet ve sipariş koruması
+
+Altı sipariş tablosu zorunlu RLS/FORCE ve bileşik işletme bağları kullanır. Sepet
+düzenlemesi üst kaydın sürümünü aynı işlemde artırır. Checkout anahtarı, sepet kilidi,
+güncel katalog, fiyat görüntüsü, geçmiş ve olay tek SQL işlemindedir. Güncel fiyat
+veya KDV değişiminde sipariş yazılmaz. Başarılı yanıt 24 saat aynı müşteri bağlamında
+tekrar verilir. Fiyat görüntüsü sonradan sıfır tutarlı satırla dahi genişletilemez.
+Durum geçişi veritabanındaki değişmez akış ve sürümle doğrulanır; terminal sipariş
+değişmez. Müşteri VADO kullanıcı kimliği sipariş yanıtına veya olaya yazılmaz.
+
+Köprü `ordering.basic` yetkisi ister; bütün sipariş parametreleri strict şemadır.
+İşletme ve uygulama örneği kabuğun imzalı açılış bağlamından alınır; seçili mini
+uygulamanın örneğe gerçekten bağlı olması sunucuda doğrulanır. Oturum belirteci
+pakete aktarılmaz. Müşteri yalnızca kendi uygulama örneğindeki siparişlerini okur.
+
+## 2.6 kayıtlı yetenekler ve üyelik iptali
+
+Yetenek manifesti JSON verisidir; sunucu kodu statik kayıt listesinden gelir.
+İşletme keyfi paket, sürüm, şema veya kural işlevi yükleyemez. SQL de yalnızca
+`ordering.preparation@1.0.0` grafiği ve sınırlı `stationLabel` verisini kabul eder.
+Manifest derleyicisi izinli ara adımı, tekil durumları, kayıtlı kural adlarını,
+döngüsüz ve erişilebilir akışı doğrular; terminal durumlar değişmez.
+
+İşletme kapsamı verildikten sonra her `withTenant` işlemi etkin kullanıcıyı
+ve aynı rolle etkin üyeliği yeniden kilitleyip doğrular. Hesap silme bu
+kullanıcıyı önce kilitler; 0012 etkin üye bağını da veritabanında doğrular.
+Böylece bekleyen işlem silmeden sonra erişemez veya üyeliği yeniden açamaz.
+
+## VADO Business oturumu ve canlı siparişler
+
+Business, mevcut VADO kullanıcısını ve güncel işletme üyeliğini doğrular. API belirteci
+HttpOnly, üretimde Secure ve SameSite=Strict çerezde kalır; istemciye verilen giriş
+yanıtı yalnızca başarı bilgisidir. Değişiklik istekleri tam Origin denetiminden geçer.
+Vekil yol, yöntem ve sorgu izin listesiyle sınırlandırılır; işletme kimliği üyeliği
+doğrulanmış seçimden eklenir. Ürün ve şube yazımı personel rolüne kapalıdır.
+
+0013 bilet tablosunda RLS ve FORCE açıktır; kimlik alanları değişmez. Rastgele biletin
+yalnızca özeti kaydedilir, 60 saniyelik süre ve tek kullanımlık güncelleme yarışta da
+zorlanır. Bağlantı ömrü en çok beş dakika veya oturumun kalan süresidir; çıkış tüm
+oturum soketlerini kapatır. Alıcı her olayda güncel etkin üyelikle seçilir. Kişisel
+sohbet odası ve işletmeye özgü kullanıcı odası ayrıdır; olayda telefon veya müşteri
+ayrıntısı yoktur. Süresi dolan biletler platform rolünde en çok binlik partilerle silinir.
+
+PWA yalnızca değişmez statik dosyaları ve ortak çevrimdışı ekranını saklar; özel HTML,
+API yanıtları ve oturumlar service worker önbelleğine yazılmaz.

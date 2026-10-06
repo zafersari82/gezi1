@@ -225,6 +225,7 @@ export function createAuthService(
       const user = await findMe(tx, storage, account.id);
       if (user === null) throw new AppError("unauthorized");
       return {
+        eventId: newDevice ? await notifications.enqueueNewDevice(tx, session.id) : null,
         newDevice,
         sessionId: session.id,
         result: { token, expiresAt: session.expires_at.toISOString(), deviceKey, user },
@@ -236,7 +237,7 @@ export function createAuthService(
         sessionId: opened.sessionId,
         deviceName: body.deviceName,
       });
-      notifications.notifyNewDevice(opened.result.user.id, opened.sessionId, body.deviceName);
+      notifications.kick(opened.eventId);
     }
     return opened.result;
   }

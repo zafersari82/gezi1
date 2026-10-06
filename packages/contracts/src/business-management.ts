@@ -1,0 +1,74 @@
+import { z } from "zod";
+
+import { idSchema, timestampSchema } from "./common";
+import { miniAppIdSchema } from "./miniapps";
+
+export const businessMemberRoleSchema = z.enum(["owner", "manager", "staff"]);
+export type BusinessMemberRole = z.infer<typeof businessMemberRoleSchema>;
+export const businessMembershipSchema = z.object({
+  id: idSchema,
+  businessId: idSchema,
+  userId: idSchema,
+  businessName: z.string(),
+  role: businessMemberRoleSchema,
+  active: z.boolean(),
+});
+export type BusinessMembership = z.infer<typeof businessMembershipSchema>;
+export const businessMemberBodySchema = z.object({
+  userId: idSchema,
+  role: z.enum(["manager", "staff"]),
+  active: z.boolean().default(true),
+});
+export type BusinessMemberBody = z.infer<typeof businessMemberBodySchema>;
+
+const timezoneSchema = z
+  .string()
+  .max(80)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat("tr-TR", { timeZone: value });
+      return true;
+    } catch {
+      return false;
+    }
+  });
+export const branchBodySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  timezone: timezoneSchema.default("Europe/Istanbul"),
+  address: z.string().trim().max(500).default(""),
+  active: z.boolean().default(true),
+});
+export type BranchBody = z.infer<typeof branchBodySchema>;
+export const branchSchema = branchBodySchema.extend({ id: idSchema, businessId: idSchema });
+export type Branch = z.infer<typeof branchSchema>;
+export const branchHourSchema = z
+  .object({
+    weekday: z.number().int().min(0).max(6),
+    opensAt: z.number().int().min(0).max(1439),
+    closesAt: z.number().int().min(1).max(2879),
+  })
+  .refine((value) => value.closesAt > value.opensAt && value.closesAt <= value.opensAt + 1440);
+export const branchHoursBodySchema = z.object({ hours: z.array(branchHourSchema).max(35) });
+export type BranchHoursBody = z.infer<typeof branchHoursBodySchema>;
+export const appInstanceBodySchema = z.object({
+  miniAppId: z.string().min(1).max(80),
+  merchantId: z.string().min(1).max(120),
+  engine: z.literal("ordering").default("ordering"),
+  active: z.boolean().default(true),
+});
+export type AppInstanceBody = z.infer<typeof appInstanceBodySchema>;
+export const appInstanceSchema = appInstanceBodySchema.extend({
+  id: idSchema,
+  businessId: idSchema,
+  createdAt: timestampSchema,
+});
+export const businessContextBodySchema = z.object({
+  businessId: idSchema,
+  appInstanceId: idSchema,
+  miniAppId: miniAppIdSchema.optional(),
+});
+export const businessContextSchema = businessContextBodySchema.omit({ miniAppId: true }).extend({
+  businessCustomerId: idSchema,
+});
+export const businessParamsSchema = z.object({ businessId: idSchema });
+export const businessRecordParamsSchema = businessParamsSchema.extend({ id: idSchema });

@@ -13,7 +13,7 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
  * Canlı ortamda şema değişikliği bilinçli bir adımdır; bekleyen dosya varsa API başlamaz.
  */
 async function ensureSchema(config: Config): Promise<string[]> {
-  if (config.env !== "production") return migrate(config.databaseUrl);
+  if (config.env !== "production") return migrate(config.databaseMigrateUrl);
 
   const pending = await pendingMigrations(config.databaseUrl);
   if (pending.length > 0) {
@@ -31,8 +31,10 @@ async function main(): Promise<void> {
   const applied = await ensureSchema(config);
 
   const db = createDatabase(config.databaseUrl);
-  const app = await buildApp({ config, db });
+  const platformDb = createDatabase(config.databasePlatformUrl);
+  const app = await buildApp({ config, db, platformDb });
   const { log } = app.server;
+  app.services.events.start();
   if (applied.length > 0) log.info({ applied }, "Şema güncellendi");
   if (config.demoMode) log.warn("Demo modu açık: SMS gönderilmez, doğrulama kodu 000000");
   // Anahtar değişikliğinden sonra süreçlerin yeni halkayı aldığı buradan görülür; yalnızca
@@ -73,6 +75,10 @@ async function main(): Promise<void> {
   const maintenance = setInterval(() => {
     Promise.all([
       app.services.auth.purgeExpired(),
+      app.services.events.purgeExpiredKeys(),
+      app.services.tenantMaintenance.purgeCarts(),
+      app.services.tenantMaintenance.purgeBusinessTickets(),
+      app.services.tenantMaintenance.purgeRestaurantState(),
       app.services.adminAccounts.purgeExpired(),
     ]).catch((error: unknown) => {
       log.error(error, "Bakım görevi başarısız");
@@ -90,7 +96,7 @@ async function main(): Promise<void> {
 
     app
       .close()
-      .then(() => db.close())
+      .then(() => Promise.all([db.close(), platformDb.close()]))
       .then(() => process.exit(0))
       .catch((error: unknown) => {
         log.error(error, "Kapanış başarısız");

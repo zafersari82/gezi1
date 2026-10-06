@@ -16,6 +16,7 @@ await build({
   entryPoints: [
     "src/main.ts",
     "src/cli/migrate.ts",
+    "src/cli/database-roles.ts",
     "src/cli/keys.ts",
     "src/cli/packages.ts",
     "src/cli/admins.ts",

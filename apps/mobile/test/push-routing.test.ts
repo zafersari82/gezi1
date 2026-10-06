@@ -13,6 +13,21 @@ describe("bildirime dokununca açılan ekran", () => {
     expect(pushTarget({ type: "new_device" })).toBe("/settings/sessions");
   });
 
+  it("sipariş bildirimi kendi mini uygulamasını doğrulanacak bağlamla açar", () => {
+    expect(
+      pushTarget({
+        type: "order",
+        miniAppId: "restoran",
+        businessId: CONVERSATION,
+        appInstanceId: CONVERSATION,
+        orderId: CONVERSATION,
+        eventId: CONVERSATION,
+      }),
+    ).toMatchObject({
+      pathname: "/miniapps/[id]",
+      params: { id: "restoran", launch: expect.any(String) as unknown },
+    });
+  });
   it("tanınmayan ya da bozuk veri hiçbir ekran açmaz", () => {
     for (const data of [
       null,

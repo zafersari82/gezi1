@@ -16,6 +16,8 @@ export type Logger = Pick<FastifyBaseLogger, "info" | "warn" | "error">;
 export interface AppContext {
   config: Config;
   db: Database;
+  /** Yalnızca platformScope ile kullanılan ayrı, RLS atlayan bağlantı. */
+  platformDb: Database;
   log: Logger;
   keys: AppKeys;
   storage: StorageProvider;
@@ -26,3 +28,6 @@ export interface AppContext {
   push: PushProvider;
   realtime: RealtimePublisher;
 }
+
+/** Motor ve ortak katalog, ayrıcalıklı platform bağlantısını alamaz. */
+export type TenantContext = Pick<AppContext, "db">;

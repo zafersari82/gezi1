@@ -39,6 +39,7 @@ import {
   QR_PARAM_VALUE_MAX,
   QR_PARAMS_MAX,
   type ReportStatus,
+  retryEventParamsSchema,
   versionSchema,
 } from "@vado/contracts";
 import { refresh } from "next/cache";
@@ -854,4 +855,11 @@ export async function issueMiniAppQr(
   } catch (error) {
     return failed(messageOf(error));
   }
+}
+
+/** Aynı olay kimliği korunur; API izni ve kalıcı denetim kaydını doğrular. */
+export async function retryEvent(queue: "tenant" | "platform", id: string): Promise<void> {
+  const params = retryEventParamsSchema.parse({ queue, id });
+  await adminSend("POST", `/v1/admin/events/${params.queue}/${params.id}/retry`);
+  refresh();
 }

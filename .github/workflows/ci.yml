@@ -20,19 +20,22 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: vado
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: vado
           POSTGRES_DB: vado
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U vado -d vado"
+          --health-cmd "pg_isready -U postgres -d vado"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
 
     env:
-      DATABASE_URL: postgres://vado:vado@localhost:5432/vado
+      DATABASE_TEST_ADMIN_URL: postgres://postgres:vado@localhost:5432/postgres
+      DATABASE_URL: postgres://vado_app:vado@localhost:5432/vado
+      DATABASE_MIGRATE_URL: postgres://vado_owner:vado@localhost:5432/vado
+      DATABASE_PLATFORM_URL: postgres://vado_platform:vado@localhost:5432/vado
       NEXT_TELEMETRY_DISABLED: "1"
       EXPO_NO_TELEMETRY: "1"
 

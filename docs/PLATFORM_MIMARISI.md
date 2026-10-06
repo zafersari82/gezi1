@@ -2,7 +2,7 @@
 
 Bu belge VADO'nun sektör uygulamalarını (restoran, güzellik, otel, mağaza…) nasıl ürettiğini ve
 hangi kuralla büyüyeceğini anlatır. 2.6'dan itibaren yazılan her motor, yetenek paketi ve sektör
-deneyimi bu belgeye uyar. Belge bir hedef mimaridir: aşağıdaki katmanların çoğu henüz yazılmadı;
+deneyimi bu belgeye uyar. Belge bir hedef mimaridir: uygulanan katmanların sürüm durumu belgenin sonunda belirtilir;
 neyin var olduğu "Bugünkü durum" bölümündedir.
 
 ## Temel kural
@@ -302,9 +302,9 @@ Motorlar ve platform şunları baştan taşır ([TURKIYE_UYUM.md](TURKIYE_UYUM.m
 - İşletme hesabı ve kapsamı (2.5) işletme deneyiminin yetki temelidir.
 - Parametreli QR (2.5) masadan sipariş ve şubede randevunun, kimlik belirteci (2.5) dış
   sistemlerle bağlantının, anlık bildirim (2.5) hatırlatma ve sipariş durumunun temelidir.
-- Kapatılması gereken bir tasarım boşluğu: mini uygulamanın gördüğü kimlik (`openId`) bugün
-  uygulama kaydına özeldir. Müşteri servisi için aynı işletmenin kayıtları arasında ortak,
-  **işletmeye özel** bir müşteri kimliği gerekir; bu ilk motorla birlikte tasarlanır.
+- Mini uygulamanın gördüğü `openId` uygulama kaydına özeldir. 2.6'da kurulan müşteri
+  servisi aynı işletmenin kayıtları arasında ortak, **işletmeye özel** kimlik sağlar.
 
-Hiçbir motor, yetenek paketi ya da PRO ürünü henüz yazılmadı. Sıra ve kapsam
+2.6'da Sipariş çekirdeği, yetenek paketleri ve VADO Business; 2.7'de Restoranın iç
+operasyonu uygulanmıştır. Restoran PRO'nun eve teslim ve pilot kapsamı 2.8'de kalır. Sıra ve kapsam
 [YOL_HARITASI.md](YOL_HARITASI.md) içindedir; her sürüm başlamadan önce tek sayfalık planı onaylanır.
