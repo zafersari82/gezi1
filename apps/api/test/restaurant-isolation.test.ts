@@ -80,19 +80,14 @@ it("personel masa listesini görse de QR üretemez", async () => {
     active: true,
   });
   const root = `/v1/business/${f.businessId}`;
-  const table = await as(app, f.owner).ok(
-    z.object({ id: z.uuid() }),
-    "POST",
-    `${root}/tables`,
-    {
-      body: {
-        branchId: f.branchId,
-        appInstanceId: f.instanceId,
-        label: "Yetki masası",
-        active: true,
-      },
+  const table = await as(app, f.owner).ok(z.object({ id: z.uuid() }), "POST", `${root}/tables`, {
+    body: {
+      branchId: f.branchId,
+      appInstanceId: f.instanceId,
+      label: "Yetki masası",
+      active: true,
     },
-  );
+  });
   expect(await as(app, staff).request("GET", `${root}/tables`)).toMatchObject({ status: 200 });
   expect(
     await as(app, staff).request("POST", `${root}/tables/${table.id}/qr`, { body: {} }),
