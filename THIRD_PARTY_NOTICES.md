@@ -74,6 +74,14 @@ Apache-2.0, diğerleri MIT lisanslıdır.
 `eslint-plugin-react-hooks`, `eslint-plugin-simple-import-sort`, `expo-doctor`, `globals`,
 `prettier`, `tsx`, `typescript`, `typescript-eslint`, `vite`, `vitest`.
 
+## Proje sahibi tarafından sağlanan veri
+
+- **Türkiye il / ilçe / mahalle adres veri seti:** proje sahibi 6 Ekim 2026 tarihinde veri setini
+  kendisinin derlediğini beyan etmiş ve VADO içinde kullanma, dönüştürme ve VADO dağıtımlarında
+  kullanma izni vermiştir. Ham veri arşivi depoya gömülmez; doğrulanan kayıtlar Konum platform
+  servisine `locations:import` aracıyla yüklenir. Bu kayıt üçüncü taraf yazılım lisansı değildir;
+  burada veri kökeni ve kullanım izninin denetim izi tutulur.
+
 ## Dış hizmetler
 
 - **Jitsi Meet** (Apache-2.0): görüntülü görüşme düğmesi `EXPO_PUBLIC_JITSI_URL` adresindeki Jitsi
