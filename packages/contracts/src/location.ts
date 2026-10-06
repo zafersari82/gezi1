@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { idSchema } from "./common";
-import { initialVersionSchema } from "./restaurant";
 
 export const locationReferenceIdSchema = z.string().trim().min(1).max(120);
+export const locationVersionSchema = z.number().int().min(1).max(2_147_483_647);
 
 export const locationProvinceSchema = z.object({
   id: locationReferenceIdSchema,
@@ -49,14 +49,17 @@ const customerAddressFields = {
 };
 export const createCustomerAddressBodySchema = z.object(customerAddressFields).strict();
 export const updateCustomerAddressBodySchema = z
-  .object({ ...customerAddressFields, expectedVersion: initialVersionSchema.refine((v) => v > 0) })
+  .object({
+    ...customerAddressFields,
+    expectedVersion: locationVersionSchema,
+  })
   .strict();
 export const customerAddressSchema = z.object({
   id: idSchema,
   businessId: idSchema,
   businessCustomerId: idSchema,
   ...customerAddressFields,
-  version: initialVersionSchema.refine((v) => v > 0),
+  version: locationVersionSchema,
 });
 export type CreateCustomerAddressBody = z.infer<typeof createCustomerAddressBodySchema>;
 export type UpdateCustomerAddressBody = z.infer<typeof updateCustomerAddressBodySchema>;
@@ -74,13 +77,16 @@ const serviceAreaFields = {
 };
 export const createLocationServiceAreaBodySchema = z.object(serviceAreaFields).strict();
 export const updateLocationServiceAreaBodySchema = z
-  .object({ ...serviceAreaFields, expectedVersion: initialVersionSchema.refine((v) => v > 0) })
+  .object({
+    ...serviceAreaFields,
+    expectedVersion: locationVersionSchema,
+  })
   .strict();
 export const locationServiceAreaSchema = z.object({
   id: idSchema,
   businessId: idSchema,
   ...serviceAreaFields,
-  version: initialVersionSchema.refine((v) => v > 0),
+  version: locationVersionSchema,
 });
 export type CreateLocationServiceAreaBody = z.infer<typeof createLocationServiceAreaBodySchema>;
 export type UpdateLocationServiceAreaBody = z.infer<typeof updateLocationServiceAreaBodySchema>;
