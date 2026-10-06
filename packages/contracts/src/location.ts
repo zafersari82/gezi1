@@ -26,7 +26,10 @@ export const locationNeighborhoodSchema = z.object({
   districtId: locationReferenceIdSchema,
   name: z.string().min(1).max(160),
   slug: z.string().min(1).max(200),
-  postalCode: z.string().regex(/^\d{5}$/).nullable(),
+  postalCode: z
+    .string()
+    .regex(/^\d{5}$/)
+    .nullable(),
 });
 export type LocationNeighborhood = z.infer<typeof locationNeighborhoodSchema>;
 
