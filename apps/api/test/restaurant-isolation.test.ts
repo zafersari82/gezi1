@@ -84,7 +84,14 @@ it("personel masa listesini görse de QR üretemez", async () => {
     z.object({ id: z.uuid() }),
     "POST",
     `${root}/tables`,
-    { body: { branchId: f.branchId, appInstanceId: f.instanceId, label: "Yetki masası", active: true } },
+    {
+      body: {
+        branchId: f.branchId,
+        appInstanceId: f.instanceId,
+        label: "Yetki masası",
+        active: true,
+      },
+    },
   );
   expect(await as(app, staff).request("GET", `${root}/tables`)).toMatchObject({ status: 200 });
   expect(
