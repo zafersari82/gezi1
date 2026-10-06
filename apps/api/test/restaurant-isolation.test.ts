@@ -3,7 +3,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { z } from "zod";
 
 import { sql } from "../src/core/database";
-import { as, startTestApp, type TestApp } from "./support/harness";
+import { as, createUser, startTestApp, type TestApp } from "./support/harness";
 import { createRestaurantFixture } from "./support/restaurant-fixture";
 import { createTenantFixture, scoped } from "./support/tenant-fixture";
 
@@ -70,6 +70,26 @@ it("başka müşteri siparişi ve masa hesabını göremez; aynı masada yalnız
     (await as(app, other.customer).request("GET", `${shell}/table-sessions/${session.id}/bill`))
       .body,
   ).toMatchObject({ ownTotalMinor: 0 });
+});
+it("personel masa listesini görse de QR üretemez", async () => {
+  const f = await createRestaurantFixture(app);
+  const staff = await createUser(app, "Masa personeli");
+  await app.services.businessManagement.setMember(f.scope, {
+    userId: staff.id,
+    role: "staff",
+    active: true,
+  });
+  const root = `/v1/business/${f.businessId}`;
+  const table = await as(app, f.owner).ok(
+    z.object({ id: z.uuid() }),
+    "POST",
+    `${root}/tables`,
+    { body: { branchId: f.branchId, appInstanceId: f.instanceId, label: "Yetki masası", active: true } },
+  );
+  expect(await as(app, staff).request("GET", `${root}/tables`)).toMatchObject({ status: 200 });
+  expect(
+    await as(app, staff).request("POST", `${root}/tables/${table.id}/qr`, { body: {} }),
+  ).toMatchObject({ status: 403, body: { error: { code: "forbidden" } } });
 });
 it("mutfak aktif siparişte kapatılamaz; planlama bağımlılığı ve yabancı QR reddedilir", async () => {
   const f = await createRestaurantFixture(app);
