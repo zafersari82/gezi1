@@ -1,7 +1,7 @@
 import type { Catalog } from "@vado/contracts";
 import { expect, it } from "vitest";
 
-import { selectionProblem } from "../src/model";
+import { dateTime, selectionProblem } from "../src/model";
 const group: Catalog["optionGroups"][number] = {
   id: "grup",
   businessId: "isletme",
@@ -25,4 +25,10 @@ it("zorunlu seçim boş bırakılamaz; en çok seçim, yabancı veya kapalı se�
       ["bir"],
     ),
   ).not.toBeNull();
+});
+
+it("teslim saati seçilen şubenin saat dilimini açıkça taşır", () => {
+  const value = dateTime("2026-01-01T00:00:00.000Z", "Europe/Istanbul");
+  expect(value).toContain("03:00");
+  expect(value).toContain("Europe/Istanbul");
 });
