@@ -3,7 +3,7 @@ import {
   businessRecordParamsSchema,
   createCustomerAddressBodySchema,
   createLocationServiceAreaBodySchema,
-  expectedVersionSchema,
+  locationVersionSchema,
   locationDistrictQuerySchema,
   locationNeighborhoodQuerySchema,
   locationServiceAreaQuerySchema,
@@ -18,7 +18,7 @@ import { z } from "zod";
 import { parse } from "../../core/http";
 import type { RouteContext } from "../../routes";
 
-const deleteAddressBodySchema = z.object({ expectedVersion: expectedVersionSchema }).strict();
+const deleteAddressBodySchema = z.object({ expectedVersion: locationVersionSchema }).strict();
 
 export function locationRoutes(server: FastifyInstance, { services, guard }: RouteContext): void {
   const { location, businessManagement } = services;
@@ -57,7 +57,7 @@ export function locationRoutes(server: FastifyInstance, { services, guard }: Rou
   });
   server.put("/v1/shell/:businessId/:appInstanceId/addresses/:id", async (request) => {
     const { userId } = await guard(request);
-    const { businessId, appInstanceId, id } = parse(shellCartParamsScheme, request.params);
+    const { businessId, appInstanceId, id } = parse(shellCartParamsSchema, request.params);
     return location.updateAddress(
       await businessManagement.customerScope(userId, businessId, appInstanceId),
       id,
@@ -97,11 +97,11 @@ export function locationRoutes(server: FastifyInstance, { services, guard }: Rou
   });
   server.put("/v1/business/:businessId/service-areas/:id", async (request) => {
     const { userId } = await guard(request);
-    const { businessId, id } = parse(businessRecordParamsScheme, request.params);
+    const { businessId, id } = parse(businessRecordParamsSchema, request.params);
     return location.updateServiceArea(
       await businessManagement.authorise(userId, businessId),
       id,
-      parse(updateLocationServiceAreaBodyScheme, request.body),
+      parse(updateLocationServiceAreaBodySchema, request.body),
     );
   });
 }
