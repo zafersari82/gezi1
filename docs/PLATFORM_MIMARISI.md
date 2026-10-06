@@ -254,7 +254,10 @@ Ayrıca ölçülebilir olarak:
 8. Zayıf ağda (yavaş 3G, bağlantı kopması) temel akış bozulmuyor; kaybolan işlem çoğalmıyor.
 9. Erişilebilirlik (ekran okuyucu etiketleri, dokunma alanları, kontrast) denetlendi.
 10. Türkiye'ye özgü zorunluluklar (aşağıda) karşılanıyor.
-11. Gerçek bir pilot işletmede en az iki hafta kullanıldı ve bulunan sorunlar kapatıldı.
+11. Yayın öncesi toplu denemede (bütün sektörler bittikten sonra, gerçek işletmeler, gerçek
+    telefonlar ve gerçek push ile) en az iki hafta kullanıldı ve bulunan sorunlar kapatıldı.
+    Sektör başına ayrı pilot yapılmaz; bunun yerine birkaç sürümde bir sürüm sahibinin telefonu ve
+    bir tabletle kısa bir **ara cihaz denemesi** yapılır (ses, uyku, push, kamera, QR).
 
 Bir sürümde kapsam daraltılabilir; **kalite daraltılmaz.** Bir sürümde yayınlanan her yetenek
 eksiksizdir; yarım bir yeteneği yayınlamak yerine bir sonraki sürüme bırakılır. Online ödemenin
@@ -306,5 +309,5 @@ Motorlar ve platform şunları baştan taşır ([TURKIYE_UYUM.md](TURKIYE_UYUM.m
   servisi aynı işletmenin kayıtları arasında ortak, **işletmeye özel** kimlik sağlar.
 
 2.6'da Sipariş çekirdeği, yetenek paketleri ve VADO Business; 2.7'de Restoranın iç
-operasyonu uygulanmıştır. Restoran PRO'nun eve teslim ve pilot kapsamı 2.8'de kalır. Sıra ve kapsam
+operasyonu uygulanmıştır. Restoran'ın eve teslim kapsamı 2.8'dedir; PRO etiketleri yayın öncesi toplu denemeden sonra konur. Sıra ve kapsam
 [YOL_HARITASI.md](YOL_HARITASI.md) içindedir; her sürüm başlamadan önce tek sayfalık planı onaylanır.

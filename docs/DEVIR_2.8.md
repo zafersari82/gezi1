@@ -42,7 +42,7 @@ Bu belge 2.8'i yazacak kişi ya da yapay zekâ ajanı içindir. Depo **2.7.0** d
 - Belgeler kodla birlikte değişir (CHANGELOG geçiş adımlarıyla, SECURITY, API, YAYIN, MIMARI,
   YOL_HARITASI, README "Neyi denedik").
 
-## 2.8: Restoran, 2. parça ve pilot
+## 2.8: Restoran, 2. parça
 
 **Önce tek sayfalık 2.8 planını yazın; sürüm sahibi onaylamadan koda geçmeyin.**
 
@@ -66,14 +66,20 @@ Kapsam (her biri üretim kalitesinde; yarım özellik "varmış gibi" gösterilm
 6. **Kapıda nakit ve kart ödemesi.** Online ödeme yok.
 7. **Mevzuat:** mesafeli satış ön bilgilendirmesi (hemen tüketilen yiyecekte cayma istisnası),
    kampanya bildirimleri için İYS izni (işlemsel ve ticari ileti ayrımı).
-8. 2.7'deki "kapalı şubede ileri saate sipariş de reddedilir" kararını pilot restoranın tercihine
-   göre yeniden değerlendirin.
+8. 2.7'deki "kapalı şubede ileri saate sipariş de reddedilir" kararını bir işletme ayarına
+   dönüştürmeyi değerlendirin (işletme seçsin).
 
 Kapanış: bozma denemesi (164'ün üstüne); keşiften tekrar siparişe tam müşteri yolculuğu ve
 restoran operasyonunun tarayıcıda uçtan uca senaryosu; zayıf ağ ve çift dokunma denemesi; 2.7→2.8
 geçiş ve geri dönüş; Docker/Compose denemesi (yukarıdaki sırayla); belgeler; sürüm `2.8.0`.
 
-Pilot ve "Restoran PRO" etiketi: 2.8.0'dan sonra PRO kalite şartına göre pilot kontrol listesi
-(fiziksel tablet, gerçek telefonlar, gerçek push, iki haftalık kullanım). Etiket ancak pilottan
-sonra konur. Pilot için gerçek bir restoran ve Expo, Firebase, Apple hesapları sürüm sahibinden
-gelir.
+**Pilot yok.** Sektör başına pilot yapılmaz. 2.8.0'dan sonra doğrudan 2.9'a (Rezervasyon
+motoru) geçilir. Bütün sektörler bittikten sonra, yayından önce tek bir toplu gerçek kullanım
+denemesi yapılır; "PRO" etiketleri ondan sonra konur. 2.8.0 sonunda yalnızca kısa bir **ara cihaz
+denemesi listesi** hazırlayın (sürüm sahibinin telefonu ve bir tablet: ses, uyku, push, kamera,
+QR).
+
+**Mimari denetim:** 2.8 bitmeden Sipariş motorunun çekirdeğinde restorana özgü bir kavram (masa,
+mutfak, garson, kurye gibi) kalmadığını gösterin; bunlar yalnızca restoran paketlerinde ve
+restoran deneyiminde olmalı. VADO bir yemek uygulaması değil, süper uygulamadır; Sipariş motoru
+Market ve Mağaza'yı da çatallanmadan taşıyabilmelidir.
