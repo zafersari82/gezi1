@@ -9,7 +9,7 @@ const neighborhoodSchema = z.object({
   mahalle_id: z.string().min(1).max(120),
   mahalle_adi: z.string().min(1).max(160),
   mahalle_slug: z.string().min(1).max(200),
-  posta_kodu: z.string().regex(/^\\d{5}$/).nullable().optional(),
+  posta_kodu: z.string().regex(/^\d{5}$/).nullable().optional(),
 });
 const districtSchema = z.object({
   ilce_id: z.string().min(1).max(120),
