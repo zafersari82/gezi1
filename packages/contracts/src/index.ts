@@ -14,6 +14,7 @@ export * from "./engine-capabilities";
 export * from "./errors";
 export * from "./events";
 export * from "./media";
+export * from "./location";
 export * from "./miniapps";
 export * from "./moments";
 export * from "./notifications";
