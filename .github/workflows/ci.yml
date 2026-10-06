@@ -46,4 +46,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Prettier farkını göster
+        run: |
+          cp docs/PLAN_2.8.md /tmp/PLAN_2.8.md
+          cp apps/api/test/restaurant-isolation.test.ts /tmp/restaurant-isolation.test.ts
+          npx prettier --write docs/PLAN_2.8.md apps/api/test/restaurant-isolation.test.ts
+          git diff -- docs/PLAN_2.8.md apps/api/test/restaurant-isolation.test.ts
+          cmp -s /tmp/PLAN_2.8.md docs/PLAN_2.8.md && cmp -s /tmp/restaurant-isolation.test.ts apps/api/test/restaurant-isolation.test.ts
       - run: npm run check
