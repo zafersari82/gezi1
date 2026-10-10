@@ -17,6 +17,8 @@ export type StudioTemplateId = z.infer<typeof studioTemplateIdSchema>;
 export interface StudioTemplate {
   id: StudioTemplateId;
   category: Category;
+  /** Vitrinin müşteriye sunduğu motor. Motoru yayında olmayan şablon sunulmaz. */
+  engine: "ordering" | "reservation";
   name: string;
   description: string;
   /** Kullanıcıya yalnızca basit bir önizleme sunar; yayınlanmış bir mini uygulama değildir. */
@@ -31,6 +33,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "food-fast",
     category: "food",
+    engine: "ordering",
     name: "Hızlı Servis",
     description: "Pilavcı, dönerci ve paket servis için sade menü.",
     accent: "#155e63",
@@ -41,6 +44,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "food-classic",
     category: "food",
+    engine: "ordering",
     name: "Klasik Restoran",
     description: "Masa, gel-al ve paket siparişe uygun başlangıç.",
     accent: "#315b48",
@@ -51,6 +55,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "food-premium",
     category: "food",
+    engine: "ordering",
     name: "Seçkin Restoran",
     description: "Fotoğrafları öne çıkaran ferah görünüm.",
     accent: "#364665",
@@ -61,6 +66,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "food-enterprise",
     category: "food",
+    engine: "ordering",
     name: "Kurumsal Zincir",
     description: "Çok şubeli markalar için net menü ve şube seçimi.",
     accent: "#364665",
@@ -71,6 +77,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "beauty-solo",
     category: "beauty",
+    engine: "reservation",
     name: "Tek Kişilik Berber",
     description: "Tek çalışanlı berber için başlangıç taslağı.",
     accent: "#155e63",
@@ -81,6 +88,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "beauty-team",
     category: "beauty",
+    engine: "reservation",
     name: "Ekipli Salon",
     description: "Birden çok çalışan için başlangıç taslağı.",
     accent: "#50637b",
@@ -91,6 +99,7 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
   {
     id: "beauty-premium",
     category: "beauty",
+    engine: "reservation",
     name: "Seçkin Salon",
     description: "Hizmet ve fotoğraf odaklı başlangıç taslağı.",
     accent: "#7b5969",
@@ -99,6 +108,18 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
     menuHeading: "Hizmetlerimiz",
   },
 ];
+
+/** Yayındaki motorlar. Rezervasyon motoru 2.9 ile açılır; o zamana kadar güzellik şablonu sunulmaz. */
+export const LIVE_ENGINES: readonly StudioTemplate["engine"][] = ["ordering"];
+
+/** İşletmenin seçebildiği şablonlar: motoru yayında olanlar. */
+export const OFFERED_STUDIO_TEMPLATES: readonly StudioTemplate[] = STUDIO_TEMPLATES.filter(
+  (template) => LIVE_ENGINES.includes(template.engine),
+);
+
+export function studioTemplateOffered(id: StudioTemplateId): boolean {
+  return OFFERED_STUDIO_TEMPLATES.some((template) => template.id === id);
+}
 
 export function studioTemplateById(id: StudioTemplateId): StudioTemplate {
   const template = STUDIO_TEMPLATES.find((item) => item.id === id);
@@ -141,9 +162,12 @@ export const studioDesignSchema = z.object({
 });
 export type StudioDesign = z.infer<typeof studioDesignSchema>;
 
-export const saveStudioBodySchema = studioDesignSchema.extend({
-  expectedVersion: z.number().int().nonnegative(),
-});
+export const saveStudioBodySchema = studioDesignSchema
+  .extend({ expectedVersion: z.number().int().nonnegative() })
+  .refine((value) => studioTemplateOffered(value.templateId), {
+    message: "Bu şablonun motoru henüz yayında değil.",
+    path: ["templateId"],
+  });
 export type SaveStudioBody = z.infer<typeof saveStudioBodySchema>;
 
 /** Yalnızca sunucunun kayıtlı medya deposundan ürettiği adresler. */

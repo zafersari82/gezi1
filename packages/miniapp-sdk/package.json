@@ -1,6 +1,6 @@
 {
   "name": "@vado/miniapp-sdk",
-  "version": "2.8.0-alpha.3",
+  "version": "2.8.0-alpha.4",
   "private": true,
   "description": "Mini uygulamaların VADO kabuğuyla konuşmasını sağlayan istemci kitaplığı",
   "type": "module",

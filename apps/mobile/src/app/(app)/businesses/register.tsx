@@ -6,7 +6,7 @@ import {
   type Category,
   CATEGORY_LABELS,
   createBusinessBodySchema,
-  STUDIO_TEMPLATES,
+  OFFERED_STUDIO_TEMPLATES,
   type StudioTemplate,
   type StudioTemplateId,
 } from "@vado/contracts";
@@ -107,12 +107,12 @@ export default function RegisterBusinessScreen() {
   const [description, setDescription] = useState("");
   const [taxNumber, setTaxNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const templates = STUDIO_TEMPLATES.filter((item) => item.category === category);
+  const templates = OFFERED_STUDIO_TEMPLATES.filter((item) => item.category === category);
   const selected = templates.find((item) => item.id === templateId);
 
   function selectCategory(value: Category) {
     setCategory(value);
-    setTemplateId(STUDIO_TEMPLATES.find((item) => item.category === value)?.id ?? null);
+    setTemplateId(OFFERED_STUDIO_TEMPLATES.find((item) => item.category === value)?.id ?? null);
   }
 
   function submit() {

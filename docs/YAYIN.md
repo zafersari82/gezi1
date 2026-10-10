@@ -781,3 +781,27 @@ geçiş sayısı 13 olmalı; aynı hesap, oturum ve sipariş görüntüsü doğr
 Yükseltmeden sonra alınan yeni siparişler eski yedekte yoktur; bakım penceresini
 buna göre yönetin. [KABUL_2.7.md](KABUL_2.7.md) gerçek kanıtları ve çalıştırılmayan
 Docker/cihaz adımlarını belirtir.
+
+## 2.7'den 2.8 ara sürümlerine geçiş
+
+2.8 henüz ara sürümdedir; canlı ortamda değil, deneme ortamında yükseltin. Adımlar 2.6'dan 2.7'ye
+geçişle aynı düzendedir: API'yi durdurun, kurulum yöneticisiyle `pg_dump --format=custom` yedek
+alın, medya ve paket depolarını yedekleyin, üç veritabanı bağlantısını koruyun.
+
+1. Şema sahibiyle `npm run db:migrate`. 0018–0027 uygulanır; 0001–0017 değişmez. İkinci çalıştırma
+   boş olmalıdır.
+2. `npm run db:location` ile Türkiye adres kataloğunu içe aktarın (bkz. [KONUM.md](KONUM.md)).
+   Katalog yoksa adres ve şube adresi ekranları `location_catalog_not_ready` der.
+3. `0024_discovery_search.sql` `pg_trgm` eklentisini kurar. Veritabanının sahibi `vado_owner`
+   olduğunda (`npm run db:roles` bunu yapar) ek yetki gerekmez. Eklenti kurmaya izin vermeyen
+   yönetilen PostgreSQL hizmetinde eklentiyi yönetici önceden kurmalıdır.
+4. API imajı görselleri `sharp` ile işler; `node:22-bookworm-slim` tabanında ek paket gerekmez.
+5. 2.7'deki etkin personele işletme genelinde `orders.view`, `orders.manage` ve `tables.serve`
+   izni verilir; işletme sahibi Ekibim ekranından daraltabilir (bkz. [YETKI.md](YETKI.md)).
+   Şubelerin serbest adres metni korunur; il/ilçe/mahalle tahmin edilmez, işletme yeniden seçer.
+6. API, Business ve mobil kabuğu birlikte yükseltin.
+
+Geri dönüş 2.7 bölümündeki gibi önceki yedeğin ayrı, boş veritabanına yüklenmesiyle yapılır.
+Yükseltmeden sonra alınan siparişler eski yedekte yoktur. 2.8 ara kaynaklarının eski
+0022–0035 dosyalarıyla kurulmuş bir deneme veritabanı varsa sıfırdan kurun; o dosyalar
+yayımlanmadı ve yeniden yazıldı.

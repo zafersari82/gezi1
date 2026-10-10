@@ -1,6 +1,6 @@
 {
   "name": "@vado/portal",
-  "version": "2.8.0-alpha.3",
+  "version": "2.8.0-alpha.4",
   "private": true,
   "description": "VADO Control: işletme, mini uygulama, şikayet ve kullanıcı yönetim paneli",
   "type": "module",

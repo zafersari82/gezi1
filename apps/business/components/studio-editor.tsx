@@ -7,11 +7,11 @@ import {
   MEDIA_MAX_BYTES,
   MEDIA_UPLOAD_FIELD,
   mediaSchema,
+  OFFERED_STUDIO_TEMPLATES,
   publishStudioBodySchema,
   type SaveStudioBody,
   saveStudioBodySchema,
   STUDIO_PALETTES,
-  STUDIO_TEMPLATES,
   type StudioConfiguration,
   studioConfigurationResponseSchema,
   type StudioDesign,
@@ -60,7 +60,7 @@ export function StudioEditor({
   catalog,
   canWrite,
 }: Props) {
-  const choices = STUDIO_TEMPLATES.filter((item) => item.category === category);
+  const choices = OFFERED_STUDIO_TEMPLATES.filter((item) => item.category === category);
   const [currentCatalog, setCurrentCatalog] = useState(catalog);
   const [templateId, setTemplateId] = useState<StudioTemplateId | null>(
     configuration?.templateId ?? choices[0]?.id ?? null,

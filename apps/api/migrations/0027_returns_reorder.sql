@@ -13,9 +13,10 @@ alter table app_instance_capabilities add constraint capability_id_known check (
 );
 
 -- Siparişin durum grafiği, uygulama örneğindeki paketlerle uyumlu mu? Önceki sürümlerde üst
--- üste sarmalanmış işlev burada tek gövdeye iner.
+-- üste sarmalanmış işlev burada tek gövdeye iner. Arama yolu sabittir: yedekten dönüşte kısıt,
+-- boş arama yoluyla çalışırken de yardımcı işlevleri bulur.
 create or replace function ordering_graph_allowed(graph jsonb, capabilities jsonb)
-returns boolean language plpgsql immutable as $$
+returns boolean language plpgsql immutable set search_path = pg_catalog, public as $$
 declare
   entry text;
   workflow jsonb;

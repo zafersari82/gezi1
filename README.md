@@ -4,7 +4,7 @@ Türkiye için mesajlaşma, mini uygulama ve ödeme platformu. Telefon numarası
 birebir ve grup sohbetleri, Anlar, QR ile ekleme, uygulama içinde açılan mini uygulamalar, ödeme
 onayı ve işletme hesapları tek bir uygulamada toplanır.
 
-Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.3) yama olarak değil, o
+Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.4) yama olarak değil, o
 temelin üzerine aynı standartla eklenir. Standart yalnızca belgede durmaz; biçim, lint, proje
 kuralları, tip denetimi ve testler `npm run check` komutuyla makine tarafından denetlenir.
 
@@ -272,7 +272,10 @@ Denenmedi:
   uygulamayı mağazaya hazırlama
 - [Anahtarlar](docs/ANAHTARLAR.md): imza anahtarlarını üretme, 2.1'den geçiş, anahtar değiştirme
 - [Türkiye'de mevzuat](docs/TURKIYE_UYUM.md): KVKK, BTK, 5651, ödeme hizmetleri
-- [Yol haritası](docs/YOL_HARITASI.md) · [2.6 planı ve devir notu](docs/PLAN_2.6.md)
+- [İşletme içi yetki](docs/YETKI.md) · [Business Studio](docs/STUDIO.md) ·
+  [Keşif ve arama](docs/KESIF.md)
+- [Yol haritası](docs/YOL_HARITASI.md) · [2.6 planı ve devir notu](docs/PLAN_2.6.md) ·
+  [2.8 planı](docs/PLAN_2.8.md)
 - [Değişiklikler](CHANGELOG.md) · [Güvenlik](SECURITY.md) · [Lisans](LICENSE.md) ·
   [Üçüncü taraf bildirimleri](THIRD_PARTY_NOTICES.md)
 
@@ -360,4 +363,11 @@ ortak tablet ve fiziksel tahsilat: [Restoran kurulumu](docs/RESTORAN_2.7.md),
 [kabul kanıtları](docs/KABUL_2.7.md),
 [geçiş ve geri dönüş](docs/YAYIN.md#26dan-27ye-geçiş-ve-geri-dönüş).
 
-**VADO Business Studio kolay kurulum:** Telefon üzerinden şablon sonrası ilk ürün/hizmet seçimi ve kontrollü katalog aktarımı için `STUDIO_KOLAY_KURULUM.md`. Gerçek veritabanı ve cihaz kabulü yapılmadan üretime hazır sayılmaz.
+## 2.8 (geliştiriliyor)
+
+Restoran 2. parça ve süper uygulama temeli. Durum, bulgular ve ara sürümler:
+[2.8 planı](docs/PLAN_2.8.md). Bu ara sürümde yazılanlar:
+[işletme içi yetki](docs/YETKI.md), [Business Studio](docs/STUDIO.md),
+[keşif ve arama](docs/KESIF.md), [konum](docs/KONUM.md), [eve teslim](docs/TESLIMAT.md),
+[teşvik](docs/TESVIK.md). Yukarıdaki "Neyi denedik" bölümü 2.8.0 ile yenilenecektir; ara
+sürümün gerçek deneme sonuçları [CHANGELOG](CHANGELOG.md) içindedir.

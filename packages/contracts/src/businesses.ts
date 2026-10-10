@@ -2,7 +2,12 @@ import { z } from "zod";
 
 import { categorySchema, idSchema } from "./common";
 import { miniAppIdSchema, miniAppSchema } from "./miniapps";
-import { studioStorefrontSchema, studioTemplateById, studioTemplateIdSchema } from "./studio";
+import {
+  studioStorefrontSchema,
+  studioTemplateById,
+  studioTemplateIdSchema,
+  studioTemplateOffered,
+} from "./studio";
 
 export const BUSINESS_NAME_MAX = 80;
 export const BUSINESS_DESCRIPTION_MAX = 500;
@@ -80,7 +85,11 @@ export const createBusinessBodySchema = z
   .refine(
     (value) =>
       value.templateId === undefined ||
-      studioTemplateById(value.templateId).category === value.category,
-    { message: "Şablon işletmenin kategorisiyle uyuşmuyor.", path: ["templateId"] },
+      (studioTemplateById(value.templateId).category === value.category &&
+        studioTemplateOffered(value.templateId)),
+    {
+      message: "Şablon işletmenin kategorisiyle uyuşmuyor ya da henüz sunulmuyor.",
+      path: ["templateId"],
+    },
   );
 export type CreateBusinessBody = z.infer<typeof createBusinessBodySchema>;

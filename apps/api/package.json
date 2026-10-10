@@ -1,6 +1,6 @@
 {
   "name": "@vado/api",
-  "version": "2.8.0-alpha.3",
+  "version": "2.8.0-alpha.4",
   "private": true,
   "description": "VADO API: REST uç noktaları ve gerçek zamanlı bildirim katmanı",
   "type": "module",

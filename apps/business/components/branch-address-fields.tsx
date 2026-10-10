@@ -7,7 +7,7 @@ import {
 } from "@vado/contracts";
 import { useEffect, useState } from "react";
 
-import { call } from "../lib/client";
+import { call, errorMessage } from "../lib/client";
 
 interface Place {
   id: string;
@@ -25,21 +25,21 @@ export function BranchAddressFields({ initial }: { initial: BranchAddressView | 
   const [province, setProvince] = useState(initial?.provinceId ?? "");
   const [district, setDistrict] = useState(initial?.districtId ?? "");
   const [neighborhood, setNeighborhood] = useState(initial?.neighborhoodId ?? "");
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState("");
 
   useEffect(() => {
     let active = true;
     call(locationCountriesSchema, "/api/location/countries")
       .then((countries) => {
         const turkey = countries.items.find((country) => country.code === "TR");
-        if (turkey === undefined) throw new Error("Türkiye kataloğu yok");
+        if (turkey === undefined) throw new Error("Türkiye adres kataloğu henüz yüklenmedi.");
         return call(locationPlacesSchema, `/api/location/countries/${turkey.id}/provinces`);
       })
       .then((response) => {
         if (active) setProvinces(response.items);
       })
-      .catch(() => {
-        if (active) setFailed(true);
+      .catch((cause: unknown) => {
+        if (active) setFailure(errorMessage(cause));
       });
     return () => {
       active = false;
@@ -53,8 +53,8 @@ export function BranchAddressFields({ initial }: { initial: BranchAddressView | 
       .then((response) => {
         if (active) setDistricts(response.items);
       })
-      .catch(() => {
-        if (active) setFailed(true);
+      .catch((cause: unknown) => {
+        if (active) setFailure(errorMessage(cause));
       });
     return () => {
       active = false;
@@ -68,8 +68,8 @@ export function BranchAddressFields({ initial }: { initial: BranchAddressView | 
       .then((response) => {
         if (active) setNeighborhoods(response.items);
       })
-      .catch(() => {
-        if (active) setFailed(true);
+      .catch((cause: unknown) => {
+        if (active) setFailure(errorMessage(cause));
       });
     return () => {
       active = false;
@@ -153,8 +153,10 @@ export function BranchAddressFields({ initial }: { initial: BranchAddressView | 
           defaultValue={initial?.line ?? ""}
         />
       </label>
-      {failed && (
-        <p className="small muted">Adres listesi yüklenemedi. Sayfayı yenileyip tekrar dene.</p>
+      {failure !== "" && (
+        <p role="alert" className="error">
+          {failure}
+        </p>
       )}
       <p className="small muted">
         Keşfette ve teslimatta bu adres kullanılır. İl, ilçe ve mahalle listeden seçilir.

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createBusinessBodySchema } from "../src/businesses";
 import {
+  OFFERED_STUDIO_TEMPLATES,
   publishStudioBodySchema,
   saveStudioBodySchema,
   STUDIO_PALETTES,
@@ -42,6 +43,30 @@ describe("VADO Business Studio başlangıç şablonları", () => {
       expect(template.menuHeading.length).toBeGreaterThan(0);
       expect(studioInitialPalette(template.id)).toBeTruthy();
     }
+  });
+
+  it("motoru yayında olmayan şablon sunulmaz: güzellik şablonları Rezervasyon motorunu bekler", () => {
+    expect(OFFERED_STUDIO_TEMPLATES.every((template) => template.engine === "ordering")).toBe(true);
+    expect(
+      createBusinessBodySchema.safeParse({
+        ...business,
+        category: "beauty",
+        templateId: "beauty-solo",
+      }).success,
+    ).toBe(false);
+    // Güzellik işletmesi şablonsuz kaydolabilir; vitrin motor gelince açılır.
+    expect(createBusinessBodySchema.safeParse({ ...business, category: "beauty" }).success).toBe(
+      true,
+    );
+    expect(
+      saveStudioBodySchema.safeParse({
+        templateId: "beauty-team",
+        title: "Salon",
+        tagline: "",
+        palette: "navy",
+        expectedVersion: 0,
+      }).success,
+    ).toBe(false);
   });
 
   it("yeni kurumsal şablon yalnızca yemek işletmesine atanır", () => {
