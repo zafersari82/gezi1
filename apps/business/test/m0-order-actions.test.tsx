@@ -33,7 +33,9 @@ const sample = orderSchema.parse({
 });
 
 function actions(order: Order) {
-  return renderToStaticMarkup(createElement(OrderActions, { order, onChanged: async () => {} }));
+  return renderToStaticMarkup(
+    createElement(OrderActions, { order, onChanged: () => Promise.resolve() }),
+  );
 }
 
 test("M0: iptal eylemi doğru kipte, kabul edilmeden ödeme kutusu yok", () => {

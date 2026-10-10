@@ -112,7 +112,9 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
       <div role="alert" className="miniapp-load-error">
         <h2>Mini uygulama açılamadı</h2>
         <p>Bağlantını kontrol edip yeniden dene.</p>
-        <button type="button" onClick={restart}>Yeniden dene</button>
+        <button type="button" onClick={restart}>
+          Yeniden dene
+        </button>
       </div>
     );
   }
@@ -123,7 +125,9 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
       ref={frame}
       src={miniApp.entryUrl}
       title={miniApp.name}
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+      }}
       sandbox={FRAME_SANDBOX}
       referrerPolicy="no-referrer"
       style={{ flex: 1, width: "100%", height: "100%", border: 0 }}

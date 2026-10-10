@@ -19,5 +19,5 @@ test("M0: WebView yükleme hatası kullanıcı tekrar denemeden silinmez", () =>
   expect(frame).toContain("key={`${entryUrl}:${retryCount}`}");
   const webFrame = read("../src/features/miniapps/mini-app-frame.web.tsx");
   expect(webFrame).toContain("if (failed)");
-  expect(webFrame).toContain("onError={() => setFailed(true)}");
+  expect(webFrame).toMatch(/onError=\{\(\) => \{?\s*setFailed\(true\);?\s*\}?\}/);
 });

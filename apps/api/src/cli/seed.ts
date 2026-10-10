@@ -11,10 +11,10 @@ import {
 import { loadConfig, loadEnvFile } from "../core/config";
 import type { AppContext } from "../core/context";
 import { createDatabase, type Database, sql } from "../core/database";
-import { platformScope } from "../core/platform-scope";
 import { StartupError } from "../core/errors";
 import { createAppKeys } from "../core/keys";
 import { migrate } from "../core/migrator";
+import { platformScope } from "../core/platform-scope";
 import { hashPassword } from "../core/security";
 import { generateTotpSecret } from "../core/totp";
 import { writeZip, type ZipEntry } from "../core/zip";

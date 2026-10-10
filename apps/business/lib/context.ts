@@ -53,11 +53,17 @@ export const getBusinessContext = cache(async () => {
           `/v1/business/${membership.businessId}/app-instances/${instance.id}/capabilities`,
         );
   const catalog = await apiGet(engineCapabilityCatalogSchema, "/v1/capabilities", false);
-  // Randevu işletmesinde, yalnız örnek uygulama örneği var diye sipariş menüsü açılmaz.
+  // Randevu işletmesinde, yalnız örnek uygulama örneği var diye sipariş menüsü açılmaz; şube ve
+  // ayarlar ise her işletmede görünür. Uygulama örneği olmayan işletme çekirdek bölümleri görür.
   const orderingEnabled =
     resolved !== null &&
     (!canBook || resolved.settings.some((setting) => setting.capabilityId.startsWith("ordering.")));
-  const blocks = orderingEnabled ? (resolved?.businessBlocks ?? []) : [];
+  const coreBlocks = catalog.engines[0]?.businessBlocks ?? [];
+  const blocks = orderingEnabled
+    ? resolved.businessBlocks
+    : canBook
+      ? coreBlocks.filter((block) => block.view === "branches" || block.view === "settings")
+      : coreBlocks;
   return {
     membership,
     canBook,

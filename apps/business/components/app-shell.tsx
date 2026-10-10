@@ -31,6 +31,13 @@ const paths: Readonly<
   branches: "M3 10l2-6h14l2 6 M5 10v10h14V10 M9 20v-6h6v6 M3 10h18",
   settings: "M5 6h14 M5 12h14 M5 18h14 M9 3v6 M15 9v6 M10 15v6",
 };
+
+/** Menü yolunu sorgusuyla birlikte tipli bağlantıya çevirir (`/orders?queue=preparation`). */
+function linkTo(path: string) {
+  const [pathname, query] = path.split("?");
+  return { pathname, query: Object.fromEntries(new URLSearchParams(query)) };
+}
+
 export function AppShell({
   name,
   role,
@@ -229,7 +236,7 @@ export function AppShell({
           return (
             <Link
               key={item.id}
-              href={item.path}
+              href={linkTo(item.path)}
               className={active ? "nav-link active" : "nav-link"}
               aria-current={active ? "page" : undefined}
             >
@@ -262,7 +269,7 @@ export function AppShell({
             </summary>
             <div className="mobile-more-panel">
               {mobile.more.map((item) => (
-                <Link key={item.id} href={item.path}>
+                <Link key={item.id} href={linkTo(item.path)}>
                   {item.title}
                 </Link>
               ))}

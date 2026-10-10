@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
-import { operationalDateTime, orderDisplayNumber } from "../lib/order-display";
 import { buildMobileNavigation } from "../lib/mobile-navigation";
+import { operationalDateTime, orderDisplayNumber } from "../lib/order-display";
 
 const created = "2026-10-10T12:30:00.000Z";
 

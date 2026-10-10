@@ -1,11 +1,11 @@
 import type { BusinessBlock } from "@vado/contracts";
 
-export type BusinessNavItem = {
+export interface BusinessNavItem {
   id: string;
   title: string;
   path: string;
   view?: BusinessBlock["view"];
-};
+}
 
 /** Telefonda önce günlük işler, kalanları ise tek bir Diğer menüsü görünür. */
 export function buildMobileNavigation(
@@ -24,7 +24,14 @@ export function buildMobileNavigation(
   }
   if (canBook) add({ id: "bookings", title: "Randevular", path: "/bookings" });
   if (canMessage) add({ id: "chats", title: "Mesajlar", path: "/chats" });
-  for (const view of ["catalog", "returns", "reviews", "devices", "branches", "settings"] as const) {
+  for (const view of [
+    "catalog",
+    "returns",
+    "reviews",
+    "devices",
+    "branches",
+    "settings",
+  ] as const) {
     for (const block of blocks.filter((entry) => entry.view === view)) add(block);
   }
   add({ id: "studio", title: "Mağaza tasarımı", path: "/studio" });

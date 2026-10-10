@@ -118,7 +118,7 @@ export function OrderActions({
             disabled={busy}
             onClick={() => void mutate("status", { expectedVersion: order.version, status }, "PUT")}
           >
-            {status === "cancelled" ? "İptal et" : STATE_LABELS[status] ?? status}
+            {status === "cancelled" ? "İptal et" : (STATE_LABELS[status] ?? status)}
           </button>
         ))}
       {!device &&
