@@ -3,6 +3,7 @@ import { type LiveEvent, liveEventSchema, type LiveReplay } from "@vado/contract
 import { permittedBranch } from "./business-access";
 import type { TenantContext } from "./context";
 import { type Database, sql } from "./database";
+import { supportsOperationDevice } from "./operation-device-order";
 import { type TenantScope, withTenant } from "./tenant-scope";
 
 /** Canlı olay türleri sözleşmedeki kayıttır; veritabanında `live_event_types` tablosudur. */
@@ -56,7 +57,12 @@ export function createLiveReplayService({ db }: TenantContext) {
         scope.role === "customer"
           ? sql`and business_customer_id=${scope.businessCustomerId} and app_instance_id=${scope.appInstanceId}`
           : scope.role === "device"
-            ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId} and order_id is not null`
+            ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}
+                and exists (
+                  select 1 from orders o where o.business_id=business_live_events.business_id
+                    and o.id=business_live_events.order_id
+                    and ${supportsOperationDevice(sql`o.capabilities`)}
+                )`
             : scope.role === "staff"
               ? sql`and ((order_id is not null ${permittedBranch(scope, "orders.view", branch)})
                   or (order_id is null ${permittedBranch(scope, "tables.serve", branch)}))`

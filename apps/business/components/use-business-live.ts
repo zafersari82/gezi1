@@ -32,7 +32,7 @@ export function useBusinessLive(
     const needsSync = () => again;
     const isInitial = () => initial;
     const seen = new Set<string>();
-    const base = device ? "/api/kitchen" : "/api/business";
+    const base = device ? "/api/device" : "/api/business";
     function denied(cause: unknown): boolean {
       if (cause instanceof ClientApiError && [401, 403].includes(cause.status)) {
         window.location.assign(device ? "/kitchen-pair" : "/businesses");
@@ -104,7 +104,7 @@ export function useBusinessLive(
         const ticket = await call(businessSocketTicketSchema, `${base}/socket-ticket`, "POST", {});
         if (isDisposed()) return;
         socket = io(ticket.socketUrl, {
-          auth: device ? { kitchenTicket: ticket.ticket } : { businessTicket: ticket.ticket },
+          auth: device ? { deviceTicket: ticket.ticket } : { businessTicket: ticket.ticket },
           transports: ["websocket"],
           reconnection: false,
         });
@@ -116,11 +116,11 @@ export function useBusinessLive(
           const event = liveEventSchema.safeParse(raw);
           if (event.success && event.data.businessId === businessId) void sync();
         };
-        socket.on(device ? "kitchen:event" : "business:live", changed);
+        socket.on(device ? "device:event" : "business:live", changed);
         socket.on("business:order", () => {
           void sync();
         });
-        socket.on(device ? "kitchen:revoked" : "session:revoked", () => {
+        socket.on(device ? "device:revoked" : "session:revoked", () => {
           window.location.assign(device ? "/kitchen-pair" : "/login");
         });
         socket.on("disconnect", retry);

@@ -27,6 +27,15 @@ export const expectedVersionSchema = z.number().int().min(1).max(2_147_483_647);
 /** Paketlerin kaydettiği teslim biçimleri. Çekirdek bir biçimin adını bilmez. */
 export const fulfilmentSchema = z.enum(["pickup", "dine_in", "delivery"]);
 export type Fulfilment = z.infer<typeof fulfilmentSchema>;
+/** Sunucu teslim biçimi kayıtlarındaki tahsilat yerleriyle aynı sırada tanımlanır. */
+export const PAYMENT_PLACES = ["counter", "table", "delivery"] as const;
+export type PaymentPlace = (typeof PAYMENT_PLACES)[number];
+export const FULFILMENT_PAYMENT_PLACES: Readonly<Record<Fulfilment, readonly [PaymentPlace, ...PaymentPlace[]]>> = {
+  pickup: ["counter"],
+  dine_in: ["table", "counter"],
+  delivery: ["delivery", "counter"],
+};
+
 export const FULFILMENT_LABELS: Readonly<Record<Fulfilment, string>> = {
   pickup: "Gel-al",
   dine_in: "Masada servis",

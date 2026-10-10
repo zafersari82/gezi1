@@ -212,8 +212,8 @@ export async function buildApp({
   await realtime.start(server.server, {
     authenticate: services.auth.authenticate,
     authenticateCourierTicket: services.courier.consumeTicket,
-    authenticateKitchenTicket: (ticket) => services.kitchenDevices.consumeTicket(ticket),
-    isKitchenDeviceActive: (id) => services.kitchenDevices.isActive(id),
+    authenticateDeviceTicket: (ticket) => services.operationDevices.consumeTicket(ticket),
+    isOperationDeviceActive: (id) => services.operationDevices.isActive(id),
     authenticateBusinessTicket: services.businessSockets.consume,
     typingRecipients: services.chat.typingRecipients,
   });

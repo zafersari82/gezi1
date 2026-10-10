@@ -11,8 +11,8 @@ export interface ServerToClientEvents {
   "courier:event": (event: CourierLiveEvent) => void;
   "business:live": (event: LiveEvent) => void;
   "order:changed": (event: LiveEvent) => void;
-  "kitchen:event": (event: LiveEvent) => void;
-  "kitchen:revoked": () => void;
+  "device:event": (event: LiveEvent) => void;
+  "device:revoked": () => void;
   "business:order": (event: BusinessOrderEvent) => void;
   "message:new": (event: { conversationId: string; message: Message }) => void;
   "conversation:read": (event: {

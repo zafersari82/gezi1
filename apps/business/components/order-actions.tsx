@@ -1,6 +1,11 @@
 "use client";
-import { formatBranchDateTime } from "@vado/contracts";
-import { type Order, orderSchema } from "@vado/contracts";
+import {
+  FULFILMENT_PAYMENT_PLACES,
+  formatBranchDateTime,
+  type Order,
+  orderSchema,
+  type PaymentPlace,
+} from "@vado/contracts";
 import { useRef, useState } from "react";
 
 import { call, errorMessage } from "../lib/client";
@@ -15,16 +20,16 @@ export function OrderActions({
   onChanged: (order: Order) => Promise<void>;
   device?: boolean;
 }) {
+  const paymentPlaces = FULFILMENT_PAYMENT_PLACES[order.fulfilment];
   const lock = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [minutes, setMinutes] = useState(20);
   const [reason, setReason] = useState("");
-  const [place, setPlace] = useState<"table" | "counter">(
-    order.fulfilment === "dine_in" ? "table" : "counter",
-  );
+  const [place, setPlace] = useState<PaymentPlace>(paymentPlaces[0]);
   const [method, setMethod] = useState<"cash" | "card">("cash");
-  const root = device ? "/api/kitchen" : "/api/business";
+  const selectedPlace = paymentPlaces.includes(place) ? place : paymentPlaces[0];
+  const root = device ? "/api/device" : "/api/business";
   const kitchen = order.capabilities.some((c) => c.startsWith("ordering.kitchen@"));
   async function mutate(action: string, body: unknown, http = "POST") {
     if (lock.current) return;
@@ -114,13 +119,21 @@ export function OrderActions({
             <label>
               Ödeme yeri
               <select
-                value={place}
+                value={selectedPlace}
                 onChange={(e) => {
-                  setPlace(e.target.value === "table" ? "table" : "counter");
+                  const next = paymentPlaces.find((candidate) => candidate === e.target.value);
+                  if (next !== undefined) setPlace(next);
                 }}
               >
-                <option value="table">Masada</option>
-                <option value="counter">Kasada</option>
+                {paymentPlaces.map((candidate) => (
+                  <option key={candidate} value={candidate}>
+                    {candidate === "table"
+                      ? "Masada"
+                      : candidate === "delivery"
+                        ? "Teslimatta"
+                        : "Kasada"}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
@@ -141,7 +154,7 @@ export function OrderActions({
               onClick={() =>
                 void mutate("payment", {
                   expectedPaymentVersion: order.paymentVersion,
-                  place,
+                  place: selectedPlace,
                   method,
                 })
               }

@@ -1,16 +1,16 @@
-import { branchSchema, kitchenDeviceInfoSchema, orderSchema } from "@vado/contracts";
+import { branchSchema, operationDeviceInfoSchema, orderSchema } from "@vado/contracts";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { KitchenView } from "../../components/kitchen-view";
 import { BusinessApiError } from "../../lib/api";
-import { kitchenGet } from "../../lib/kitchen-api";
+import { deviceGet } from "../../lib/device-api";
 async function readTablet() {
   try {
-    const device = await kitchenGet(kitchenDeviceInfoSchema, "/v1/kitchen/device");
-    const initial = await kitchenGet(
+    const device = await deviceGet(operationDeviceInfoSchema, "/v1/device/device");
+    const initial = await deviceGet(
       z.object({ items: z.array(orderSchema), nextCursor: z.string().nullable() }),
-      "/v1/kitchen/queue?active=true&limit=50",
+      "/v1/device/queue?active=true&limit=50",
     );
     const branch = branchSchema.parse({
       id: device.branchId,

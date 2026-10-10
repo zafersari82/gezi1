@@ -16,7 +16,7 @@ export function KitchenPairView() {
     setBusy(true);
     setError("");
     try {
-      setPairing(await call(pairingSchema, "/api/kitchen-pairing/start", "POST", {}));
+      setPairing(await call(pairingSchema, "/api/device-pairing/start", "POST", {}));
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -33,7 +33,7 @@ export function KitchenPairView() {
       polling = true;
       void call(
         z.object({ status: z.enum(["pending", "approved"]) }),
-        "/api/kitchen-pairing/poll",
+        "/api/device-pairing/poll",
         "POST",
         {},
       )

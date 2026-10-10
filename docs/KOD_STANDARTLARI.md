@@ -144,6 +144,9 @@ Dosya adını çatının belirlediği yerler (Expo Router ve Next.js'te `_layout
 - Şema dosyaları `apps/api/migrations` içindedir ve 0001'den başlayarak boşluksuz numaralanır.
 - Yayınlanmış bir şema dosyası bir daha düzenlenmez; değişiklik sıradaki numarayla yeni dosya olarak
   eklenir. (2.0 yayınlanana kadar tek dosya, `0001_baseline.sql`, doğrudan düzenlendi.)
+  `0001–0034` içerik özetleri `docs/yayimlanmis-sema-ozetleri.json` içinde sabitlenmiştir;
+  `npm run conventions` bunların SHA-256 bütünlüğünü kontrol eder. Yeni yayın sonrası özet kaydını
+  yalnız onaylanan yayımlanmış şema kümesi için güncelle; mevcut özetleri geriye dönük değiştirme.
 - Kayıtların kimliği UUID'dir (`id`); iki kaydı birbirine bağlayan tablolarda (`contacts`,
   `conversation_members`) anahtar, bağlanan iki sütundur. Zaman sütunları `timestamptz` tipindedir.
 - Kısıtlara ad verilir (`users_status_check`, `payments_order_key`); servisler çakışmayı bu adla

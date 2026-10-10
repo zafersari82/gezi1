@@ -33,7 +33,7 @@ export async function call<Schema extends z.ZodType>(
     const result = apiErrorBodySchema.safeParse(value);
     const code = result.success ? result.data.error.code : "internal_error";
     if (response.status === 401 && redirectOnUnauthorized)
-      window.location.assign(path.startsWith("/api/kitchen/") ? "/kitchen-pair" : "/login");
+      window.location.assign(path.startsWith("/api/device/") ? "/kitchen-pair" : "/login");
     throw new ClientApiError(
       response.status,
       code,

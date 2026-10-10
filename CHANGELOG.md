@@ -22,6 +22,60 @@ Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman deği
   "Gel al" diye gösteriyordu; artık "Adrese teslim" yazar.
   - **Sözleşme değişikliği:** `tableSessionId` → `context`, `tableLabel` → `contextLabel`; sepet
     açma `context` alır. Dışarıda yayımlanmış mini uygulama yok; restoran ve mağaza güncellendi.
+- **A2-2c atomik soket bileti tüketimi:** cihaz soket biletinde ayrı okuma ve
+  güncelleme yerine tek koşullu `UPDATE ... RETURNING` kullanılır. Eşzamanlı iki
+  tüketimden yalnız biri başarılı olabilir; başarısız cihaz doğrulamasında bilet
+  güncellemesi aynı işlemle geri alınır. Süre sınırı işlem başlangıcı yerine gerçek
+  saatle denetlenir. Eşzamanlı tüketim regresyon testi eklendi (PostgreSQL testi
+  bu ortamda çalıştırılamadı).
+- **A2-2c soket bileti kapsamı:** `operation_device_tickets` INSERT tetikleyicisi artık
+  işletme üyesinin veya aynı işletmede başka bir cihazın adına doğrudan SQL ile
+  soket bileti üretilememesini sağlar. Kendi cihazının tek kullanımlık bileti
+  korunur. Negatif/pozitif bütünleşik testler eklendi (PostgreSQL doğrulaması bekliyor).
+- **A2-2c cihaz aktörü SQL doğrulaması:** Cihazın sipariş durumunu değiştirmesi ve
+  teşvik yaşam döngüsünü işletmesi için işlem-yerel `vado.tenant_device_id` ile
+  `vado.order_actor_id` birebir eşleşmeli; kişisel `vado.user_id` bulunmamalı.
+  Cihaz kimliğini yalnız SQL ayarıyla taklit etme denemeleri için negatif testler,
+  gerçek cihaz oturumu için pozitif test eklendi (PostgreSQL doğrulaması bekleniyor).
+- **A2-2c aktör kapsamı ayrımı:** `withTenant`, işlem-yerel cihaz kimliğiyle kişisel aktörün cihazla veya iki farklı cihazın birbiriyle SQL işlemini paylaşmasını reddeder. Cihaz için temiz işlem doğrulaması ve iki yönlü iç içe işlem regresyon testi eklendi (PostgreSQL çalıştırma bekliyor).
+- **A2-2c yayımlanmış şema bütünlüğü:** `0001–0034` migration dosyalarının SHA-256 özetleri
+  kaynakla birlikte sabitlendi; bağımlılık gerektirmeyen proje kural denetimi, geçmiş şemalardan
+  herhangi biri değişirse artık hata veriyor. Önceden yayımlanmış SQL dosyaları değiştirilmedi.
+- **A2-2c teşvik yetki sınırı:** `incentive_lifecycle` SQL işlevi de cihaz aktörünü yalnız siparişin oluşturulduğu andaki paketlerden izinli olan duruma kabul eder. Böylece cihazın API dışında aynı şubedeki eski, cihaz paketsiz siparişe ilişkin sadakat/kupon yaşam döngüsünü işletmesi engellenir. Mevcut mağaza regresyon testine doğrudan SQL yetki denemesi eklendi; PostgreSQL doğrulaması bekliyor.
+- **A2-2c sipariş görünürlüğü:** Operasyon cihazı aynı şube ve uygulama örneğindeki
+  siparişleri yalnız siparişin değişmez paket görüntüsünde cihaz durumu tanımlayan bir
+  paket varsa görebilir veya işleyebilir. Paket sonradan etkinleştirilmeden önce verilmiş
+  siparişler böylece cihaz ekranına, canlı olay tekrarına veya Socket.IO cihaz
+  yayınına sızmaz. Ortak SQL koşulu tek çekirdek yardımcıda tutulur. Eski ve yeni siparişi
+  aynı örnekte sınayan API/olay tekrarı regresyon testi eklendi; PostgreSQL ortamı
+  olmadan çalıştırılamadı.
+- **A2-2c işletmeler arası cihaz sınırı:** API ve SQL'in aynı cihaz yetki sınırını
+  koruduğunu sınayan iki regresyon senaryosu eklendi. Başka işletmeye ait cihazın ve
+  kapatılmış cihazın, pakette izinli `accepted` durumunu dahi başka yoldan yazamaması;
+  reddedilen SQL işleminin sipariş durumunu ve sürümünü değiştirmemesi denetleniyor.
+  Eski cihaz tetikleyicilerinin yeni adlara taşınması da yükseltme testine eklendi.
+  Bu senaryolar PostgreSQL ortamı kurulamadığından henüz çalıştırılamadı.
+- **A2-2c kilitlenme regresyonu:** eşleştirme denemelerini doğrulayan testte kapsam dışı
+  `vado_app` sorgusunun her zaman boş dönmesi nedeniyle oluşan yanlış olumlu sonuç giderildi.
+  Test artık şema sahibinin bağlantısıyla beş başarısız denemeyi, eski onayın korunmasını
+  ve yükseltmede RLS, cihaz yabancı anahtarı, cihaz durumları kayıtlarını denetliyor.
+  Paket kapatma kuralının SQL işlevi çekirdek `0035` dosyasından paket şeması
+  `0036` dosyasına ayrıldı.
+  PostgreSQL testleri bu ortamda çalıştırılamadı.
+- **A2-2c sağlamlaştırma:** cihaz durumlarının SQL kısıtı sözleşmeyle hizalandı;
+  boş/NULL durumlar reddediliyor. Eski veri tabanı nesnelerinin yeniden adlandırılması ve
+  kataloğun geçersiz durumları reddetmesi için bütünleşik testler eklendi. Bu testler
+  PostgreSQL ve npm bağımlılıkları bulunmadığından çalıştırılamadı.
+- **Operasyon cihazlarının yeniden adlandırılması (A2-2c, doğrulama bekliyor):**
+  şema `0035_operation_devices.sql` ve `0036_operation_device_packages.sql` ile eski cihaz
+  kayıtlarını koruyarak genel operasyon cihazı adlarına taşır. Cihazın verebileceği sipariş
+  durumları paket kataloğundaki `device_statuses` alanından denetlenir; tahsilat yerleri sözleşmesi
+  istemciyle aynı kayıtları kullanır. API, Business BFF, soket kimlik doğrulaması ve ilgili testler
+  yeni yolları kullanacak biçimde güncellendi. **Bu ortamda bağımlılıklar kurulamadı; PostgreSQL
+  çalışmadığı için migration, tip denetimi, test ve derleme doğrulanmadı.**
+- **Devir alınan kaynağın denetimi:** `npm ci --offline` önbellekte `zxing-wasm` arşivi olmadığı için
+  tamamlanmadı; çevrimiçi denemede npm hata verdi. `npm run check` ilk adımda Prettier eksikliğiyle
+  durdu. Bağımsız `node scripts/check-conventions.mjs` denetimi tamamlandı.
 - **Devir talimatı:** kalan işlerin (A2-2c, A2-3, Mağazam M1–M9, 2.8 kapanışı) ayrıntılı planı ve
   bağlayıcı kurallar: [docs/DEVIR_CHATGPT.md](docs/DEVIR_CHATGPT.md).
 - **Mağazam planı:** telefondan kod yazmadan dükkân kurma planı

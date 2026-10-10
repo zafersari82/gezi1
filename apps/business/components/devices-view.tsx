@@ -1,5 +1,5 @@
 "use client";
-import { type Branch, type KitchenDevice, kitchenDeviceSchema } from "@vado/contracts";
+import { type Branch, type OperationDevice, operationDeviceSchema } from "@vado/contracts";
 import { useRef, useState } from "react";
 import { z } from "zod";
 
@@ -11,7 +11,7 @@ export function DevicesView({
   branches,
   appInstanceId,
 }: {
-  initial: KitchenDevice[];
+  initial: OperationDevice[];
   branches: Branch[];
   appInstanceId: string;
 }) {
@@ -31,8 +31,8 @@ export function DevicesView({
       setDevices(
         (
           await call(
-            z.object({ items: z.array(kitchenDeviceSchema) }),
-            "/api/business/kitchen-devices",
+            z.object({ items: z.array(operationDeviceSchema) }),
+            "/api/business/devices",
           )
         ).items,
       );
@@ -87,8 +87,8 @@ export function DevicesView({
                 onClick={() =>
                   void mutate(async () => {
                     await call(
-                      kitchenDeviceSchema,
-                      `/api/business/kitchen-devices/${d.id}/revoke`,
+                      operationDeviceSchema,
+                      `/api/business/devices/${d.id}/revoke`,
                       "POST",
                       {},
                     );
@@ -117,7 +117,7 @@ export function DevicesView({
               const form = e.currentTarget;
               const data = new FormData(form);
               void mutate(async () => {
-                await call(kitchenDeviceSchema, "/api/business/kitchen-devices", "POST", {
+                await call(operationDeviceSchema, "/api/business/devices", "POST", {
                   code: formText(data, "code"),
                   label: formText(data, "label"),
                   branchId: formText(data, "branchId"),

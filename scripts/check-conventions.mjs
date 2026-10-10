@@ -5,6 +5,7 @@
  * Her kural bir dosyayı alır ve bulduğu sorunları döndürür. Sorun yoksa betik sessizce biter;
  * sorun varsa hepsini dosya ve satır numarasıyla yazar ve 1 koduyla çıkar.
  */
+import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, extname, join, posix, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +33,7 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".js", ".mjs"]);
 const FRAMEWORK_FILE = /^(_layout|\+[a-z-]+|\[[a-zA-Z.]+\])\.tsx?$/;
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$/;
 const MIGRATION_FILE = /^(\d{4})_[a-z0-9]+(_[a-z0-9]+)*\.sql$/;
+const PUBLISHED_MIGRATION_COUNT = 34;
 
 const SUPPRESSION = /eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck/;
 const LEFTOVER_NOTE = /\b(TODO|FIXME|XXX|HACK)\b/;
@@ -163,6 +165,52 @@ function checkMigrationSequence(files) {
   });
 }
 
+/** Yayımlanan şemalar yeniden yazılmaz; içerik özeti yalnız yeni yayınla sabitlenir. */
+async function checkPublishedMigrations(files) {
+  const path = "docs/yayimlanmis-sema-ozetleri.json";
+  const manifest = JSON.parse(await readFile(join(ROOT, path), "utf8"));
+  const pinned = manifest.sha256;
+  const problems = [];
+  if (manifest.publishedThrough !== PUBLISHED_MIGRATION_COUNT) {
+    problems.push({ file: path, line: 1, message: "Yayımlanmış şema sınırı değiştirilemez" });
+  }
+  const expected = Array.from({ length: PUBLISHED_MIGRATION_COUNT }, (_, index) =>
+    String(index + 1).padStart(4, "0"),
+  );
+  const published = files.filter(
+    (file) =>
+      file.extension === ".sql" && Number(file.name.slice(0, 4)) <= PUBLISHED_MIGRATION_COUNT,
+  );
+  for (const number of expected) {
+    const matches = published.filter((file) => file.name.startsWith(`${number}_`));
+    if (matches.length !== 1 || pinned[matches[0]?.name] === undefined) {
+      problems.push({
+        file: "apps/api/migrations",
+        line: 1,
+        message: `Yayımlanan ${number} numaralı şema veya özet kaydı eksik`,
+      });
+      continue;
+    }
+    const file = matches[0];
+    const bytes = await readFile(join(ROOT, file.path));
+    if (createHash("sha256").update(bytes).digest("hex") !== pinned[file.name]) {
+      problems.push({
+        file: file.path,
+        line: 1,
+        message: "Yayımlanmış şema değiştirilemez; yeni numaralı şema ekle",
+      });
+    }
+  }
+  if (Object.keys(pinned).length !== expected.length) {
+    problems.push({
+      file: path,
+      line: 1,
+      message: "Sabitlenmiş şema sayısı yayımlanan şema sayısıyla aynı olmalı",
+    });
+  }
+  return problems;
+}
+
 /** Tüm paketler kök paketle aynı sürümü taşır. */
 async function checkVersions() {
   const read = async (path) => JSON.parse(await readFile(join(ROOT, path), "utf8"));
@@ -197,6 +245,7 @@ for await (const absolutePath of walk(ROOT)) {
 const problems = [
   ...files.flatMap((file) => rules.flatMap((rule) => rule(file))),
   ...checkMigrationSequence(files),
+  ...(await checkPublishedMigrations(files)),
   ...(await checkVersions()),
 ];
 

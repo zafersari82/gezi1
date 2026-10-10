@@ -205,25 +205,25 @@ export const KITCHEN_MANIFEST = engineCapabilityManifestSchema.parse({
     ...["queue", "device", "live-events"].map((resource) => ({
       id: `kitchen.${resource}`,
       method: "GET" as const,
-      path: `/v1/kitchen/${resource}`,
+      path: `/v1/device/${resource}`,
       permission: "kitchen.read",
     })),
     {
       id: "kitchen.ticket",
       method: "POST",
-      path: "/v1/kitchen/socket-ticket",
+      path: "/v1/device/socket-ticket",
       permission: "kitchen.read",
     },
     {
       id: "kitchen.reject",
       method: "POST",
-      path: "/v1/kitchen/orders/:id/reject",
+      path: "/v1/device/orders/:id/reject",
       permission: "kitchen.update",
     },
     {
       id: "kitchen.status",
       method: "PUT",
-      path: "/v1/kitchen/orders/:id/status",
+      path: "/v1/device/orders/:id/status",
       permission: "kitchen.update",
     },
     {
@@ -244,11 +244,11 @@ export const KITCHEN_MANIFEST = engineCapabilityManifestSchema.parse({
       path: "/v1/business/:businessId/orders/:id/reject",
       permission: "orders.update",
     },
-    { id: "kitchen.queue", method: "GET", path: "/v1/kitchen/orders", permission: "kitchen.read" },
+    { id: "kitchen.queue", method: "GET", path: "/v1/device/orders", permission: "kitchen.read" },
     {
       id: "kitchen.accept",
       method: "POST",
-      path: "/v1/kitchen/orders/:id/accept",
+      path: "/v1/device/orders/:id/accept",
       permission: "kitchen.update",
     },
   ],

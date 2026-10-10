@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   fulfilmentSchema,
+  FULFILMENT_PAYMENT_PLACES,
   liveEventSchema,
   ORDER_CONTEXT_KINDS,
   tableSessionSchema,
@@ -40,6 +41,7 @@ interface CatalogRow {
   explicit_modes: boolean;
   opening_hours: boolean;
   decision_required: boolean;
+  device_statuses: string[];
 }
 
 const packages = CAPABILITY_DEFINITIONS.filter((d) => d.manifest.id !== "ordering");
@@ -69,11 +71,24 @@ function tsValid(selection: typeof packages): boolean {
   }
 }
 
+describe("teslim biçimlerinin tahsilat yerleri", () => {
+  it("SQL ve sözleşme birebir aynıdır", async () => {
+    const rows = await app.db.many<{ code: string; payment_places: string[] }>(
+      sql`select code, payment_places from ordering_fulfilment_modes order by code`,
+    );
+    expect(rows).toEqual(
+      Object.entries(FULFILMENT_PAYMENT_PLACES)
+        .map(([code, payment_places]) => ({ code, payment_places }))
+        .sort((a, b) => a.code.localeCompare(b.code)),
+    );
+  });
+});
+
 describe("sipariş paket kataloğu", () => {
   it("SQL kataloğu paket manifestleriyle aynıdır", async () => {
     const rows = await app.db.many<CatalogRow>(
       sql`select id, version, role, requires, insertions, default_config, closable_with_active_orders,
-          explicit_modes, opening_hours, decision_required
+          explicit_modes, opening_hours, decision_required, device_statuses
         from capability_catalog where engine = 'ordering' order by id`,
     );
     const expected = packages
@@ -103,6 +118,7 @@ describe("sipariş paket kataloğu", () => {
         explicit_modes: manifest.intake.explicitModes,
         opening_hours: manifest.intake.openingHours,
         decision_required: manifest.operations?.decisionRequired ?? false,
+        device_statuses: manifest.operations?.deviceStatuses ?? [],
       }))
       .sort((a, b) => a.id.localeCompare(b.id));
     expect(rows).toEqual(expected);

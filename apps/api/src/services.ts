@@ -13,7 +13,7 @@ import { createBranchOperationsService } from "./modules/business-management/bra
 import { createBusinessAccessService } from "./modules/business-management/business-access.service";
 import { createBusinessManagementService } from "./modules/business-management/business-management.service";
 import { createBusinessSocketService } from "./modules/business-management/business-socket.service";
-import { createKitchenDeviceService } from "./modules/business-management/kitchen-devices.service";
+import { createOperationDeviceService } from "./modules/business-management/operation-devices.service";
 import { createBusinessService } from "./modules/businesses/businesses.service";
 import {
   deviceMaySetStatus,
@@ -127,7 +127,7 @@ export function createServices(context: AppContext) {
     businessAccess: createBusinessAccessService(context),
     branchOperations: createBranchOperationsService(context),
     liveReplay: createLiveReplayService(context),
-    kitchenDevices: createKitchenDeviceService(context),
+    operationDevices: createOperationDeviceService(context),
     businessSockets: createBusinessSocketService(context),
     catalog,
     ordering,

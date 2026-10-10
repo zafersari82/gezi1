@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 
 import {
   businessApiPath,
-  kitchenApiPath,
+  deviceApiPath,
   readLimitedJson,
   sameOrigin,
 } from "../lib/request-policy";
@@ -82,11 +82,11 @@ test("restoran yolları açık, cihaz vekili dar ve müşteri kapsamı seçileme
   expect(businessApiPath(businessId, ["live-events"], "GET", "?cursor=10")).toBe(
     `/v1/business/${businessId}/live-events?cursor=10`,
   );
-  expect(kitchenApiPath(["orders", itemId, "accept"], "POST", "")).toBe(
-    `/v1/kitchen/orders/${itemId}/accept`,
+  expect(deviceApiPath(["orders", itemId, "accept"], "POST", "")).toBe(
+    `/v1/device/orders/${itemId}/accept`,
   );
-  expect(kitchenApiPath(["orders", itemId, "payment"], "POST", "")).toBeNull();
-  expect(kitchenApiPath(["orders"], "GET", "?businessId=foreign")).toBeNull();
+  expect(deviceApiPath(["orders", itemId, "payment"], "POST", "")).toBeNull();
+  expect(deviceApiPath(["orders"], "GET", "?businessId=foreign")).toBeNull();
 });
 
 test("iade ve değerlendirme yolları yalnız listeler ve gerekçeli karar uçlarını açar", () => {

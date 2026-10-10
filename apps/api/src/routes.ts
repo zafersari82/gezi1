@@ -9,7 +9,7 @@ import { bookingRoutes } from "./modules/booking/booking.routes";
 import { branchOperationsRoutes } from "./modules/business-management/branch-operations.routes";
 import { businessAccessRoutes } from "./modules/business-management/business-access.routes";
 import { businessManagementRoutes } from "./modules/business-management/business-management.routes";
-import { kitchenDeviceRoutes } from "./modules/business-management/kitchen-devices.routes";
+import { operationDeviceRoutes } from "./modules/business-management/operation-devices.routes";
 import { businessRoutes } from "./modules/businesses/businesses.routes";
 import { capabilityRoutes } from "./modules/capabilities/capabilities.routes";
 import { catalogRoutes } from "./modules/catalog/catalog.routes";
@@ -82,7 +82,7 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   deliveryRoutes(server, context);
   courierRoutes(server, context);
   restaurantRoutes(server, context);
-  kitchenDeviceRoutes(server, context);
+  operationDeviceRoutes(server, context);
   miniAppRoutes(server, context);
   miniAppDeliveryRoutes(server, context);
   paymentRoutes(server, context);

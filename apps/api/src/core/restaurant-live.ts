@@ -3,6 +3,7 @@ import { PUSH_PREVIEW_MAX } from "@vado/contracts";
 import type { AppContext } from "./context";
 import { sql } from "./database";
 import { LIVE_EVENT_TYPES, liveView, readLive } from "./live-replay";
+import { supportsOperationDevice } from "./operation-device-order";
 import type { OutboxConsumer } from "./outbox-worker";
 import { platformScope } from "./platform-scope";
 
@@ -27,7 +28,14 @@ export function createRestaurantLiveConsumer({ platformDb, realtime }: AppContex
         const customer = await tx.maybeOne<{ user_id: string }>(
           sql`select c.user_id from business_customers c join users u on u.id=c.user_id where c.business_id=${row.business_id} and c.id=${row.business_customer_id} and u.status='active'`,
         );
-        return { row, members, customer };
+        const operationOrder =
+          row.order_id === null
+            ? null
+            : await tx.maybeOne(sql`
+                select 1 from orders o where o.business_id=${row.business_id}
+                  and o.id=${row.order_id} and ${supportsOperationDevice(sql`o.capabilities`)}
+              `);
+        return { row, members, customer, operationVisible: operationOrder !== null };
       });
       if (data === null) return;
       const payload = liveView(data.row);
@@ -37,7 +45,7 @@ export function createRestaurantLiveConsumer({ platformDb, realtime }: AppContex
         payload,
       );
       if (payload.orderId !== null) {
-        realtime.emitKitchen(payload);
+        if (data.operationVisible) realtime.emitOperation(payload);
         if (data.customer !== null)
           realtime.emit([data.customer.user_id], "order:changed", payload);
       }

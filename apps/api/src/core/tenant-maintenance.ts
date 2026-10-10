@@ -26,10 +26,10 @@ export function createTenantMaintenance(platformDb: Database) {
         sql`delete from business_live_events where (business_id,cursor) in (select business_id,cursor from business_live_events where created_at<now()-interval '30 days' order by created_at for update skip locked limit 1000)`,
       );
       const pairings = await tx.execute(
-        sql`delete from kitchen_pairings where id in (select id from kitchen_pairings where expires_at<=now() order by expires_at for update skip locked limit 1000)`,
+        sql`delete from operation_device_pairings where id in (select id from operation_device_pairings where expires_at<=now() order by expires_at for update skip locked limit 1000)`,
       );
       const tickets = await tx.execute(
-        sql`delete from kitchen_socket_tickets where id in (select id from kitchen_socket_tickets where expires_at<=now() order by expires_at for update skip locked limit 1000)`,
+        sql`delete from operation_device_tickets where id in (select id from operation_device_tickets where expires_at<=now() order by expires_at for update skip locked limit 1000)`,
       );
       return { events, pairings, tickets };
     });

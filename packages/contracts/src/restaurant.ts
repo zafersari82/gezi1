@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { idSchema } from "./common";
-import { expectedVersionSchema } from "./ordering";
+import { PAYMENT_PLACES, expectedVersionSchema } from "./ordering";
 import { storeContextSchema } from "./storefront";
 
 export const initialVersionSchema = z.number().int().min(0).max(2_147_483_647);
@@ -66,13 +66,13 @@ export type RejectOrderBody = z.infer<typeof rejectOrderBodySchema>;
 export const recordOrderPaymentBodySchema = z
   .object({
     expectedPaymentVersion: initialVersionSchema,
-    place: z.enum(["table", "counter"]),
+    place: z.enum(PAYMENT_PLACES),
     method: z.enum(["cash", "card"]),
   })
   .strict();
 export type RecordOrderPaymentBody = z.infer<typeof recordOrderPaymentBodySchema>;
 
-export const approveKitchenDeviceBodySchema = z
+export const approveOperationDeviceBodySchema = z
   .object({
     code: z.string().regex(/^\d{8}$/),
     label: z.string().trim().min(1).max(40),
@@ -80,7 +80,7 @@ export const approveKitchenDeviceBodySchema = z
     appInstanceId: idSchema,
   })
   .strict();
-export type ApproveKitchenDeviceBody = z.infer<typeof approveKitchenDeviceBodySchema>;
+export type ApproveOperationDeviceBody = z.infer<typeof approveOperationDeviceBodySchema>;
 
 export const itemAvailabilityBodySchema = z
   .object({
@@ -189,16 +189,16 @@ export const updateRestaurantTableBodySchema = z
   .strict();
 export type UpdateRestaurantTableBody = z.infer<typeof updateRestaurantTableBodySchema>;
 
-export const kitchenPairingSchema = z.object({
+export const devicePairingSchema = z.object({
   id: idSchema,
   code: z.string().regex(/^\d{8}$/),
   secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
   expiresAt: z.iso.datetime(),
 });
-export const pollKitchenPairingBodySchema = z
+export const pollDevicePairingBodySchema = z
   .object({ secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
   .strict();
-export const kitchenDeviceSchema = z.object({
+export const operationDeviceSchema = z.object({
   id: idSchema,
   businessId: idSchema,
   branchId: idSchema,
@@ -207,13 +207,13 @@ export const kitchenDeviceSchema = z.object({
   expiresAt: z.iso.datetime(),
   revokedAt: z.iso.datetime().nullable(),
 });
-export type KitchenDevice = z.infer<typeof kitchenDeviceSchema>;
-export const kitchenPairingPollSchema = z.discriminatedUnion("status", [
+export type OperationDevice = z.infer<typeof operationDeviceSchema>;
+export const devicePairingPollSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("pending"), expiresAt: z.iso.datetime() }),
   z.object({
     status: z.literal("approved"),
     token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
-    device: kitchenDeviceSchema,
+    device: operationDeviceSchema,
   }),
 ]);
 
@@ -240,7 +240,7 @@ export const businessTableBillSchema = z.object({
 });
 export type BusinessTableBill = z.infer<typeof businessTableBillSchema>;
 
-export const kitchenDeviceInfoSchema = kitchenDeviceSchema.extend({
+export const operationDeviceInfoSchema = operationDeviceSchema.extend({
   businessName: z.string(),
   branchName: z.string(),
 });

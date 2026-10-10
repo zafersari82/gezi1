@@ -81,7 +81,7 @@ it("kurye soketi tek biletle açılır; eski atama olayı ve diğer Business kan
     "business:live",
     "business:order",
     "order:changed",
-    "kitchen:event",
+    "device:event",
     "message:new",
   ])
     socket.on(event, () => {

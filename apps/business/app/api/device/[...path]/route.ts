@@ -1,6 +1,6 @@
 import { BusinessApiError } from "../../../../lib/api";
-import { kitchenRequest } from "../../../../lib/kitchen-api";
-import { kitchenApiPath, readLimitedJson, sameOrigin } from "../../../../lib/request-policy";
+import { deviceRequest } from "../../../../lib/device-api";
+import { deviceApiPath, readLimitedJson, sameOrigin } from "../../../../lib/request-policy";
 import { routeError } from "../../../../lib/route-error";
 async function handle(
   request: Request,
@@ -9,9 +9,9 @@ async function handle(
   try {
     if (request.method !== "GET" && !sameOrigin(request, process.env.VADO_BUSINESS_PUBLIC_URL))
       throw new BusinessApiError(403, "forbidden", "İstek bu uygulamadan gelmelidir.");
-    const path = kitchenApiPath((await params).path, request.method, new URL(request.url).search);
+    const path = deviceApiPath((await params).path, request.method, new URL(request.url).search);
     if (path === null) throw new BusinessApiError(400, "validation_failed", "İstek yolu geçersiz.");
-    const response = await kitchenRequest(
+    const response = await deviceRequest(
       request.method,
       path,
       request.method === "GET" ? undefined : await readLimitedJson(request),

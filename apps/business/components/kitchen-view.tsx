@@ -57,7 +57,7 @@ export function KitchenView({
         }
         const response = await call(
           queueSchema,
-          `${device ? "/api/kitchen/queue" : "/api/business/kitchen-queue"}?${query}`,
+          `${device ? "/api/device/queue" : "/api/business/kitchen-queue"}?${query}`,
         );
         if (generation !== request.current) return;
         items.push(...response.items);

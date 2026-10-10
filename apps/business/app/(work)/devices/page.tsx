@@ -1,4 +1,4 @@
-import { branchSchema, kitchenDeviceSchema } from "@vado/contracts";
+import { branchSchema, operationDeviceSchema } from "@vado/contracts";
 import { z } from "zod";
 
 import { DevicesView } from "../../../components/devices-view";
@@ -16,7 +16,7 @@ export default async function DevicesPage() {
   const root = `/v1/business/${c.membership.businessId}`;
   const [branches, devices] = await Promise.all([
     apiGet(z.object({ items: z.array(branchSchema) }), `${root}/branches`),
-    apiGet(z.object({ items: z.array(kitchenDeviceSchema) }), `${root}/kitchen-devices`),
+    apiGet(z.object({ items: z.array(operationDeviceSchema) }), `${root}/devices`),
   ]);
   return (
     <DevicesView initial={devices.items} branches={branches.items} appInstanceId={c.instance.id} />

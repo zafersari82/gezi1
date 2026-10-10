@@ -74,7 +74,7 @@ export function createCapabilityService({ db }: TenantContext) {
           const inUse =
             await tx.maybeOne(sql`select 1 from orders where business_id=${scope.businessId} and app_instance_id=${instanceId}
             and status not in ('completed','rejected','cancelled') and capabilities ? ${`${capabilityId}@${body.version}`} union all
-            select 1 from table_sessions where business_id=${scope.businessId} and app_instance_id=${instanceId} and status='open' and ${capabilityId}='ordering.table_service' union all select 1 from kitchen_devices where business_id=${scope.businessId} and app_instance_id=${instanceId} and revoked_at is null and expires_at>now() and ${capabilityId}='ordering.kitchen' limit 1`);
+            select 1 from table_sessions where business_id=${scope.businessId} and app_instance_id=${instanceId} and status='open' and ${capabilityId}='ordering.table_service' union all select 1 from operation_devices where business_id=${scope.businessId} and app_instance_id=${instanceId} and revoked_at is null and expires_at>now() and ${capabilityId}='ordering.kitchen' limit 1`);
           if (inUse !== null) throw new AppError("capability_in_use");
         }
         await tx.execute(sql`insert into app_instance_capabilities(business_id,app_instance_id,capability_id,version,enabled,config)

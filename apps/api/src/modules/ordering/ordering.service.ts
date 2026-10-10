@@ -32,6 +32,7 @@ import { AppError } from "../../core/errors";
 import { withIdempotency } from "../../core/idempotency";
 import type { OrderingLifecycle } from "../../core/ordering-lifecycle";
 import type { OrderPricing } from "../../core/ordering-pricing";
+import { supportsOperationDevice } from "../../core/operation-device-order";
 import { appendEvent } from "../../core/outbox-events";
 import { withPlatformMutation } from "../../core/platform-mutations";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
@@ -113,6 +114,9 @@ function customer(scope: TenantScope) {
     throw new AppError("forbidden");
   return { instanceId: scope.appInstanceId, customerId: scope.businessCustomerId };
 }
+/** Cihaz yalnız kendi örneğindeki operasyon paketi taşıyan siparişleri görür. */
+const operationDeviceOrderFilter = sql`and ${supportsOperationDevice(sql`orders.capabilities`)}`;
+
 /** Müşteri ve operasyon cihazı kendi sahiplik süzgecini ayrıca uygular; işletme üyesi yalnız izinli şubeleri görür. */
 function memberOrders(
   scope: TenantScope,
@@ -499,7 +503,7 @@ export function createOrderingService(
       scope.role === "customer"
         ? sql`and app_instance_id=${customer(scope).instanceId} and business_customer_id=${customer(scope).customerId}`
         : scope.role === "device"
-          ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
+          ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId} ${operationDeviceOrderFilter}`
           : sql.empty;
     const row = await tx.maybeOne<OrderRow>(
       sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} and id=${id} ${owned} ${memberOrders(scope, "orders.view")} for share of orders`,
@@ -685,7 +689,7 @@ export function createOrderingService(
         scope.role === "customer"
           ? sql`and business_customer_id=${customer(scope).customerId} and app_instance_id=${customer(scope).instanceId}`
           : scope.role === "device"
-            ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
+            ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId} ${operationDeviceOrderFilter}`
             : sql.empty;
       const cursor =
         page.cursor === undefined
@@ -741,7 +745,7 @@ export function createOrderingService(
       }
       const deviceFilter =
         scope.role === "device"
-          ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
+          ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId} ${operationDeviceOrderFilter}`
           : sql.empty;
       const row = await tx.maybeOne<OrderRow>(
         sql`select * from orders where business_id=${scope.businessId} and id=${id} ${deviceFilter} ${memberOrders(scope, "orders.manage")} for update`,

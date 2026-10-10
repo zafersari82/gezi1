@@ -1,4 +1,4 @@
-import { kitchenPairingPollSchema, kitchenPairingSchema } from "@vado/contracts";
+import { devicePairingPollSchema, devicePairingSchema } from "@vado/contracts";
 import { z } from "zod";
 
 import { apiRequest, BusinessApiError } from "../../../../lib/api";
@@ -19,8 +19,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
       .parse(await readLimitedJson(request));
     const { action } = await params;
     if (action === "start") {
-      const pair = kitchenPairingSchema.parse(
-        await (await apiRequest("POST", "/v1/kitchen-pairings", {}, false)).json(),
+      const pair = devicePairingSchema.parse(
+        await (await apiRequest("POST", "/v1/device-pairings", {}, false)).json(),
       );
       await writePairing(pair.id, pair.secret, pair.expiresAt);
       return Response.json(
@@ -32,11 +32,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ act
       const pair = await readPairing();
       if (pair?.id === undefined || pair.secret === undefined)
         throw new BusinessApiError(401, "unauthorized", "Eşleştirme süresi doldu.");
-      const result = kitchenPairingPollSchema.parse(
+      const result = devicePairingPollSchema.parse(
         await (
           await apiRequest(
             "POST",
-            `/v1/kitchen-pairings/${pair.id}/poll`,
+            `/v1/device-pairings/${pair.id}/poll`,
             { secret: pair.secret },
             false,
           )

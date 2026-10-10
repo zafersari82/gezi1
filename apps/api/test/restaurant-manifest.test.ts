@@ -7,8 +7,8 @@ import {
   TABLE_SERVICE_MANIFEST,
 } from "../src/modules/capabilities/capabilities.registry";
 it("restoran manifestleri gerçek uçları ve teslim edilen olayları ilan eder", () => {
-  expect(KITCHEN_MANIFEST.api.map((a) => a.path)).toContain("/v1/kitchen/queue");
-  expect(KITCHEN_MANIFEST.api.map((a) => a.path)).toContain("/v1/kitchen/orders/:id/reject");
+  expect(KITCHEN_MANIFEST.api.map((a) => a.path)).toContain("/v1/device/queue");
+  expect(KITCHEN_MANIFEST.api.map((a) => a.path)).toContain("/v1/device/orders/:id/reject");
   expect(TABLE_SERVICE_MANIFEST.events.publishes).toContain("table.requested");
   expect(TABLE_SERVICE_MANIFEST.api.map((a) => a.path)).toContain(
     "/v1/business/:businessId/orders/:id/payment",

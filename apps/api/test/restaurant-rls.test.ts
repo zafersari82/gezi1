@@ -21,8 +21,8 @@ it("2.7 işletme tabloları zorunlu RLS ve hem okuma hem yazma kapsamı taşır"
     "table_session_members",
     "table_service_requests",
     "order_payments",
-    "kitchen_devices",
-    "kitchen_socket_tickets",
+    "operation_devices",
+    "operation_device_tickets",
     "business_live_offsets",
     "business_live_events",
   ];

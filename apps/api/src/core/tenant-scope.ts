@@ -56,29 +56,48 @@ export function withTenant<T>(
 ): Promise<T> {
   if (!issued.has(scope)) throw new AppError("forbidden");
   return db.transaction(async (tx) => {
-    const current = await tx.one<{ business_id: string | null }>(sql`
-      select nullif(current_setting('vado.business_id', true), '') as business_id
+    const current = await tx.one<{
+      business_id: string | null;
+      user_id: string | null;
+      tenant_device_id: string | null;
+    }>(sql`
+      select nullif(current_setting('vado.business_id', true), '') as business_id,
+        nullif(current_setting('vado.user_id', true), '') as user_id,
+        nullif(current_setting('vado.tenant_device_id', true), '') as tenant_device_id
     `);
     if (current.business_id !== null && current.business_id !== scope.businessId)
       throw new AppError("forbidden");
+    // İç içe SQL işlemleri, kişisel ve cihaz kimliklerini ya da iki farklı cihazı birleştiremez.
+    if (scope.role === "device") {
+      if (
+        current.user_id !== null ||
+        (current.tenant_device_id !== null && current.tenant_device_id !== scope.deviceId)
+      )
+        throw new AppError("forbidden");
+    } else if (
+      current.tenant_device_id !== null ||
+      (current.user_id !== null && current.user_id !== scope.userId)
+    ) {
+      throw new AppError("forbidden");
+    }
     await tx.execute(sql`select set_config('vado.business_id', ${scope.businessId}, true)`);
     if (scope.role !== "device") {
-      const actor = await tx.one<{ user_id: string | null }>(
-        sql`select nullif(current_setting('vado.user_id',true),'') as user_id`,
-      );
-      if (actor.user_id !== null && actor.user_id !== scope.userId) throw new AppError("forbidden");
       await tx.execute(sql`select set_config('vado.user_id',${scope.userId},true)`);
       if (scope.role === "courier") throw new AppError("forbidden");
     }
     if (scope.role === "device") {
+      await tx.execute(sql`select set_config('vado.tenant_device_id',${scope.deviceId},true)`);
       const device = await tx.maybeOne(sql`
-        select d.id from kitchen_devices d join app_instances i on i.business_id=d.business_id and i.id=d.app_instance_id
+        select d.id from operation_devices d join app_instances i on i.business_id=d.business_id and i.id=d.app_instance_id
         join branches b on b.business_id=d.business_id and b.id=d.branch_id
         join businesses business on business.id=d.business_id join users owner on owner.id=business.owner_id
         where d.business_id=${scope.businessId} and d.id=${scope.deviceId} and d.branch_id=${scope.branchId}
           and d.app_instance_id=${scope.appInstanceId} and d.revoked_at is null and d.expires_at>now() and b.active and i.active
           and business.status='active' and business.verified and owner.status='active'
-          and ordering_capabilities_for_instance(d.business_id,d.app_instance_id) ? 'ordering.kitchen@1.0.0' for share of d,b,i,business,owner
+          and exists (select 1 from capability_catalog c where c.engine='ordering'
+            and cardinality(c.device_statuses)>0
+            and ordering_capabilities_for_instance(d.business_id,d.app_instance_id) ? (c.id || '@' || c.version))
+          for share of d,b,i,business,owner
       `);
       if (device === null) throw new AppError("unauthorized");
     } else {

@@ -27,8 +27,8 @@ export interface CourierSocketAuth extends AuthContext {
   businessId: string;
   liveUntil: number;
 }
-export interface KitchenSocketAuth {
-  kind: "kitchen";
+export interface DeviceSocketAuth {
+  kind: "device";
   businessId: string;
   branchId: string;
   appInstanceId: string;
@@ -37,7 +37,7 @@ export interface KitchenSocketAuth {
 }
 type RealtimeAuth =
   | (AuthContext & { kind?: never; businessId?: string; liveUntil?: number })
-  | KitchenSocketAuth
+  | DeviceSocketAuth
   | CourierSocketAuth;
 
 type RealtimeServer = Server<
@@ -55,16 +55,16 @@ const sessionRoom = (sessionId: string) => `session:${sessionId}`;
 const businessRoom = (businessId: string, userId: string) =>
   `business:${businessId}:user:${userId}`;
 
-const kitchenRoom = (businessId: string, branchId: string, instanceId: string) =>
-  `kitchen:${businessId}:${branchId}:${instanceId}`;
-const deviceRoom = (id: string) => `kitchen-device:${id}`;
+const operationRoom = (businessId: string, branchId: string, instanceId: string) =>
+  `operation:${businessId}:${branchId}:${instanceId}`;
+const deviceRoom = (id: string) => `operation-device:${id}`;
 
 /** Servislerin istemcilere bildirim göndermek için kullandığı arayüz. */
 export interface RealtimePublisher {
   emitCourier: (businessId: string, userId: string, event: CourierLiveEvent) => void;
   emitBusinessLive: (businessId: string, userIds: readonly string[], event: LiveEvent) => void;
-  emitKitchen: (event: LiveEvent) => void;
-  disconnectKitchenDevice: (deviceId: string) => void;
+  emitOperation: (event: LiveEvent) => void;
+  disconnectOperationDevice: (deviceId: string) => void;
   emitBusiness: (businessId: string, userIds: readonly string[], event: BusinessOrderEvent) => void;
   /** Olayı verilen kullanıcıların bağlı tüm cihazlarına gönderir. */
   emit: <Event extends keyof ServerToClientEvents>(
@@ -78,8 +78,8 @@ export interface RealtimePublisher {
 
 export interface RealtimeHandlers {
   authenticateCourierTicket: (ticket: string) => Promise<CourierSocketAuth>;
-  authenticateKitchenTicket: (ticket: string) => Promise<KitchenSocketAuth>;
-  isKitchenDeviceActive: (deviceId: string) => Promise<boolean>;
+  authenticateDeviceTicket: (ticket: string) => Promise<DeviceSocketAuth>;
+  isOperationDeviceActive: (deviceId: string) => Promise<boolean>;
   authenticate: (token: string) => Promise<AuthContext>;
   authenticateBusinessTicket: (ticket: string) => Promise<BusinessSocketAuth>;
   /** "Yazıyor" bildiriminin iletileceği kullanıcılar; gönderen sohbet üyesi değilse boş döner. */
@@ -142,14 +142,14 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
       if (userIds.length > 0)
         io.to(userIds.map((id) => businessRoom(businessId, id))).emit("business:live", event);
     },
-    emitKitchen(event) {
-      io.to(kitchenRoom(event.businessId, event.branchId, event.appInstanceId)).emit(
-        "kitchen:event",
+    emitOperation(event) {
+      io.to(operationRoom(event.businessId, event.branchId, event.appInstanceId)).emit(
+        "device:event",
         event,
       );
     },
-    disconnectKitchenDevice(id) {
-      io.to(deviceRoom(id)).emit("kitchen:revoked");
+    disconnectOperationDevice(id) {
+      io.to(deviceRoom(id)).emit("device:revoked");
       io.in(deviceRoom(id)).disconnectSockets(true);
     },
     disconnectSession(sessionId) {
@@ -174,26 +174,26 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
         const courierTicket: unknown = socket.handshake.auth.courierTicket;
         const token: unknown = socket.handshake.auth.token;
         const ticket: unknown = socket.handshake.auth.businessTicket;
-        const kitchenTicket: unknown = socket.handshake.auth.kitchenTicket;
+        const deviceTicket: unknown = socket.handshake.auth.deviceTicket;
         let authentication: Promise<RealtimeAuth>;
         if (
           typeof courierTicket === "string" &&
-          kitchenTicket === undefined &&
+          deviceTicket === undefined &&
           ticket === undefined &&
           token === undefined
         ) {
           authentication = handlers.authenticateCourierTicket(courierTicket);
         } else if (
-          typeof kitchenTicket === "string" &&
+          typeof deviceTicket === "string" &&
           ticket === undefined &&
           token === undefined &&
           courierTicket === undefined
         ) {
-          authentication = handlers.authenticateKitchenTicket(kitchenTicket);
+          authentication = handlers.authenticateDeviceTicket(deviceTicket);
         } else if (
           typeof ticket === "string" &&
           token === undefined &&
-          kitchenTicket === undefined &&
+          deviceTicket === undefined &&
           courierTicket === undefined
         ) {
           authentication = handlers.authenticateBusinessTicket(ticket);
@@ -201,7 +201,7 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
           typeof token === "string" &&
           token !== "" &&
           ticket === undefined &&
-          kitchenTicket === undefined &&
+          deviceTicket === undefined &&
           courierTicket === undefined
         ) {
           authentication = handlers.authenticate(token);
@@ -217,12 +217,12 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
                 `courier:${auth.businessId}:user:${auth.userId}`,
                 sessionRoom(auth.sessionId),
               ]);
-            } else if (auth.kind === "kitchen") {
+            } else if (auth.kind === "device") {
               await socket.join([
-                kitchenRoom(auth.businessId, auth.branchId, auth.appInstanceId),
+                operationRoom(auth.businessId, auth.branchId, auth.appInstanceId),
                 deviceRoom(auth.deviceId),
               ]);
-              if (!(await handlers.isKitchenDeviceActive(auth.deviceId)))
+              if (!(await handlers.isOperationDeviceActive(auth.deviceId)))
                 throw new Error("unauthorized");
             } else {
               await socket.join([
@@ -252,11 +252,11 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
           });
         }
 
-        if (socket.data.kind === "kitchen") {
+        if (socket.data.kind === "device") {
           const deviceId = socket.data.deviceId;
           const timer = setInterval(() => {
             handlers
-              .isKitchenDeviceActive(deviceId)
+              .isOperationDeviceActive(deviceId)
               .then((active) => {
                 if (!active) socket.disconnect(true);
               })
@@ -269,7 +269,7 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
         }
         socket.on("conversation:typing", (event) => {
           if (
-            socket.data.kind === "kitchen" ||
+            socket.data.kind === "device" ||
             socket.data.kind === "courier" ||
             socket.data.businessId !== undefined
           )

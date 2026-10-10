@@ -68,7 +68,7 @@ describe("Restoranın doğrulanmış sözleşmeleri", () => {
     ).toBe(false);
   });
   it("ortak cihaz onayında şube ve uygulama örneğini zorunlu tutar", () => {
-    const approve = schema("approveKitchenDeviceBodySchema");
+    const approve = schema("approveOperationDeviceBodySchema");
     expect(approve.safeParse({ code: "12345678", label: "Mutfak" }).success).toBe(false);
     expect(
       approve.safeParse({

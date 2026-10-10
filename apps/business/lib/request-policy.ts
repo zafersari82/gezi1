@@ -22,7 +22,7 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
     "live-events",
     "tables",
     "table-requests",
-    "kitchen-devices",
+    "devices",
     `branches/${UUID}/availability`,
     `table-sessions/${UUID}/bill`,
     `catalog/items/${UUID}/availability`,
@@ -50,9 +50,9 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
     "studio/media/prune",
     "socket-ticket",
     "tables",
-    "kitchen-devices",
+    "devices",
     `tables/${UUID}/qr`,
-    `kitchen-devices/${UUID}/revoke`,
+    `devices/${UUID}/revoke`,
     `table-requests/${UUID}/resolve`,
     `table-sessions/${UUID}/close`,
     `orders/${UUID}/accept`,
@@ -169,7 +169,7 @@ export async function readLimitedJson(request: Request, maxBytes = 100_000): Pro
 }
 
 /** Tablet vekili, kişisel işletme uçlarına geçiş vermez. */
-export function kitchenApiPath(
+export function deviceApiPath(
   segments: readonly string[],
   method: string,
   search: string,
@@ -190,5 +190,5 @@ export function kitchenApiPath(
       : [];
   if ([...query.keys()].some((k) => method !== "GET" || !keys.includes(k))) return null;
   const suffix = query.toString();
-  return `/v1/kitchen/${path}${suffix === "" ? "" : `?${suffix}`}`;
+  return `/v1/device/${path}${suffix === "" ? "" : `?${suffix}`}`;
 }

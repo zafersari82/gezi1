@@ -2,8 +2,8 @@ import type { AddressInfo } from "node:net";
 
 import {
   businessSocketTicketSchema,
-  kitchenPairingPollSchema,
-  kitchenPairingSchema,
+  devicePairingPollSchema,
+  devicePairingSchema,
 } from "@vado/contracts";
 import { io, type Socket } from "socket.io-client";
 import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
@@ -48,12 +48,12 @@ function next(socket: Socket, event: string): Promise<unknown> {
 it("mutfak ve müşteri anlık olay alır; cihaz diğer şubeyi ve kişisel kanalı alamaz, iptalde kopar", async () => {
   const f = await createRestaurantFixture(app);
   const foreign = await createRestaurantFixture(app);
-  const pair = await anonymous(app).ok(kitchenPairingSchema, "POST", "/v1/kitchen-pairings", {
+  const pair = await anonymous(app).ok(devicePairingSchema, "POST", "/v1/device-pairings", {
     body: {},
   });
   const approval = await as(app, f.owner).request(
     "POST",
-    `/v1/business/${f.businessId}/kitchen-devices`,
+    `/v1/business/${f.businessId}/devices`,
     {
       body: {
         code: pair.code,
@@ -65,24 +65,24 @@ it("mutfak ve müşteri anlık olay alır; cihaz diğer şubeyi ve kişisel kana
   );
   expect(approval.status).toBe(200);
   const poll = await anonymous(app).ok(
-    kitchenPairingPollSchema,
+    devicePairingPollSchema,
     "POST",
-    `/v1/kitchen-pairings/${pair.id}/poll`,
+    `/v1/device-pairings/${pair.id}/poll`,
     { body: { secret: pair.secret } },
   );
   if (poll.status !== "approved") throw new Error("Eşleştirme onaylanmadı");
   const device = anonymous(app);
   const headers = { authorization: `Bearer ${poll.token}` };
-  const ticket = await device.ok(businessSocketTicketSchema, "POST", "/v1/kitchen/socket-ticket", {
+  const ticket = await device.ok(businessSocketTicketSchema, "POST", "/v1/device/socket-ticket", {
     body: {},
     headers,
   });
-  const kitchen = await connect({ kitchenTicket: ticket.ticket });
+  const kitchen = await connect({ deviceTicket: ticket.ticket });
   const customer = await connect({ token: f.customer.token });
   const other = await connect({ token: foreign.customer.token });
-  await expect(connect({ kitchenTicket: ticket.ticket })).rejects.toThrow("unauthorized");
+  await expect(connect({ deviceTicket: ticket.ticket })).rejects.toThrow("unauthorized");
   const seen: unknown[] = [];
-  kitchen.on("kitchen:event", (event) => seen.push(event));
+  kitchen.on("device:event", (event) => seen.push(event));
   let leaked = false;
   for (const event of ["message:new", "business:live", "order:changed"])
     kitchen.on(event, () => {
@@ -97,7 +97,7 @@ it("mutfak ve müşteri anlık olay alır; cihaz diğer şubeyi ve kişisel kana
     )
       leaked = true;
   });
-  const live = next(kitchen, "kitchen:event");
+  const live = next(kitchen, "device:event");
   const own = next(customer, "order:changed");
   const pending = await app.platformDb.many<{ id: string }>(
     sql`select id from outbox_events where business_id=any(${[f.businessId, foreign.businessId]}::uuid[])`,
@@ -107,11 +107,11 @@ it("mutfak ve müşteri anlık olay alır; cihaz diğer şubeyi ve kişisel kana
   expect(await own).toMatchObject({ orderId: f.order.id });
   expect(seen).toHaveLength(1);
   expect(leaked).toBe(false);
-  const revoked = next(kitchen, "kitchen:revoked");
+  const revoked = next(kitchen, "device:revoked");
   const disconnected = next(kitchen, "disconnect");
   await as(app, f.owner).request(
     "POST",
-    `/v1/business/${f.businessId}/kitchen-devices/${poll.device.id}/revoke`,
+    `/v1/business/${f.businessId}/devices/${poll.device.id}/revoke`,
     { body: {} },
   );
   await revoked;
