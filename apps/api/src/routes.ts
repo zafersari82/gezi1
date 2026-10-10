@@ -35,8 +35,8 @@ import { paymentRoutes } from "./modules/payments/payments.routes";
 import { qrRoutes } from "./modules/qr/qr.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { restaurantRoutes } from "./modules/restaurant/restaurant.routes";
-import { storefrontRoutes } from "./modules/storefront/storefront.routes";
 import { returnRoutes } from "./modules/returns/returns.routes";
+import { storefrontRoutes } from "./modules/storefront/storefront.routes";
 import { userRoutes } from "./modules/users/users.routes";
 import type { Services } from "./services";
 

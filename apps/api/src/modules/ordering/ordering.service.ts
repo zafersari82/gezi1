@@ -27,7 +27,7 @@ import {
 import { recordAudit } from "../../core/audit";
 import { permittedBranch } from "../../core/business-access";
 import type { TenantContext } from "../../core/context";
-import { type Database, sql, type SqlFragment } from "../../core/database";
+import { type Database, isCheckViolation, sql, type SqlFragment } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { withIdempotency } from "../../core/idempotency";
 import { supportsOperationDevice } from "../../core/operation-device-order";
@@ -785,9 +785,15 @@ export function createOrderingService(
       await tx.execute(
         sql`select set_config('vado.order_actor_kind',${scope.role === "device" ? "device" : "business"},true),set_config('vado.order_actor_id',${actorId},true)`,
       );
-      await tx.execute(
-        sql`update orders set status=${body.status},version=version+1,preparation_minutes=${decision?.preparationMinutes ?? row.preparation_minutes},estimated_ready_at=${readyAt},rejection_reason=${decision?.reason ?? row.rejection_reason} where business_id=${scope.businessId} and id=${id} and version=${body.expectedVersion}`,
-      );
+      // Paketlerin kendi geçiş kuralları (ör. iptalin gerekçeli talebe bağlı olması) veritabanında
+      // denetlenir; reddedilen geçiş beklenmeyen hata değil, geçersiz durumdur.
+      await tx
+        .execute(
+          sql`update orders set status=${body.status},version=version+1,preparation_minutes=${decision?.preparationMinutes ?? row.preparation_minutes},estimated_ready_at=${readyAt},rejection_reason=${decision?.reason ?? row.rejection_reason} where business_id=${scope.businessId} and id=${id} and version=${body.expectedVersion}`,
+        )
+        .catch((error: unknown) => {
+          throw isCheckViolation(error) ? new AppError("order_state_invalid") : error;
+        });
       const result = await readOrder(tx, scope, id);
       if (body.status === "completed" && result.paymentStatus === "paid")
         await lifecycle.run("complete", tx, {

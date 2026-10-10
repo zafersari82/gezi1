@@ -49,7 +49,6 @@ Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman deği
 - **A2-3 ara teslim 2 (tam kabul bekliyor):** Eksik sipariş rotası şema içe aktarımı düzeltildi. Ortak vitrin servisi, restoran modülüne bağımlı olmadan `/store` ve `/restaurant` yanıtlarını üretir. API import düzeni ve mağaza kanıtı güncellendi. PostgreSQL/test/derleme henüz onaylanmadı.
 - **A2-3 geliştirme kaydı (tam kabul bekliyor):** Köprüden eski masa/restaurant yöntemleri kaldırıldı; `tableService.*` ve `table_service.basic` eklendi. Restoran `ordering.getStore` kullanıyor. Sektörel canlı olaylar, genel mağaza rotası, sipariş kayıtları ve HTTP durum eşlemeleri katmanlarına ayrıldı. Yeni çekirdek adlandırma denetimi ve negatif testi yazıldı. Mağaza gel-al/teslimat HTTP+SQL kanıt testleri eklendi, henüz çalıştırılmadı. Bu madde doğrulanmış sürüm değildir; ayrıntı [A2_3_KONTROL.md](docs/A2_3_KONTROL.md).
 
-
 - **Operasyon cihazı rolü (A2-1):** çekirdekteki `kitchen` rolü genel `device` rolüne dönüştü.
   Cihazın verebileceği durumlar ve kabul/ret kararının zorunluluğu paket manifestindeki
   `operations` alanından okunur; sipariş servisi `ordering.kitchen` adını bilmez. Restoranda cihaz

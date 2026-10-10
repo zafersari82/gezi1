@@ -96,12 +96,7 @@ it("mağaza gel-al: katalog, kupon, puan, ödeme, değerlendirme, iade ve tekrar
   const context = storeContextSchema.parse(storefrontResponse.body);
   expect(context).toMatchObject({ businessId: f.businessId, appInstanceId: f.instanceId });
   const rawStorefront = JSON.stringify(storefrontResponse.body);
-  for (const privateValue of [
-    f.address.phone,
-    f.customer.phone,
-    f.customer.id,
-    f.owner.phone,
-  ]) {
+  for (const privateValue of [f.address.phone, f.customer.phone, f.customer.id, f.owner.phone]) {
     expect(rawStorefront).not.toContain(privateValue);
   }
   const catalog = await f.client.ok(
@@ -221,7 +216,28 @@ it("mağaza gel-al: katalog, kupon, puan, ödeme, değerlendirme, iade ve tekrar
   expect((await f.client.ok(walletSchema, "GET", `${f.root}/loyalty`)).balance).toBe(
     earned.balance - 100,
   );
-  await progress(f, spendingOrder, ["cancelled"]);
+  // İade paketi açıkken sahip siparişi doğrudan iptal edemez; iptal gerekçeli talebe bağlıdır.
+  await f.ownerClient.fail(
+    "order_state_invalid",
+    "PUT",
+    `/v1/business/${f.businessId}/orders/${spendingOrder.id}/status`,
+    { body: { expectedVersion: spendingOrder.version, status: "cancelled" } },
+  );
+  const cancelled = await f.client.ok(
+    z.looseObject({ status: z.string() }),
+    "POST",
+    `${f.root}/orders/${spendingOrder.id}/returns`,
+    {
+      headers: { "idempotency-key": randomUUID() },
+      body: {
+        kind: "cancel",
+        expectedOrderVersion: spendingOrder.version,
+        reason: "Vazgeçtim, sonra alacağım",
+        amountMinor: null,
+      },
+    },
+  );
+  expect(cancelled.status).toBe("approved");
   expect((await f.client.ok(walletSchema, "GET", `${f.root}/loyalty`)).balance).toBe(
     earned.balance,
   );
@@ -323,19 +339,14 @@ it("mağaza: değişen puan ayarı eski sepet teklifini geçersiz kılar", async
   const current = await f.client.ok(cartSchema, "GET", `${f.root}/carts/${f.cart.id}`);
   expect(current).toMatchObject({ id: f.cart.id, status: "open", version: f.cart.version });
   expect(current.quoteHash).not.toBe(f.cart.quoteHash);
-  const order = await f.client.ok(
-    orderSchema,
-    "POST",
-    `${f.root}/carts/${current.id}/checkout`,
-    {
-      headers: { "idempotency-key": randomUUID() },
-      body: {
-        cartVersion: current.version,
-        seenTotalMinor: current.totalMinor,
-        quoteHash: current.quoteHash,
-      },
+  const order = await f.client.ok(orderSchema, "POST", `${f.root}/carts/${current.id}/checkout`, {
+    headers: { "idempotency-key": randomUUID() },
+    body: {
+      cartVersion: current.version,
+      seenTotalMinor: current.totalMinor,
+      quoteHash: current.quoteHash,
     },
-  );
+  });
   expect(order).toMatchObject({ fulfilment: "delivery", context: null });
   const created = await app.platformDb.many<{ id: string }>(
     sql`select id from orders where business_id=${f.businessId} and cart_id=${f.cart.id}`,

@@ -27,7 +27,8 @@ describe("köprü protokolü", () => {
       "ordering.getTable",
       "ordering.getBill",
       "ordering.requestService",
-    ]) expect(isBridgeMethod(old)).toBe(false);
+    ])
+      expect(isBridgeMethod(old)).toBe(false);
     for (const method of [
       "tableService.join",
       "tableService.get",
@@ -39,9 +40,12 @@ describe("köprü protokolü", () => {
     }
     expect(bridgeParamsSchemas["tableService.join"].safeParse(undefined).success).toBe(true);
     expect(bridgeParamsSchemas["tableService.get"].safeParse({ id: "bozuk" }).success).toBe(false);
-    expect(bridgeParamsSchemas["tableService.get"].safeParse({
-      id: "b2cd9772-164f-4300-b8c6-61a26a846790", businessId: "yabancı"
-    }).success).toBe(false);
+    expect(
+      bridgeParamsSchemas["tableService.get"].safeParse({
+        id: "b2cd9772-164f-4300-b8c6-61a26a846790",
+        businessId: "yabancı",
+      }).success,
+    ).toBe(false);
   });
 
   it("her yetkinin Türkçe açıklaması vardır", () => {

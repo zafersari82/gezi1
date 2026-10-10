@@ -1,4 +1,4 @@
-import { DELIVERY_AGENT_ROLE, type BusinessMemberRole } from "@vado/contracts";
+import { type BusinessMemberRole, DELIVERY_AGENT_ROLE } from "@vado/contracts";
 
 import { type Database, sql } from "./database";
 import { AppError } from "./errors";

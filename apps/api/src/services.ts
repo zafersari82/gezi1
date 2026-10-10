@@ -43,11 +43,11 @@ import { createPackageService } from "./modules/packages/packages.service";
 import { createPaymentService } from "./modules/payments/payments.service";
 import { createQrService } from "./modules/qr/qr.service";
 import { createReportService } from "./modules/reports/reports.service";
+import { createRestaurantService } from "./modules/restaurant/restaurant.service";
 import {
   createOrderPushConsumer,
   createRestaurantLiveConsumer,
 } from "./modules/restaurant/restaurant-live";
-import { createRestaurantService } from "./modules/restaurant/restaurant.service";
 import { tableSessionLabels } from "./modules/restaurant/table-session-labels";
 import { createReturnService } from "./modules/returns/returns.service";
 import { createUserService } from "./modules/users/users.service";

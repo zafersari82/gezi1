@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { type Category, cartSchema, orderSchema } from "@vado/contracts";
+import { cartSchema, type Category, orderSchema } from "@vado/contracts";
 import { expect } from "vitest";
 
 import { sql } from "../../src/core/database";

@@ -4,12 +4,7 @@ import { catalogSelectionSchema, moneyMinorSchema, vatBasisPointsSchema } from "
 import { idSchema, timestampSchema } from "./common";
 import { deliverySummarySchema } from "./delivery";
 import { incentiveQuoteSchema } from "./incentives";
-import {
-  type Fulfilment,
-  fulfilmentSchema,
-  type OrderContext,
-  orderContextSchema,
-} from "./ordering-registry";
+import { fulfilmentSchema, orderContextSchema } from "./ordering-registry";
 import { timezoneSchema } from "./time";
 
 export const CORE_ORDER_STATES = [
@@ -223,12 +218,12 @@ export const branchPerformanceSchema = z.object({
 export type BranchPerformance = z.infer<typeof branchPerformanceSchema>;
 
 // Ortak tipler eski dış içe aktarmaları bozmadan yeni kayıt dosyasına yönlendirilir.
+export type { Fulfilment, OrderContext, PaymentPlace } from "./ordering-registry";
 export {
-  fulfilmentSchema,
-  PAYMENT_PLACES,
-  FULFILMENT_PAYMENT_PLACES,
   FULFILMENT_LABELS,
+  FULFILMENT_PAYMENT_PLACES,
+  fulfilmentSchema,
   ORDER_CONTEXT_KINDS,
   orderContextSchema,
+  PAYMENT_PLACES,
 } from "./ordering-registry";
-export type { Fulfilment, OrderContext, PaymentPlace } from "./ordering-registry";

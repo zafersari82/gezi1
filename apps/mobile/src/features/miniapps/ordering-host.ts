@@ -185,7 +185,9 @@ export function createOrderingHost(
     async listOrders(params) {
       const { businessCustomerId, businessId, appInstanceId } = await confirm();
       const query = new URLSearchParams();
-      for (const [key, value] of Object.entries(params)) {
+      // Köprüden gelen nesnede değeri tanımsız anahtar bulunabilir; sorguya "undefined" yazılmaz.
+      const entries: [string, string | number | boolean | undefined][] = Object.entries(params);
+      for (const [key, value] of entries) {
         if (value !== undefined) query.set(key, String(value));
       }
       const value = z

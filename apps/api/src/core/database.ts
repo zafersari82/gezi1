@@ -148,6 +148,11 @@ export function isUniqueViolation(error: unknown, constraint?: string): boolean 
   return constraint === undefined || error.constraint === constraint;
 }
 
+/** PostgreSQL denetim kuralı ihlali (23514; kısıt ya da tetikleyici reddi) hatası mı? */
+export function isCheckViolation(error: unknown): boolean {
+  return error instanceof pg.DatabaseError && error.code === "23514";
+}
+
 /** PostgreSQL yabancı anahtar ihlali (23503) hatası mı? */
 export function isForeignKeyViolation(error: unknown): boolean {
   return error instanceof pg.DatabaseError && error.code === "23503";

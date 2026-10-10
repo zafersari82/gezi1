@@ -1,8 +1,8 @@
 import {
-  type Category,
   catalogCategoryBodySchema,
   catalogItemBodySchema,
   catalogOptionGroupBodySchema,
+  type Category,
 } from "@vado/contracts";
 
 import type { TestApp } from "./harness";

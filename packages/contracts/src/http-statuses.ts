@@ -119,4 +119,3 @@ export const HTTP_STATUS_CODES: Record<ErrorCode, number> = {
   admin_last_owner: 409,
   report_not_found: 404,
 };
-

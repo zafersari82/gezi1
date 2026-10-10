@@ -35,7 +35,8 @@ const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$/;
 const MIGRATION_FILE = /^(\d{4})_[a-z0-9]+(_[a-z0-9]+)*\.sql$/;
 const PUBLISHED_MIGRATION_COUNT = 36;
 /** Paketlerin adları kayıt dosyalarında kalır, çekirdeğe taşınmaz. */
-const DOMAIN_WORDS = /table_session|tableSession|kitchen|waiter|courier|restaurant|dine_in|masa|mutfak|garson|kurye|restoran/i;
+const DOMAIN_WORDS =
+  /table_session|tableSession|kitchen|waiter|courier|restaurant|dine_in|masa|mutfak|garson|kurye|restoran/i;
 /** Yayımlanan şemalar değişmez; SHA kontrolü aşağıda dosyanın bütün içeriğini korur. */
 const IMMUTABLE_CORE_MIGRATIONS = new Set([
   "0031_ordering_catalog.sql",
@@ -43,9 +44,11 @@ const IMMUTABLE_CORE_MIGRATIONS = new Set([
   "0035_operation_devices.sql",
 ]);
 /** Yeni çekirdek şemalar adlarından anlaşılır ve aynı alan kuralını taşır. */
-const FUTURE_CORE_MIGRATION = /^\d{4}_.*(?:ordering|operation|capabilit|fulfilment|context|live).*\.sql$/;
+const FUTURE_CORE_MIGRATION =
+  /^\d{4}_.*(?:ordering|operation|capabilit|fulfilment|context|live).*\.sql$/;
 /** A2-3 ile yayımdan kaldırılan masa köprüsü yöntemleri tekrar eklenemez. */
-const LEGACY_BRIDGE_METHOD = /\bordering\.(?:getRestaurant|joinTable|getTable|getBill|requestService)\b/;
+const LEGACY_BRIDGE_METHOD =
+  /\bordering\.(?:getRestaurant|joinTable|getTable|getBill|requestService)\b/;
 
 const SUPPRESSION = /eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck/;
 const LEFTOVER_NOTE = /\b(TODO|FIXME|XXX|HACK)\b/;
