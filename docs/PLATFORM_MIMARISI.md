@@ -102,6 +102,35 @@ paketleriyle bunu taşıyamıyor; hangi en az üç sektörü kapsayacak.
 
 **Bir motor, en az üç farklı sektör deneyimini çatallanmadan çalıştıramıyorsa bitmiş sayılmaz.**
 
+### Sektörler motorlara bire bir bağlı değildir
+
+Bir sektör deneyiminin bir **ana motoru** olabilir, ama gerektiğinde diğer motorların yeteneklerini
+de kullanır. Gerçek süper uygulama mimarisi burada ortaya çıkar:
+
+| Sektör deneyimi | Ana motor                     | Ayrıca kullandığı motorlar                                |
+| --------------- | ----------------------------- | --------------------------------------------------------- |
+| Otel            | Rezervasyon (konaklama)       | Sipariş (oda servisi), İş talebi (bakım, temizlik talebi) |
+| Oto servis      | Rezervasyon (bakım randevusu) | İş talebi (arıza, çekici), Sipariş (yedek parça)          |
+| Güzellik salonu | Rezervasyon (randevu)         | Sipariş (kozmetik ürün satışı)                            |
+| Restoran        | Sipariş                       | Rezervasyon (masa rezervasyonu)                           |
+
+Kurallar:
+
+- **Motorlar yine birbirini doğrudan çağırmaz.** Bileşimi sektör deneyimi kurar ve VADO platformu
+  üzerinden yapar: aynı işletme, aynı uygulama örneği, aynı `businessCustomerId`.
+- **Kayıtlar arası bağ platformdadır.** Bir motorun kaydı başka bir motorun kaydına "bağlam" olarak
+  bağlanabilir (oda servisi siparişi → konaklama rezervasyonu; çekici talebi → servis randevusu).
+  Bağ platformun ortak bir bağlam alanıyla (tür + kimlik, aynı işletme içinde, RLS altında) kurulur;
+  motor öteki motorun tablolarını tanımaz.
+- **Motorlar arası tepki olaylarla olur:** "konaklama bitti" olayı açık oda servisi siparişlerini
+  kapatmayı tetikler; bunu motor değil, deneyimin bağladığı yetenek paketi yapar.
+- **VADO Business modülleri sektöre değil açık yeteneklere göre açılır.** Otelde Rezervasyonlar,
+  Odalar, Oda servisi siparişleri ve Talepler aynı uygulamada yan yana durur.
+- **Müşteri tek bir yolculuk görür.** "Konaklamam" ekranında oda servisi siparişleri ve
+  talepler birlikte görünür; arkada üç motor olduğu müşteriye yansımaz.
+- Yeni bir sektör planlanırken soru "hangi motor?" değil, **"hangi motorların hangi yetenekleri?"**
+  olur.
+
 ## Yetenek paketleri
 
 Sektörün ciddi özellikleri bağımsız, yeniden kullanılabilir paketler olarak eklenir. Bir paket şu
@@ -254,7 +283,10 @@ Ayrıca ölçülebilir olarak:
 8. Zayıf ağda (yavaş 3G, bağlantı kopması) temel akış bozulmuyor; kaybolan işlem çoğalmıyor.
 9. Erişilebilirlik (ekran okuyucu etiketleri, dokunma alanları, kontrast) denetlendi.
 10. Türkiye'ye özgü zorunluluklar (aşağıda) karşılanıyor.
-11. Gerçek bir pilot işletmede en az iki hafta kullanıldı ve bulunan sorunlar kapatıldı.
+11. Yayın öncesi toplu denemede (bütün sektörler bittikten sonra, gerçek işletmeler, gerçek
+    telefonlar ve gerçek push ile) en az iki hafta kullanıldı ve bulunan sorunlar kapatıldı.
+    Sektör başına ayrı pilot yapılmaz; bunun yerine birkaç sürümde bir sürüm sahibinin telefonu ve
+    bir tabletle kısa bir **ara cihaz denemesi** yapılır (ses, uyku, push, kamera, QR).
 
 Bir sürümde kapsam daraltılabilir; **kalite daraltılmaz.** Bir sürümde yayınlanan her yetenek
 eksiksizdir; yarım bir yeteneği yayınlamak yerine bir sonraki sürüme bırakılır. Online ödemenin
@@ -306,5 +338,5 @@ Motorlar ve platform şunları baştan taşır ([TURKIYE_UYUM.md](TURKIYE_UYUM.m
   servisi aynı işletmenin kayıtları arasında ortak, **işletmeye özel** kimlik sağlar.
 
 2.6'da Sipariş çekirdeği, yetenek paketleri ve VADO Business; 2.7'de Restoranın iç
-operasyonu uygulanmıştır. Restoran PRO'nun eve teslim ve pilot kapsamı 2.8'de kalır. Sıra ve kapsam
+operasyonu uygulanmıştır. Restoran'ın eve teslim kapsamı 2.8'dedir; PRO etiketleri yayın öncesi toplu denemeden sonra konur. Sıra ve kapsam
 [YOL_HARITASI.md](YOL_HARITASI.md) içindedir; her sürüm başlamadan önce tek sayfalık planı onaylanır.

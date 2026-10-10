@@ -1,23 +1,256 @@
-# 2.8 planı — Restoran, 2. parça ve pilot
+# 2.8 planı — Restoran 2. parça ve süper uygulama temeli
 
-**Durum: Kullanıcı tarafından onaylandı; beş ara ZIP ile uygulanıyor.** Temel: kabul edilen 2.7.0, 813 test. Mimari, yol haritası ve kod standartları esas alınır; yeni motor veya ayrı işletme uygulaması oluşturulmaz.
+**Durum (10.10.2026):** Sürüm sahibi işi bütünüyle Claude'a devretti. Bu belge, teslim alınan
+`2.8.0-alpha.3` kaynağının gerçek ortamda denenmesine ve satır satır okunmasına dayanır. 7.10.2026'da
+onaylanan kapsam (eve teslim, kendi kurye, teşvik, değerlendirme ve favoriler, tekrar sipariş,
+işletme sohbeti, iptal ve iade, kapıda ödeme, mevzuat) geçerlidir. Pilot kapısı kaldırılmıştır:
+sektör başına pilot yoktur (bkz. [PLATFORM_MIMARISI.md](PLATFORM_MIMARISI.md)).
 
-**1. Önce kalan bulgular.** Masa QR düğmesi yalnız sahip/yöneticiye görünür; personelden gizlenir, API yetkisi korunur. Teslim/hazır olma saatleri siparişin şubesinin saat diliminde, açık bölge adıyla gösterilir; farklı cihaz saat dilimiyle sınanır.
+## 1. Teslim alınan kaynak gerçekte ne durumda
 
-**2. Veri modeli ve platform.** Yeni geçişler `0018+`: Konum servisinde gerçek il/ilçe/mahalle hiyerarşisi, kullanıcıya ait açık adres ve mahalle bazlı şube teslimat bölgeleri; Sipariş paketinde bölge ücreti, indirim sonrası ürün toplamına uygulanan asgari tutar (teslimat ücreti hariç) ve teslim süresi. Teslimat siparişi adres, ücret, indirim, KDV, süre ve ön bilgilendirme görüntüsünü değişmez saklar. Kurye/atama/geçmiş; kampanya/kupon kullanım kayıtları, sadakat defteri; doğrulanmış sipariş değerlendirmesi/yanıt/moderasyon, özel favoriler; iptal talebi/iade ve ileti izinleri eklenir. İşletme tablolarında kapsam, bileşik bağlar, RLS/FORCE; adreslerde kullanıcı sahipliği korunur. İşletme yalnız `businessCustomerId`, teslimat için izin verilen iletişim bilgisi görür. Mevcut Sohbet servisine işletme kanalı eklenir; müşteri ve yetkili işletme personeli arasında çalışır.
+Önceki çalışma ortamında npm ve PostgreSQL çalışmadığı için kaynak hiç derlenmemiş ve sınanmamıştı.
+Boş klasörde ilk kez çalıştırıldı:
 
-**3. Paketler ve teslimat.** `ordering.delivery`, `ordering.reorder`, `ordering.returns`; kendi kurye sağlayıcısı ayrı teslimat sağlayıcı arayüzüne kayıtlıdır, kurye kavramı Sipariş çekirdeğine girmez. Paketler tipli manifest, JSON Schema, bağımlılık/sürüm/ayar ve izin denetimiyle yayımlanır. Konum, Teşvik, Değerlendirme, Favoriler ve Sohbet platform servisidir. Kurye VADO hesabı ve işletme üyeliğiyle yalnız atanmış işlerini görür; yeniden atama/üyelik iptali eski yetkiyi kaldırır. Adres ve telefon yalnız aktif atama boyunca ve teslimden önce görülebilir; API, soket, eski yanıt tekrarı ve doğrudan SQL/RLS sınanır. Mutfakla uyumlu akış: hazır → yola çıktı → teslim edildi (`completed`); çekirdek bitişleri değişmez. Müşteri canlı durum/ETA alır; GPS ve arka plan konum izni bu sürümde yoktur. Teslimat sağlayıcısı arayüzü hazırlanır; dış kurye bağlantısı açılmaz. Bölge, çalışma saatleri ve hazırlık/teslim aralığı checkout sırasında yeniden doğrulanır; kapsam dışına/kapalı saate sipariş alınmaz.
+| Adım               | Sonuç                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| `npm ci`           | geçti (kilit dosyası tutarlı, `sharp` dahil)                                                            |
+| Biçim (`prettier`) | 105 dosya biçimsiz                                                                                      |
+| ESLint             | 159 hata (97'si otomatik düzelir)                                                                       |
+| Tip denetimi       | 6 hata (sözleşmeler, API, Business)                                                                     |
+| Testler            | 976/982 geçti: sözleşmeler 168/168, SDK 17/17, API 671/675, Business 15/17, mobil 101/101, restoran 4/4 |
+| Derleme            | Business derlenmiyor (1 tip hatası); diğerleri derleniyor                                               |
 
-**4. Teşvik, ödeme, iptal.** Kampanya/kuponun tarih, kapsam ve eş zamanlı toplam/kişi limitleri sunucuda uygulanır; işletme ayarıyla birleşirler, varsayılan birlikte kullanılamaz. İndirim kuruş cinsinden satırlara dağıtılır, KDV indirimli tutardan hesaplanır ve yuvarlama sınanır; rezervasyon, kullanım ve sadakat harcaması checkout ile aynı işlemde korunur. Ret/iptalde uygun rezervasyon bir kez çözülür; puan yalnız tamamlanmış ve ödenmiş siparişte bir kez kazanılır; iptal/iade kazanılanı geri alır, harcananı iade eder, kısmi iadeler orantılı ve atomiktir. Fiyat/ücret/indirim değişimi `cart_changed` ile yeniden onay ister. Tekrar sipariş güncel ürün, seçenek, bulunurluk ve fiyatla yeni sepet kurar. Ödeme kapıda nakit veya fiziksel POS kartıdır; tahsilat yapan kişi ve referans kaydedilir. Müşteri kabulden önce doğrudan, sonra talep üzerinden iptal eder; sahip/yönetici teslim öncesi gerekçeli iptali sonuçlandırır. Kurye iptal/iade yapamaz. Teslim sonrası sipariş açılmaz; ayrı iade talebi ve fiziksel geri ödeme kaydı tutulur, toplam iade tahsilatı aşamaz. Online ödeme yoktur.
+Sonuç: kod büyük ölçüde çalışıyor; eksikler mekanik. Asıl sorunlar aşağıdaki mimari bulgulardır.
 
-**5. Uçlar ve ekranlar.** Kabuk/SDK üzerinden adres CRUD, teslimat teklifi, teşvik uygulama, tekrar sipariş, iptal/iade talepleri, değerlendirme, favori, işletme sohbeti ve ileti izinleri sunulur. Değerlendirme yalnız tamamlanan ve müşterinin sahip olduğu siparişe bir kez yapılır; iptal edilen sipariş reddedilir, moderasyon var olan şikayet altyapısını kullanır. Mevcut `/v1/shell/:businessId/:appInstanceId` altında sepet/checkout/sipariş uçları genişler. `/v1/business/:businessId` altında bölge, kurye/atama, kampanya, değerlendirme/yanıt, mesaj ve iptal/iade yönetimi; kurye kapsamında atanmış işler, yola çıkma/teslim/tahsilat uçları bulunur. Yeni uçların biçimleri contracts ve SDK'da tanımlanır. Müşteri: teslim edebilen restoran keşfi → menü/özelleştirme → adres/sepet/kupon/ön bilgilendirme → canlı teslimat/mesaj → değerlendirme/favori/tekrar sipariş. Business: bölgeler, kurye kuyruğu, kampanyalar/sadakat, mesajlar, yorumlar, tahsilat/iade; kurye için telefon düzeni. Tablet, yükleniyor/boş/hata ve erişilebilirlik tamamlanır.
+### Korunacak iyi kararlar
 
-**6. Mevzuat.** Satıcı/aracı bilgisi, vergiler ve teslimat dahil toplam, teslim/iptal şartları, hak arama yolları ve çabuk bozulan yiyeceğin cayma istisnası sipariş öncesinde gösterilir; metin sürümü ve teyit saklanır, kalıcı kopya verilir. Ayıplı/eksik teslimat hakları korunur. Kampanya izni satın almadan ve cihaz push izninden ayrı alınır; işletme/kanal bazında ret ve kanıt kayıtları tutulur. SMS/e-posta/arama için İYS mutabakatı aranır; resmî SSS’ye göre yalnız push için İYS kaydı gerekmez. Push onayı SMS onayı sayılmaz. Doğrulanamayan izinde ticari ileti gönderilmez; işlemsel bildirime reklam eklenmez.
+Davet belirtecinin yalnız özetinin saklanması ve adresin `#` kısmında taşınması; `sharp` ile
+EXIF/GPS temizliği, boyut sınırı ve WebP'ye yeniden yazma; işletme başına medya kotası ve satır
+kilidi; silinecek dosyalar için kalıcı kuyruk; filtreye bağlı imleçli sunucu araması ve Türkçe harf
+sadeleştirmesi; RLS'yi açmadan keşif için tek yönlü okuma izdüşümü; belirsiz uygulama örneğinde 404;
+taslak ile yayının ayrı tutulması.
 
-**7. Sıra ve kabul.** Beş ara ZIP: (1) iki bulgu + Konum; (2) teslimat + kendi kurye; (3) Teşvik; (4) değerlendirme/favoriler/sohbet/tekrar/iptal/iade; (5) mevzuat + deneyim ekranları + kapanış. Restoran paketleri açık olmayan mağaza benzeri örnek gerçek HTTP/SQL üzerinden teslimat, kupon ve değerlendirmeyi birlikte kullanır. `fulfilment.ts` içindeki restoran bağımlılığı paket politikası arayüzüne taşınır. Her adımda `npm run check`; her ara ZIP boş klasörde `npm ci` ve tam check, gerçek sonuçlar sayıyla. 813 test ve 164 bozma maddesi korunur, yeni korumalar için gerçek bozma kanıtları eklenir. Tam müşteri ve restoran/kurye yolculukları 390×844, 768×1024, 1440×900'de; yavaş 3G/kopma/çift dokunma, olay tekrarı, eş zamanlı kupon/puan/iade/atama ve kapsam aşımı sınanır. Idempotency, beklenen sürüm, SQL korumaları, transactional outbox ve kaçan olayların tamamlanması zorunludur. Gerçek 2.7→2.8 geçiş/yedekten geri dönüş; değişmez `0001–0017`; belgeler/CHANGELOG ve yeniden çalıştırılabilir kanıtlar teslim edilir. Yalnız kendi paketlerinin version alanları güncellenir, ardından `npm install --package-lock-only`; sürüm `2.8.0`, kural susturma yoktur. Docker bu ortamda yok; gerçek imaj/Compose denemesini Claude yapar.
+## 2. Mimari bulgular
 
-**8. Pilot kapısı.** 2.8.0 kapanınca PRO'nun 11 şartına bağlı kontrol listesi hazırlanır: gerçek çoklu işletme/şube, fiziksel mutfak tableti, Android/iOS telefonları, gerçek push, ses/Wake Lock, zayıf ağ, günlük tahsilat/iade ve erişilebilirlik. En az iki hafta gerçek işletme kullanımı ve bulunan sorunların kapatılmasına dair kayıt gerekir. “Restoran PRO” etiketi yalnız pilot kabulünden sonra konur.
+1. **Sipariş çekirdeği restorana bağlı (devir notundaki mimari denetim geçmiyor).** `carts` ve
+   `orders` tablolarında `table_session_id`; sipariş sözleşmesinde `tableSessionId`, `tableLabel`;
+   sipariş servisinde `kitchen` rolü dalları; köprüde `ordering.getRestaurant`, `getTable`,
+   `joinTable`, `requestService`; SQL'de durum grafiği işlevi bütün paket adlarını biliyor ve beş
+   kez üst üste yeniden tanımlanmış. Bu hâliyle Market ve Mağaza çatallanmadan taşınamaz.
+2. **Yetki dağınık.** Beş ayrı izin tablosu (şube stok, bölge stok, şube sipariş, bölge sipariş,
+   davet bayrakları), her biri kendi SQL'iyle. Her yeni modül (rezervasyon, iade, kampanya) iki tablo
+   daha ekleyecek. Ayrıca **geçişte sessiz kırılma** var: 2.7'de personel siparişleri görüp
+   işleyebiliyordu; yeni kodda hiçbir izin taşınmadığı için 2.8'e geçen restoranın garsonu siparişleri
+   göremez.
+3. **Şemada yamalar.** Ad değiştirip sarmalama (`ordering_legacy_graph_allowed`,
+   `ordering_pre_returns_graph_allowed`, `restaurant_legacy_fulfilment_allowed`); Studio tablosu beş
+   ardışık ALTER ile kurulmuş; şablon kimlikleri veritabanı CHECK listesinde (her yeni şablon bir
+   şema dosyası); değerlendirme ve iade kuralları `incentive_*` ve `location_*` adlı yardımcıları
+   kullanıyor (modüller birbirinin adına bağımlı); tek satıra sıkıştırılmış okunmaz SQL.
+4. **Konum iki yerde yarım.** Şubede serbest metin adres ve sonradan eklenen yalnız il/ilçe; teslimat
+   ise mahalle bazlı hizmet alanı kullanıyor. Şubenin tek, yapılandırılmış bir adresi yok.
+5. **Yarım özellik varmış gibi görünüyor.** Rezervasyon motoru yokken güzellik şablonları kayıtta
+   seçilebiliyor.
+6. **Ekranı olmayan servisler.** Teslimat bölgeleri ve ücretleri, kampanya/kupon/sadakat, kurye
+   atama: API var, Business'ta ekran yok. Kuryenin hiç ekranı yok. Müşteri tarafında adres, teslimat
+   ücreti, kupon ve puan ekranı yok. Bu hâliyle eve teslimi gerçek bir kişi kullanamaz.
+7. **Eksik kapsam.** İşletme sohbet kanalı, mesafeli satış ön bilgilendirmesi ve onay kanıtı, ticari
+   ileti izinleri ve İYS, satıcının yasal kimlik bilgileri.
+8. **Belge dağınıklığı.** Kökte 16 `STUDIO_*.md`, `DEVAM_NOTU.md`, `KONTROL_VE_TESLIM.md`;
+   CHANGELOG'da on dört ayrı "alpha.3" girdisi. Zip'teki mimari belge, pilotun kaldırıldığı ve
+   sektörlerin motorlara bire bir bağlı olmadığı kararlarından önceki sürüm.
 
-Adres verisi: MIT lisanslı onurusluca/turkey-geo-api sabit sürümü, kaynak/lisans ve veri sınırları THIRD_PARTY_NOTICES.md’ye yazılır; lisansı belirsiz kullanıcı ZIP’leri kullanılmaz.
+## 3. Kararlar
 
-Mevzuat dayanakları (07.10.2026): [Mesafeli sözleşmeler](https://tuketici.ticaret.gov.tr/yayinlar/tuketici-bilgi-rehberi/mesafeli-sozlesmeler-hakkinda-bilgilendirme), [ayıplı mal ve hizmet](https://tuketici.ticaret.gov.tr/yayinlar/tuketici-bilgi-rehberi/ayipli-mal-ve-hizmetler-hakkinda-bilgilendirme), [ticari ileti](https://iys.org.tr/iys/yonetmelik), [İYS izin yönetimi](https://iys.org.tr/hizmet-saglayici/temel-hizmetler).
+**K1. Şema.** `0001–0017` (2.7.0) ve `0018–0021` (doğrulanmış alpha.3) değişmez. `0022–0035` hiçbir
+veritabanında çalışmadı; silinir ve alanlara göre temiz, okunur dosyalar olarak `0022`'den yeniden
+yazılır. Üst üste sarmalanmış işlevler yeni dosyada tek gövdeye indirilir, eski sarmalayıcılar
+kaldırılır. Her dosya tek bir konuyu anlatır; SQL okunur biçimde yazılır.
+
+**K2. Tarafsız Sipariş çekirdeği.** Çekirdek yalnız şunları bilir: işletme, şube, uygulama örneği,
+`businessCustomerId`, sepet, satır, seçenek, fiyat görüntüsü, teslim biçimi kodu, istenen zaman,
+durum grafiği, tutar/KDV/indirim, ödeme kaydı, karar gerekçesi, tahmini hazır olma.
+
+- Masa oturumu bağı çekirdek tablolardan masa servisi paketinin kendi tablolarına taşınır (veri
+  geçişiyle).
+- `kitchen` rolü genel **operasyon cihazı** rolüne dönüşür; restoranda "Mutfak ekranı" adıyla
+  görünür. Aynı cihaz modeli markette toplama ekranı, otelde resepsiyon ekranı olur.
+- Teslim biçimleri (gel-al, eve teslim, masaya servis) paket kaydıdır. Çekirdek bir biçimin adını
+  bilmez; doğrulama, ücret ve görüntü paketin politikasındadır.
+- Durum grafikleri sahibi `vado_owner` olan değişmez bir katalog tablosundan gelir. Her paket kendi
+  satırını kendi şema dosyasıyla ekler. Veritabanı koruması sürer, ama çekirdek SQL hiçbir paket adı
+  içermez.
+- Köprü: `ordering.getRestaurant` yerine genel `ordering.getStore`; masa çağrıları `tableService.*`
+  ad alanına geçer. Dışarıda mini uygulama yok (yayın öncesi); geçiş CHANGELOG'da yazılır.
+- **Kalıcı denetim:** proje kuralları betiği, çekirdek dosyalarda masa, mutfak, garson, kurye, restoran
+  kavramı görürse hata verir. Devir notundaki "gösterin" şartı böylece her derlemede sınanır.
+- **Kanıt:** restoran paketleri kapalı bir mağaza örneği gel-al ve eve teslim, kupon, sadakat,
+  değerlendirme ve iadeyi gerçek HTTP ve SQL üzerinden baştan sona kullanır.
+
+**K3. Tek yetki modeli.** Roller: sahip, yönetici (işletme geneli), personel (yalnız verilen izinler),
+kurye (ayrı üyelik).
+
+- İzinler sözleşmelerde tek katalogdur. Her platform servisi ve paket kendi izinlerini Türkçe adıyla
+  ve geçerli kapsamlarıyla bildirir. İlk izinler: `orders.view`, `orders.manage`,
+  `catalog.availability`, `delivery.dispatch`, `reviews.reply`, `chat.reply`, `reports.view`.
+- Tek tablo: üye + izin + kapsam (işletme geneli, bölge ya da şube). Bölgeler ve şube–bölge bağı ayrı
+  kalır.
+- Tek karar noktası: TypeScript'te `authorize(scope, izin, şube)`, SQL'de aynı kuralı uygulayan tek
+  işlev. Liste filtreleri ve RLS bunu kullanır.
+- Davet, verilecek izinlerin listesini taşır.
+- **Geçiş:** 2.7'deki her etkin personele işletme genelinde `orders.view` ve `orders.manage` verilir.
+  Böylece hiçbir restoran yükseltmede iş kaybetmez; sahip sonra daraltır.
+- Bölge müdürü = bölge kapsamlı izinleri olan personel. Kurumsal hiyerarşi böylece yeni tablo
+  açmadan bütün modüllere uzanır.
+
+**K4. Konumda tek kaynak.** Şubenin yapılandırılmış adresi: il, ilçe, mahalle (Türkiye kataloğundan),
+açık adres. Eski serbest metin, sahip doldurana kadar yalnız gösterim için kalır; tahmin yapılmaz.
+Keşif izdüşümü bu adresten türetilir. Teslimat uygunluğu müşterinin seçtiği adresin mahallesi ile
+şubenin teslimat bölgelerinden hesaplanır:
+
+- Keşfette "Adresime teslim edenler" süzgeci.
+- Mini uygulamada sepetten önce uygunluk denetimi.
+- Müşteri için doğru şubenin seçimi; fiyat ve katalog o şubenin bağlamından gelir.
+
+**K5. Studio.** Şablonlar sözleşmelerdeki kayıttan gelir ve sektör deneyimine bağlıdır. Motoru
+yayında olmayan sektörün şablonu sunulmaz (güzellik 2.9 ile açılır). Veritabanı şablon kimliğini
+yalnız biçim olarak denetler. Vitrin tasarımı tek tabloda taslak + yayın görüntüsü olarak, şemayla
+doğrulanmış sürümlü bir belgedir. Medya, kota ve silme kuyruğu tasarımı korunur.
+
+**K6. Değerlendirme, favori, iade.**
+
+- Değerlendirme yalnız tamamlanmış ve müşteriye ait siparişe, sipariş başına bir kez yapılır.
+  İşletme yanıt verir; moderasyon şikâyet altyapısından geçer.
+- İşletme profilinde ve keşifte puan ortalaması ile değerlendirme sayısı görünür.
+- Favoriler sayfalı; satıştan kalkan ürün "şu an satışta değil" diye görünür.
+- Kural yardımcıları platform adlarıyla tanımlanır (`tenant_customer_actor`, `tenant_member_can`).
+
+**K7. İşletme sohbet kanalı.** Var olan sohbete yeni bir tür eklenir: müşteri ↔ işletme.
+
+- Müşteri işletmenin adını ve logosunu görür.
+- İşletme müşterinin yalnız kısaltılmış adını (ör. "Ayşe K.") ve sipariş bağlantılarını görür;
+  telefon ve kullanıcı kimliği asla görünmez.
+- `chat.reply` izni olan üyeler işletme adına yazar; yazan kişi denetim kaydında tutulur.
+- İşletme sohbeti yalnız bir sipariş üzerinden başlatabilir (işlemsel). Ticari ileti sohbetten
+  gönderilmez.
+
+**K8. Mevzuat (Türkiye).**
+
+- **Satıcının yasal profili:** ticari unvan ya da ad soyad, VKN/TCKN (maskeli gösterim), vergi
+  dairesi, MERSİS (şirketlerde), açık adres, telefon, e-posta, isteğe bağlı KEP. Bu profil
+  tamamlanmadan uzaktan sipariş açılmaz.
+- **Ön bilgilendirme formu ve mesafeli satış sözleşmesi:** sunucuda, sürümlü şablondan üretilir;
+  satıcı bilgisi, ürünler, KDV dahil toplam, teslimat ücreti, kapıda ödeme ve teslim koşullarını
+  içerir. Cayma hakkı metni pakete göre seçilir: çabuk bozulan yiyecekte istisna, mağaza ürününde
+  14 gün.
+- **Onay kanıtı:** müşteri ödemeden önce onaylar. Sipariş metnin özetini, sürümünü ve kendisini
+  değişmez saklar; müşteri sipariş ayrıntısında her zaman görür. Metin değişmişse `cart_changed`
+  döner.
+- **Ticari ileti izni:** işletme ve kanal (push, SMS, e-posta) bazında, değişmez kayıt defteri
+  olarak tutulur. İşlemsel bildirim izin gerektirmez ve reklam içeremez.
+- **İYS:** SMS, e-posta ve arama izinleri İYS sağlayıcı arayüzü üzerinden eşlenir. Sağlayıcı
+  yapılandırılmamışsa bu kanallardan ticari ileti gönderilmez. Push için İYS kaydı gerekmez, ama
+  ayrı onay gerekir; push onayı SMS onayı sayılmaz.
+- **Kapsam dışı (açıkça yazılır):** e-Arşiv/e-Fatura. Ödeme kapıda yapılır; belgeyi işletme kendi
+  düzenler.
+
+**K9. Ekranlar.** Eve teslimi gerçek bir kişi baştan sona kullanabilmelidir.
+
+- **Business:**
+  - teslimat bölgeleri (mahalle seçimi, ücret, en az tutar, süre);
+  - kampanya, kupon ve sadakat;
+  - kurye kuyruğu ve atama, kuryenin "Teslimatlarım" ekranı;
+  - mesajlar;
+  - yasal bilgiler;
+  - tek yetki ekranı (Ekibim + Bölgeler).
+- **Müşteri:**
+  - adres seç ve ekle (il, ilçe, mahalle, açık adres, bina/kat/daire, tarif);
+  - teslim biçimi; ücret, en az tutar, süre;
+  - kupon ve puan;
+  - ön bilgilendirme onayı;
+  - canlı teslimat durumu;
+  - "İşletmeye yaz";
+  - değerlendirme, favori, iade, tekrar sipariş.
+- **VADO uygulaması:**
+  - konumlu Keşfet;
+  - puanlı işletme profili;
+  - Sohbetler'de işletme sohbetleri;
+  - Ayarlar'da işletme bazında ileti izinleri.
+
+**K10. Belgeler.** Kökteki `STUDIO_*`, `DEVAM_NOTU`, `KONTROL_VE_TESLIM` belgeleri `docs/`
+altında konu başına birleşir: `STUDIO.md`, `YETKI.md`, `KESIF.md`, `MEVZUAT.md`. CHANGELOG'daki
+alpha.3 girdileri tek "2.8.0" girdisinde toplanır. Mimari belgeye pilot ve sektör bileşimi kararları
+geri konur.
+
+## 4. Türkiye ayrıntıları (kabul listesi)
+
+**Adres ve konum**
+
+- Adres: il / ilçe / mahalle kataloğu (81 il, 973 ilçe, 73.496 mahalle; MIT, sabit sürüm), cadde ve
+  sokak, bina no, kat, daire, adres tarifi.
+- Konum için GPS istenmez.
+
+**Saat ve takvim**
+
+- Saat dilimi `Europe/Istanbul`; şube saat dilimi açıkça yazılır.
+- Bayram ve özel gün saatleri (var olan istisna tablosu).
+
+**İletişim ve arama**
+
+- Telefon `+90 5xx` biçiminde.
+- Türkçe arama: İ/ı/I/i, ç/ğ/ö/ş/ü sadeleştirmesi.
+
+**Para ve vergi**
+
+- Tutarlar kuruş tamsayısıdır; "₺1.234,50" biçiminde gösterilir.
+- KDV oranları %0 / %1 / %10 / %20.
+- İndirim satırlara kuruş kuruş dağıtılır; KDV indirimli tutardan hesaplanır.
+
+**Ödeme**
+
+- Ödeme kapıda nakit ya da POS ile alınır; tahsil eden kişi ve referans kaydedilir.
+- Online ödeme yoktur.
+
+**Mevzuat**
+
+- Mesafeli Sözleşmeler Yönetmeliği: ön bilgilendirme, sözleşme, cayma istisnası, kalıcı kopya.
+- 6563 sayılı Kanun ve İYS: ticari ileti izni, ret hakkı, işlemsel ileti ayrımı.
+- KVKK: işletme müşterinin telefonunu görmez. Kurye adresi ve telefonu yalnız atanmışken ve teslimden
+  önce görür.
+
+## 5. Ara sürümler
+
+Her ara sürüm boş klasörde `npm ci` + `npm run check` geçmeden verilmez. Her birinde gerçek sayılar ve
+"denenmedi" listesi yazılır.
+
+| #   | İçerik                                                                                                              | Kabul                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| A1  | K1 şema yeniden yazımı, K3 tek yetki modeli, K4 şube adresi, K5 Studio şeması, K10 belgeler; bütün kontroller yeşil | 2.7.0 veritabanından geçiş: personel siparişleri görmeye devam eder; RLS doğrudan SQL ile |
+| A2  | K2 tarafsız Sipariş çekirdeği, köprü/SDK ad alanları, kalıcı denetim, mağaza kanıtı                                 | Denetim betiği çekirdekte restoran kavramı bulmaz; mağaza yolculuğu geçer                 |
+| A3  | Eve teslim ve teşvik ekranları (Business, kurye, müşteri), konumlu keşif, şube seçimi                               | Tarayıcıda sipariş → atama → yola çıktı → teslim → tahsilat                               |
+| A4  | Değerlendirme, favori, iade, tekrar sipariş ekranları; K7 işletme sohbeti                                           | Yetkisiz üye yazamaz; işletme telefon/kimlik göremez (API, soket, SQL)                    |
+| A5  | K8 mevzuat: yasal profil, ön bilgilendirme ve sözleşme, onay kanıtı, ileti izinleri, İYS arayüzü                    | Değişen metinde `cart_changed`; izinsiz ticari ileti gönderilemez                         |
+| A6  | Kapanış                                                                                                             | Aşağıda                                                                                   |
+
+**Kapanış (A6):**
+
+- Bozma denemesi 164'ün üstüne çıkar; yeni korumaların her biri için gerçek bozma kanıtı.
+- Müşteri, restoran ve kurye yolculukları 390×844, 768×1024 ve 1440×900'de tarayıcıda.
+- Yavaş 3G, bağlantı kopması, çift dokunma; eş zamanlı kupon, puan, iade ve atama.
+- 2.7.0 → 2.8.0 geçişi ve yedekten geri dönüş, üç veritabanı rolüyle.
+- Docker imajları (`sharp` dahil) ve Compose.
+- Sürüm `2.8.0`, ardından `npm install --package-lock-only`.
+- **Ara cihaz denemesi listesi:** sürüm sahibinin telefonu ve bir tablet; ses, uyku, push, kamera,
+  QR.
+
+## 6. 2.8'de olmayanlar
+
+- Online ödeme, GPS ve canlı kurye konumu, dış kurye ağı.
+- Vardiya ve görev yönetimi.
+- e-Arşiv/e-Fatura.
+- ERP/CSV toplu aktarım.
+- 30 şablon, sürükle-bırak düzenleyici, yapay zekâ.
+- Ücretli sıralama.
+- Mağaza/Market müşteri deneyimi (motor 2.8'de kanıtlanır; birinci sınıf mağaza ürünü kendi
+  sürümünde gelir).
+- 2.8.0'dan sonra 2.9 Rezervasyon motoru.
