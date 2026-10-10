@@ -9,7 +9,7 @@ export async function GET(
   try {
     const path = (await params).path.join("/");
     if (
-      !/^(countries|countries\/[0-9a-f-]{36}\/provinces|provinces\/[0-9a-f-]{36}\/districts)$/.test(
+      !/^(countries|countries\/[0-9a-f-]{36}\/provinces|provinces\/[0-9a-f-]{36}\/districts|districts\/[0-9a-f-]{36}\/neighborhoods)$/.test(
         path,
       )
     )

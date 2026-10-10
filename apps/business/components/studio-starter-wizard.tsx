@@ -162,7 +162,9 @@ export function StudioStarterWizard({
                       type="checkbox"
                       checked={entry.selected}
                       disabled={!canWrite || busy}
-                      onChange={(event) => { change(item.id, { selected: event.target.checked }); }}
+                      onChange={(event) => {
+                        change(item.id, { selected: event.target.checked });
+                      }}
                     />
                     <span>{item.name}</span>
                   </label>
@@ -177,7 +179,9 @@ export function StudioStarterWizard({
                           maxLength={12}
                           value={entry.price}
                           disabled={!canWrite || busy}
-                          onChange={(event) => { change(item.id, { price: event.target.value }); }}
+                          onChange={(event) => {
+                            change(item.id, { price: event.target.value });
+                          }}
                         />
                       </label>
                       <label>
@@ -189,7 +193,9 @@ export function StudioStarterWizard({
                           maxLength={6}
                           value={entry.vat}
                           disabled={!canWrite || busy}
-                          onChange={(event) => { change(item.id, { vat: event.target.value }); }}
+                          onChange={(event) => {
+                            change(item.id, { vat: event.target.value });
+                          }}
                         />
                       </label>
                     </div>

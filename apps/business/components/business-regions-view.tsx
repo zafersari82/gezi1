@@ -3,22 +3,22 @@
 import {
   type Branch,
   type BusinessRegion,
-  businessRegionAssignmentSchema,
   businessRegionBodySchema,
-  businessRegionBranchesSchema,
-  businessRegionBranchSchema,
-  businessRegionOperatorSchema,
-  businessRegionOperatorsSchema,
   businessRegionSchema,
   businessRegionsSchema,
   businessRegionUpdateSchema,
 } from "@vado/contracts";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
-import { OrderAccessGrants } from "./order-access-grants";
 
-/** Phone-first organisation management, without a second permission implementation. */
+const assignmentSchema = z.object({ branchId: z.string(), regionId: z.string().nullable() });
+
+/**
+ * Şubeleri bölgelere ayırır (Marmara, Ege gibi). Bölge tek başına yetki vermez; personele bölge
+ * kapsamlı izin Ekibim ekranından verilir. Düzenlemeyi yalnız işletme sahibi yapar.
+ */
 export function BusinessRegionsView({
   branches,
   canEdit,
@@ -27,37 +27,19 @@ export function BusinessRegionsView({
   canEdit: boolean;
 }) {
   const [regions, setRegions] = useState<BusinessRegion[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, string | null>>({});
-  const [selectedId, setSelectedId] = useState("");
-  const [members, setMembers] = useState<
-    { userId: string; displayName: string; allowed: boolean }[]
-  >([]);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
   async function load() {
-    const [loadedRegions, loadedAssignments] = await Promise.all([
-      call(businessRegionsSchema, "/api/business/regions"),
-      call(businessRegionBranchesSchema, "/api/business/regions/branches"),
-    ]);
-    setRegions(loadedRegions.items);
-    setAssignments(
-      Object.fromEntries(loadedAssignments.items.map((entry) => [entry.branchId, entry.regionId])),
-    );
-    setSelectedId((old) =>
-      loadedRegions.items.some((r) => r.id === old) ? old : (loadedRegions.items[0]?.id ?? ""),
-    );
+    setRegions((await call(businessRegionsSchema, "/api/business/regions")).items);
   }
   useEffect(() => {
-    void load().catch((reason: unknown) => { setError(errorMessage(reason)); });
-  }, []);
-  useEffect(() => {
-    if (!canEdit || selectedId === "") return;
     let active = true;
-    void call(businessRegionOperatorsSchema, `/api/business/regions/${selectedId}/operators`)
-      .then((value) => {
-        if (active) setMembers(value.items);
+    call(businessRegionsSchema, "/api/business/regions")
+      .then((loaded) => {
+        if (active) setRegions(loaded.items);
       })
       .catch((reason: unknown) => {
         if (active) setError(errorMessage(reason));
@@ -65,15 +47,16 @@ export function BusinessRegionsView({
     return () => {
       active = false;
     };
-  }, [selectedId, canEdit]);
-  async function mutate(operation: () => Promise<void>, label: string) {
+  }, []);
+
+  async function mutate(operation: () => Promise<void>, done: string) {
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await operation();
       await load();
-      setNotice(label);
+      setNotice(done);
     } catch (reason) {
       setError(errorMessage(reason));
       await load().catch(() => undefined);
@@ -81,16 +64,30 @@ export function BusinessRegionsView({
       setBusy(false);
     }
   }
-  const selected = regions.find((region) => region.id === selectedId);
+
+  const regionOf = (branchId: string) =>
+    regions.find((region) => region.branchIds.includes(branchId))?.id ?? null;
+
   return (
-    <section className="panel" aria-label="Bölge ve şube organizasyonu">
+    <section className="panel" aria-label="Bölgeler">
       <div className="section-heading">
-        <h2>Bölge yönetimi</h2>
+        <h2>Bölgeler</h2>
         <p className="muted small">
-          Şubelerini bölgelere ayır. Bölgeye atanan personel yalnız o bölgedeki ürünlerin satış
-          durumunu yönetebilir; fiyat veya personel yetkisi kazanmaz.
+          Çok şubeli işletmede şubeleri bölgelere ayır. Bölge sorumlusuna izni Ekibim ekranında
+          &quot;bölge&quot; kapsamıyla verirsin; şube başka bölgeye taşınınca erişim kendiliğinden
+          değişir.
         </p>
       </div>
+      {error !== "" && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      {notice !== "" && (
+        <p role="status" className="success">
+          {notice}
+        </p>
+      )}
       {canEdit && (
         <form
           className="form-stack"
@@ -100,7 +97,7 @@ export function BusinessRegionsView({
             void mutate(async () => {
               await call(businessRegionSchema, "/api/business/regions", "POST", body);
               setName("");
-            }, "Bölge oluşturuldu.");
+            }, "Bölge eklendi.");
           }}
         >
           <label>
@@ -111,7 +108,9 @@ export function BusinessRegionsView({
               required
               disabled={busy}
               placeholder="Örneğin Marmara"
-              onChange={(event) => { setName(event.target.value); }}
+              onChange={(event) => {
+                setName(event.target.value);
+              }}
             />
           </label>
           <button className="secondary" disabled={busy}>
@@ -120,145 +119,98 @@ export function BusinessRegionsView({
         </form>
       )}
       {regions.length === 0 ? (
-        <p className="muted small">
-          Henüz bölge yok. Tek şubeli işletmelerin bölge oluşturması gerekmez.
-        </p>
+        <p className="muted">Henüz bölge yok. Tek şubeli işletmede bölgeye gerek yoktur.</p>
       ) : (
-        <>
-          <label>
-            Bölge seç
-            <select
-              value={selectedId}
-              disabled={busy}
-              onChange={(event) => { setSelectedId(event.target.value); }}
-            >
-              {regions.map((region) => (
-                <option key={region.id} value={region.id}>
-                  {region.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {selected && canEdit && (
-            <form
-              className="form-stack"
-              key={selected.id}
-              onSubmit={(event) => {
-                event.preventDefault();
-                const data = new FormData(event.currentTarget);
-                const update = businessRegionUpdateSchema.parse({
-                  name: data.get("regionName"),
-                  expectedVersion: selected.version,
-                });
-                void mutate(async () => {
-                  await call(
-                    businessRegionSchema,
-                    `/api/business/regions/${selected.id}`,
-                    "PUT",
-                    update,
-                  );
-                }, "Bölge adı güncellendi.");
-              }}
-            >
-              <label>
-                Bölgeyi yeniden adlandır
-                <input
-                  name="regionName"
-                  required
-                  maxLength={80}
-                  defaultValue={selected.name}
+        regions.map((region) => (
+          <div className="item-row" key={region.id}>
+            <div>
+              <strong>{region.name}</strong>
+              <span className="small muted">{region.branchIds.length} şube</span>
+            </div>
+            {canEdit && (
+              <span className="row-actions">
+                <button
+                  type="button"
+                  className="secondary"
                   disabled={busy}
-                />
-              </label>
-              <button className="secondary" disabled={busy}>
-                Adı kaydet
-              </button>
-            </form>
-          )}
-        </>
+                  onClick={() => {
+                    const next = window.prompt("Bölgenin yeni adı", region.name)?.trim();
+                    if (next === undefined || next === "" || next === region.name) return;
+                    const body = businessRegionUpdateSchema.parse({
+                      name: next,
+                      expectedVersion: region.version,
+                    });
+                    void mutate(async () => {
+                      await call(
+                        businessRegionSchema,
+                        `/api/business/regions/${region.id}`,
+                        "PUT",
+                        body,
+                      );
+                    }, "Bölgenin adı değişti.");
+                  }}
+                >
+                  Adını değiştir
+                </button>
+                <button
+                  type="button"
+                  className="secondary danger"
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `${region.name} bölgesi silinsin mi? Şubeleri bölgesiz kalır; bu bölgeye verilmiş personel izinleri kalkar.`,
+                      )
+                    )
+                      return;
+                    void mutate(async () => {
+                      await call(z.null(), `/api/business/regions/${region.id}/delete`, "POST", {
+                        expectedVersion: region.version,
+                      });
+                    }, "Bölge silindi.");
+                  }}
+                >
+                  Sil
+                </button>
+              </span>
+            )}
+          </div>
+        ))
       )}
-      {branches.length > 0 && (
-        <div className="form-stack">
+      {regions.length > 0 && (
+        <div className="subpanel">
           <h3>Şubelerin bölgeleri</h3>
-          {branches.map((branch) => (
-            <label key={branch.id}>
-              {branch.name}
-              <select
-                value={assignments[branch.id] ?? ""}
-                disabled={!canEdit || busy}
-                onChange={(event) => {
-                  const regionId = event.target.value === "" ? null : event.target.value;
-                  const expectedRegionId = assignments[branch.id] ?? null;
-                  const body = businessRegionAssignmentSchema.parse({ regionId, expectedRegionId });
-                  void mutate(async () => {
-                    await call(
-                      businessRegionBranchSchema,
-                      `/api/business/regions/branches/${branch.id}`,
-                      "PUT",
-                      body,
-                    );
-                  }, "Şubenin bölgesi değiştirildi.");
-                }}
-              >
-                <option value="">Bölge atanmamış</option>
-                {regions.map((region) => (
-                  <option key={region.id} value={region.id}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
+          {branches.map((branch) => {
+            const current = regionOf(branch.id);
+            return (
+              <label className="item-row" key={branch.id}>
+                <span>{branch.name}</span>
+                <select
+                  value={current ?? ""}
+                  disabled={!canEdit || busy}
+                  onChange={(event) => {
+                    const regionId = event.target.value === "" ? null : event.target.value;
+                    void mutate(async () => {
+                      await call(
+                        assignmentSchema,
+                        `/api/business/branches/${branch.id}/region`,
+                        "PUT",
+                        { regionId, expectedRegionId: current },
+                      );
+                    }, "Şubenin bölgesi değişti.");
+                  }}
+                >
+                  <option value="">Bölgesiz</option>
+                  {regions.map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
         </div>
-      )}
-      {canEdit && selected && (
-        <div className="form-stack">
-          <h3>{selected.name} — ürün sorumluları</h3>
-          <p className="small muted">
-            Personel buradaki tüm şubelerde ürünleri satışa açıp kapatabilir. Şubenin bölgesi
-            değişirse yetkisi de anında değişir.
-          </p>
-          {members.length === 0 && <p className="muted small">Önce işletmene personel ekle.</p>}
-          {members.map((member) => (
-            <label className="check-label" key={member.userId}>
-              <input
-                type="checkbox"
-                disabled={busy}
-                checked={member.allowed}
-                onChange={(event) => {
-                  const allowed = event.target.checked;
-                  void mutate(async () => {
-                    await call(
-                      businessRegionOperatorSchema.pick({ userId: true, allowed: true }),
-                      `/api/business/regions/${selected.id}/operators`,
-                      "PUT",
-                      { userId: member.userId, allowed },
-                    );
-                    setMembers((previous) =>
-                      previous.map((candidate) =>
-                        candidate.userId === member.userId ? { ...candidate, allowed } : candidate,
-                      ),
-                    );
-                  }, "Bölge personel yetkisi güncellendi.");
-                }}
-              />
-              {member.displayName}
-            </label>
-          ))}
-        </div>
-      )}
-      {canEdit && selected && (
-        <OrderAccessGrants key={selected.id} kind="region" targetId={selected.id} />
-      )}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p className="success" role="status">
-          {notice}
-        </p>
       )}
     </section>
   );

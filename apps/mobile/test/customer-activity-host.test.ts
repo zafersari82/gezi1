@@ -73,7 +73,12 @@ const cart = cartSchema.parse({
   quoteHash: "a".repeat(64),
 });
 
-interface Call { method: string; path: string; body?: unknown; key?: string }
+interface Call {
+  method: string;
+  path: string;
+  body?: unknown;
+  key?: string;
+}
 function fake(response: (call: Call) => unknown) {
   const calls: Call[] = [];
   const transport: MiniAppTransport = {

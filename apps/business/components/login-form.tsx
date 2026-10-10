@@ -7,7 +7,10 @@ import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
 
-export function LoginForm({ redirectTo = "/businesses" }: { redirectTo?: string } = {}) {
+/** Girişten sonra işletme seçimine ya da bekleyen davete dönülür. */
+export function LoginForm({
+  redirectTo = "/businesses",
+}: { redirectTo?: "/businesses" | "/join" } = {}) {
   const [phone, setPhone] = useState("");
   const [requested, setRequested] = useState(false);
   const [code, setCode] = useState("");

@@ -177,7 +177,9 @@ export default function RegisterBusinessScreen() {
                   key={item}
                   label={CATEGORY_LABELS[item]}
                   selected={item === category}
-                  onPress={() => { selectCategory(item); }}
+                  onPress={() => {
+                    selectCategory(item);
+                  }}
                 />
               ))}
             </View>
@@ -195,7 +197,9 @@ export default function RegisterBusinessScreen() {
                   key={item.id}
                   template={item}
                   selected={item.id === selected?.id}
-                  onPress={() => { setTemplateId(item.id); }}
+                  onPress={() => {
+                    setTemplateId(item.id);
+                  }}
                 />
               ))
             )}
@@ -205,7 +209,13 @@ export default function RegisterBusinessScreen() {
                 kullanıma açılacak.
               </AppText>
             )}
-            <Button label="Devam et" onPress={() => { setStep("details"); }} testID="studio-next" />
+            <Button
+              label="Devam et"
+              onPress={() => {
+                setStep("details");
+              }}
+              testID="studio-next"
+            />
           </>
         ) : (
           <>
@@ -256,7 +266,9 @@ export default function RegisterBusinessScreen() {
               label="Şablon seçimine dön"
               variant="secondary"
               disabled={createBusiness.isPending}
-              onPress={() => { setStep("template"); }}
+              onPress={() => {
+                setStep("template");
+              }}
             />
           </>
         )}

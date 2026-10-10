@@ -1585,3 +1585,23 @@ label {
     grid-template-columns: 1fr;
   }
 }
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.grant-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.grant-card legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+.grant-summary {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}

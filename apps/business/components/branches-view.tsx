@@ -8,24 +8,23 @@ import {
 import { useRef, useState } from "react";
 import { z } from "zod";
 
+import { branchAddressText } from "../lib/address";
 import { call, errorMessage } from "../lib/client";
 import { formText, minutesFromTime, timeFromMinutes } from "../lib/values";
-import { BranchAvailabilityGrants } from "./branch-availability-grants";
-import { BranchLocationFields } from "./branch-location-fields";
+import { BranchAddressFields } from "./branch-address-fields";
 import { BranchOrderingView } from "./branch-ordering-view";
 import { BusinessRegionsView } from "./business-regions-view";
-import { OrderAccessGrants } from "./order-access-grants";
 type Hours = z.infer<typeof branchHoursBodySchema>;
 type Mutation = (run: () => Promise<void>) => Promise<void>;
 const weekdays = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 export function BranchesView({
   initial,
   canWrite,
-  canDelegate,
+  isOwner,
 }: {
   initial: Branch[];
   canWrite: boolean;
-  canDelegate: boolean;
+  isOwner: boolean;
 }) {
   const [branches, setBranches] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -96,7 +95,7 @@ export function BranchesView({
           Şube bilgilerin kaydedildi.
         </p>
       )}
-      {canWrite && <BusinessRegionsView branches={branches} canEdit={canDelegate} />}
+      {canWrite && <BusinessRegionsView branches={branches} canEdit={isOwner} />}
       <div className="editor-layout">
         <section className="panel">
           <div className="section-heading">
@@ -107,7 +106,7 @@ export function BranchesView({
             <div className="item-row" key={b.id}>
               <div>
                 <strong>{b.name}</strong>
-                <span className="small muted">{b.address || "Adres eklenmemiş"}</span>
+                <span className="small muted">{branchAddressText(b) || "Adres eklenmemiş"}</span>
                 <span className="badge">{b.active ? "Etkin" : "Kapalı"}</span>
               </div>
               <button className="secondary" onClick={() => open(b.id)}>
@@ -134,13 +133,20 @@ export function BranchesView({
                 event.preventDefault();
                 const data = new FormData(event.currentTarget);
                 void mutate(async () => {
+                  const provinceId = formText(data, "provinceId");
                   const body = branchBodySchema.parse({
                     name: formText(data, "name"),
-                    address: formText(data, "address"),
                     timezone: formText(data, "timezone"),
                     active: data.has("active"),
-                    provinceId: formText(data, "provinceId") || null,
-                    districtId: formText(data, "districtId") || null,
+                    address:
+                      provinceId === ""
+                        ? null
+                        : {
+                            provinceId,
+                            districtId: formText(data, "districtId"),
+                            neighborhoodId: formText(data, "neighborhoodId"),
+                            line: formText(data, "addressLine"),
+                          },
                   });
                   const result = await call(
                     branchSchema,
@@ -158,14 +164,13 @@ export function BranchesView({
                 Şube adı
                 <input name="name" maxLength={80} required defaultValue={branch?.name} />
               </label>
-              <label>
-                Adres
-                <textarea name="address" maxLength={500} defaultValue={branch?.address} />
-              </label>
-              <BranchLocationFields
-                provinceId={branch?.provinceId ?? null}
-                districtId={branch?.districtId ?? null}
-              />
+              {branch?.address === null && branch.legacyAddress !== "" && (
+                <p className="small muted">
+                  Kayıtlı eski adres: {branch.legacyAddress}. Keşif ve teslimat için adresi aşağıdan
+                  seçerek kaydet.
+                </p>
+              )}
+              <BranchAddressFields initial={branch?.address ?? null} />
               <label>
                 Saat dilimi
                 <input
@@ -195,10 +200,6 @@ export function BranchesView({
           {branch && (
             <BranchOrderingView key={branch.id} branchId={branch.id} canWrite={canWrite} />
           )}
-          {branch && canDelegate && (
-            <BranchAvailabilityGrants key={branch.id} branchId={branch.id} />
-          )}
-          {branch && canDelegate && <OrderAccessGrants kind="branch" targetId={branch.id} />}
         </section>
       </div>
     </>

@@ -1,4 +1,4 @@
-import { businessMembershipSchema,MEDIA_MAX_BYTES, MEDIA_UPLOAD_FIELD } from "@vado/contracts";
+import { businessMembershipSchema, MEDIA_MAX_BYTES, MEDIA_UPLOAD_FIELD } from "@vado/contracts";
 import { z } from "zod";
 
 import { apiGet, apiUpload, BusinessApiError } from "../../../../lib/api";

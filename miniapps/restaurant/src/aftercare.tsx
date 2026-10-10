@@ -25,12 +25,9 @@ export function Aftercare({ order, busy: parentBusy, onNotice }: Props) {
   const [favorite, setFavorite] = useState<{ value: boolean; version: number } | null>(null);
   const disabled = busy || parentBusy;
 
+  // Bileşen sipariş başına yeniden kurulur (key); durum burada sıfırlanmaz, yalnız yüklenir.
   useEffect(() => {
     let current = true;
-    setRequests([]);
-    setReview(null);
-    setFavorite(null);
-    setError("");
     void Promise.all([
       vado.returns.list({ id: order.id }),
       vado.feedback.listReviews({ limit: 100 }),
@@ -105,7 +102,9 @@ export function Aftercare({ order, busy: parentBusy, onNotice }: Props) {
           <select
             value={rating}
             disabled={disabled}
-            onChange={(event) => { setRating(Number(event.target.value)); }}
+            onChange={(event) => {
+              setRating(Number(event.target.value));
+            }}
           >
             {[5, 4, 3, 2, 1].map((value) => (
               <option key={value} value={value}>
@@ -120,7 +119,9 @@ export function Aftercare({ order, busy: parentBusy, onNotice }: Props) {
             maxLength={1000}
             value={comment}
             disabled={disabled}
-            onChange={(event) => { setComment(event.target.value); }}
+            onChange={(event) => {
+              setComment(event.target.value);
+            }}
           />
         </label>
         <button
@@ -190,7 +191,9 @@ export function Aftercare({ order, busy: parentBusy, onNotice }: Props) {
             minLength={3}
             maxLength={500}
             disabled={disabled}
-            onChange={(event) => { setReason(event.target.value); }}
+            onChange={(event) => {
+              setReason(event.target.value);
+            }}
           />
         </label>
         <button

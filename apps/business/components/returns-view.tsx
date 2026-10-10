@@ -6,11 +6,11 @@ import {
   type ReturnRequest,
   returnRequestSchema,
 } from "@vado/contracts";
-import { type FormEvent, useRef, useState } from "react";
+import { type SyntheticEvent, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
-import { money } from "../lib/values";
+import { formText, money } from "../lib/values";
 
 const listSchema = z.object({
   items: z.array(returnRequestSchema),
@@ -71,9 +71,9 @@ export function ReturnsView({ initial }: { initial: Page }) {
     }
   }
 
-  async function decide(event: FormEvent<HTMLFormElement>) {
+  async function decide(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (selected === null || selected.status !== "pending" || decisionLock.current) return;
+    if (selected?.status !== "pending" || decisionLock.current) return;
     const target = selected;
     decisionLock.current = true;
     setBusy(true);
@@ -87,11 +87,11 @@ export function ReturnsView({ initial }: { initial: Page }) {
         expectedVersion: target.version,
         expectedOrderVersion: target.orderVersion,
         decision,
-        reason: String(fields.get("reason") ?? ""),
+        reason: formText(fields, "reason"),
         physicalRefund: needsReceipt
           ? {
               method: fields.get("method") === "card" ? "card" : "cash",
-              reference: String(fields.get("reference") ?? ""),
+              reference: formText(fields, "reference"),
             }
           : null,
       });
@@ -277,8 +277,9 @@ export function ReturnsView({ initial }: { initial: Page }) {
                         name="decision"
                         required
                         value={decision}
-                        onChange={(event) => { setDecision(event.target.value === "approve" ? "approve" : "reject"); }
-                        }
+                        onChange={(event) => {
+                          setDecision(event.target.value === "approve" ? "approve" : "reject");
+                        }}
                       >
                         <option value="reject">Talebi reddet</option>
                         <option value="approve">Talebi onayla</option>

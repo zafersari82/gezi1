@@ -6,7 +6,7 @@ import {
   type DiscoveryItem,
   type DiscoveryPage,
 } from "@vado/contracts";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
@@ -39,8 +39,12 @@ export default function SearchScreen() {
   const [kind, setKind] = useState<DiscoveryKind>(() => searchKind(params.kind));
 
   useEffect(() => {
-    const timer = setTimeout(() => { setDebouncedQuery(query.trim()); }, 300);
-    return () => { clearTimeout(timer); };
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const search = useInfiniteQuery({
@@ -93,16 +97,26 @@ export default function SearchScreen() {
             placeholder="İşletme, hizmet veya uygulama ara"
           />
           <View style={styles.kindFilters}>
-            <Chip label="Tümü" selected={kind === "all"} onPress={() => { setKind("all"); }} />
+            <Chip
+              label="Tümü"
+              selected={kind === "all"}
+              onPress={() => {
+                setKind("all");
+              }}
+            />
             <Chip
               label="İşletmeler"
               selected={kind === "business"}
-              onPress={() => { setKind("business"); }}
+              onPress={() => {
+                setKind("business");
+              }}
             />
             <Chip
               label="Mini uygulamalar"
               selected={kind === "miniapp"}
-              onPress={() => { setKind("miniapp"); }}
+              onPress={() => {
+                setKind("miniapp");
+              }}
             />
           </View>
           <CategoryFilter available={[...CATEGORIES]} selected={category} onChange={setCategory} />

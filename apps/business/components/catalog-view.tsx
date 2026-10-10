@@ -28,10 +28,13 @@ type Mutation = (run: () => Promise<void>) => Promise<void>;
 export function CatalogView({
   initial,
   branches,
+  availabilityBranches,
   canWrite,
 }: {
   initial: Catalog;
   branches: Branch[];
+  /** Ürün bulunurluğu izninin geçtiği şubeler. */
+  availabilityBranches: Branch[];
   canWrite: boolean;
 }) {
   const [catalog, setCatalog] = useState(initial);
@@ -130,7 +133,7 @@ export function CatalogView({
       {tab === "branch-prices" ? (
         <BranchPriceMatrix initial={catalog} branches={branches} canWrite={canWrite} />
       ) : tab === "branch-availability" ? (
-        <BranchAvailabilityMatrix catalog={catalog} branches={branches} />
+        <BranchAvailabilityMatrix catalog={catalog} branches={availabilityBranches} />
       ) : (
         <div className="editor-layout">
           <section className="panel">

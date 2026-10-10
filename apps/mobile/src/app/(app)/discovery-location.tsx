@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { locationCountriesSchema, type LocationPlace,locationPlacesSchema } from "@vado/contracts";
+import { locationCountriesSchema, type LocationPlace, locationPlacesSchema } from "@vado/contracts";
 import { router } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -96,14 +96,18 @@ export default function DiscoveryLocationScreen() {
             <Chip
               label="İlin tamamı"
               selected={districtId === ""}
-              onPress={() => { setDistrictId(""); }}
+              onPress={() => {
+                setDistrictId("");
+              }}
             />
             {(districts.data?.items ?? []).map((district) => (
               <Chip
                 key={district.id}
                 label={district.name}
                 selected={district.id === districtId}
-                onPress={() => { setDistrictId(district.id); }}
+                onPress={() => {
+                  setDistrictId(district.id);
+                }}
               />
             ))}
           </View>

@@ -66,7 +66,7 @@ export function AppShell({
         </svg>
         <span>Performans</span>
       </Link>
-      {role === "owner" && (
+      {(role === "owner" || role === "manager") && (
         <Link
           href="/team"
           className={pathname === "/team" ? "nav-link active" : "nav-link"}

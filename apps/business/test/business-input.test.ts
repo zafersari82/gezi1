@@ -98,7 +98,7 @@ test("iade ve değerlendirme yolları yalnız listeler ve gerekçeli karar uçla
       businessId,
       ["returns"],
       "GET",
-      "?cursor=2026-10-09T10%3A00%3A00.000001Z%7C${itemId}",
+      `?cursor=2026-10-09T10%3A00%3A00.000001Z%7C${itemId}`,
     ),
   ).toBe(`/v1/business/${businessId}/returns?cursor=2026-10-09T10%3A00%3A00.000001Z%7C${itemId}`);
   expect(businessApiPath(businessId, ["reviews"], "GET", "?cursor=9007199254740993")).toBe(
@@ -165,26 +165,40 @@ test("Şube fiyatı toplu güncelleme vekili yalnız doğru işletme ve PUT yolu
   ).toBeNull();
 });
 
-test("şube bulunurluğu ve sınırlı personel yetki yolları yalnız izinli yöntemle açılır", () => {
+test("ekip, izin ve bölge yolları yalnız izinli yöntemle ve seçili işletmeyle açılır", () => {
   const routes: [string[], string][] = [
-    [["branches", "availability-access", "me"], "GET"],
-    [["branches", itemId, "availability-grants"], "GET"],
-    [["branches", itemId, "availability-grants"], "PUT"],
+    [["access", "me"], "GET"],
+    [["access", "members"], "GET"],
+    [["access", "members", itemId], "PUT"],
+    [["regions"], "GET"],
+    [["regions"], "POST"],
+    [["regions", itemId], "PUT"],
+    [["regions", itemId, "delete"], "POST"],
+    [["branches", itemId, "region"], "PUT"],
     [["branches", "availability-batch"], "PUT"],
+    [["members"], "PUT"],
   ];
   for (const [segments, method] of routes) {
     expect(businessApiPath(businessId, segments, method, "")).toBe(
       `/v1/business/${businessId}/${segments.join("/")}`,
     );
-    expect(businessApiPath(businessId, segments, "POST", "")).toBeNull();
+    expect(businessApiPath(businessId, segments, "DELETE", "")).toBeNull();
     expect(businessApiPath(businessId, segments, method, "?businessId=another")).toBeNull();
   }
-  expect(
-    businessApiPath(businessId, ["branches", itemId, "availability-grants"], "DELETE", ""),
-  ).toBeNull();
+  // 2.8 ara sürümlerinin dağınık izin uçları kapalıdır.
+  for (const segments of [
+    ["branches", "availability-access", "me"],
+    ["branches", itemId, "availability-grants"],
+    ["branches", itemId, "order-grants"],
+    ["regions", itemId, "operators"],
+    ["orders", "access", "me"],
+    ["members"],
+  ])
+    expect(businessApiPath(businessId, segments, "GET", "")).toBeNull();
+  expect(businessApiPath(businessId, ["access", "members", itemId], "POST", "")).toBeNull();
 });
 
-test("performans ve ekip vekili yalnız seçili işletmeye izinli yollardan geçer", () => {
+test("performans vekili yalnız gün süzgeciyle açılır", () => {
   expect(businessApiPath(businessId, ["orders", "performance"], "GET", "?days=7")).toBe(
     `/v1/business/${businessId}/orders/performance?days=7`,
   );
@@ -192,14 +206,6 @@ test("performans ve ekip vekili yalnız seçili işletmeye izinli yollardan geç
     businessApiPath(businessId, ["orders", "performance"], "GET", "?branchId=foreign"),
   ).toBeNull();
   expect(businessApiPath(businessId, ["orders", "performance"], "PUT", "")).toBeNull();
-  expect(businessApiPath(businessId, ["members"], "GET", "")).toBe(
-    `/v1/business/${businessId}/members`,
-  );
-  expect(businessApiPath(businessId, ["members"], "PUT", "")).toBe(
-    `/v1/business/${businessId}/members`,
-  );
-  expect(businessApiPath(businessId, ["members"], "POST", "")).toBeNull();
-  expect(businessApiPath(businessId, ["members"], "GET", "?userId=foreign")).toBeNull();
 });
 
 test("çalışan daveti API vekili yalnızca oluşturma, listeleme ve iptale açıktır", () => {

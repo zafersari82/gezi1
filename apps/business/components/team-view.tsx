@@ -1,22 +1,27 @@
 "use client";
 
 import {
+  type AccessGrant,
   type Branch,
-  type BusinessMembership,
-  businessMembershipSchema,
+  type BusinessPermission,
+  type BusinessRegion,
+  type MemberAccess,
+  memberAccessListSchema,
+  memberAccessSchema,
   type StaffInvitation,
   staffInvitationCreatedSchema,
   staffInvitationsSchema,
 } from "@vado/contracts";
-import { type FormEvent,useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
+import { grantSummary, plainGrants } from "../lib/access";
 import { call, errorMessage } from "../lib/client";
+import { AccessGrantEditor } from "./access-grant-editor";
 
-const rosterSchema = z.object({ items: z.array(businessMembershipSchema) });
 const roleLabels = {
   owner: "İşletme sahibi",
-  manager: "Tam yetkili yönetici",
+  manager: "Yönetici (bütün şubeler)",
   staff: "Personel",
   courier: "Kurye",
 };
@@ -27,100 +32,55 @@ const statusLabels = {
   revoked: "İptal edildi",
 };
 
+/**
+ * Ekip: üyeler, personel izinleri ve telefonla davet. İzinleri ve davetleri yalnız işletme
+ * sahibi değiştirir; yönetici yalnız görür.
+ */
 export function TeamView({
-  initial,
+  isOwner,
+  permissions,
   branches,
+  regions,
+  initialMembers,
   initialInvitations,
 }: {
-  initial: BusinessMembership[];
-  branches: Branch[];
+  isOwner: boolean;
+  permissions: readonly BusinessPermission[];
+  branches: readonly Branch[];
+  regions: readonly BusinessRegion[];
+  initialMembers: MemberAccess[];
   initialInvitations: StaffInvitation[];
 }) {
-  const [members, setMembers] = useState(initial);
+  const [members, setMembers] = useState(initialMembers);
   const [invitations, setInvitations] = useState(initialInvitations);
+  const [editing, setEditing] = useState<{ member: MemberAccess; grants: AccessGrant[] } | null>(
+    null,
+  );
   const [phone, setPhone] = useState("");
-  const [branchIds, setBranchIds] = useState<string[]>([]);
-  const [orderAccess, setOrderAccess] = useState<"none" | "view" | "manage">("view");
-  const [availability, setAvailability] = useState(false);
+  const [inviteGrants, setInviteGrants] = useState<AccessGrant[]>([]);
   const [link, setLink] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   async function refresh() {
-    const [updated, pending] = await Promise.all([
-      call(rosterSchema, "/api/business/members"),
-      call(staffInvitationsSchema, "/api/business/invitations"),
-    ]);
-    setMembers(updated.items);
-    setInvitations(pending.items);
+    setMembers((await call(memberAccessListSchema, "/api/business/access/members")).items);
+    if (isOwner)
+      setInvitations((await call(staffInvitationsSchema, "/api/business/invitations")).items);
   }
-  async function toggle(member: BusinessMembership) {
-    if (
-      !window.confirm(
-        `${member.displayName ?? "Personel"} için ${member.active ? "erişimi kapatmak" : "erişimi açmak"} istiyor musun?`,
-      )
-    )
-      return;
+  async function run(operation: () => Promise<string>) {
+    setBusy(true);
     setError("");
     setNotice("");
-    setBusyId(member.userId);
     try {
-      await call(z.null(), "/api/business/members", "PUT", {
-        userId: member.userId,
-        role: member.role,
-        active: !member.active,
-      });
-      await refresh();
-      setNotice("Üyelik güncellendi. Kapatılan kişinin eski şube ve bölge izinleri kaldırılır.");
-    } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setBusyId(null);
-    }
-  }
-  async function invite(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setNotice("");
-    setLink("");
-    setBusyId("invite");
-    try {
-      const result = await call(staffInvitationCreatedSchema, "/api/business/invitations", "POST", {
-        phone,
-        branchIds,
-        orderAccess,
-        canManageAvailability: availability,
-      });
-      const url = `${window.location.origin}/join#${result.token}`;
-      setLink(url);
-      setPhone("");
-      setNotice("Davet hazır. Bağlantıyı yalnızca davet ettiğin kişiye gönder.");
+      setNotice(await operation());
       await refresh();
     } catch (cause) {
       setError(errorMessage(cause));
+      await refresh().catch(() => undefined);
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
-  }
-  async function revoke(invitation: StaffInvitation) {
-    if (!window.confirm("Bu daveti iptal etmek istiyor musun?")) return;
-    setError("");
-    setNotice("");
-    setLink("");
-    setBusyId(invitation.id);
-    try {
-      await call(z.null(), `/api/business/invitations/${invitation.id}/revoke`, "POST", {});
-      await refresh();
-      setNotice("Davet iptal edildi.");
-    } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setBusyId(null);
-    }
-  }
-  function selectBranch(id: string, selected: boolean) {
-    setBranchIds((old) => (selected ? [...old, id] : old.filter((item) => item !== id)));
   }
 
   return (
@@ -128,7 +88,9 @@ export function TeamView({
       <div className="page-heading">
         <div>
           <h1>Ekibim</h1>
-          <p className="muted">Çalışanlarını telefonundan davet et ve şube izinlerini yönet.</p>
+          <p className="muted">
+            Çalışanlarını telefonla davet et; her birine yalnız gereken izni, gereken şubede ver.
+          </p>
         </div>
       </div>
       {error !== "" && (
@@ -141,16 +103,145 @@ export function TeamView({
           {notice}
         </p>
       )}
+
+      {editing !== null && (
+        <section className="panel" aria-label="İzinleri düzenle">
+          <h2>{editing.member.displayName} · izinler</h2>
+          <AccessGrantEditor
+            permissions={permissions}
+            branches={branches}
+            regions={regions}
+            value={editing.grants}
+            disabled={busy}
+            onChange={(grants) => {
+              setEditing({ ...editing, grants });
+            }}
+          />
+          <div className="row-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => {
+                setEditing(null);
+              }}
+            >
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await call(
+                    memberAccessSchema,
+                    `/api/business/access/members/${editing.member.memberId}`,
+                    "PUT",
+                    { grants: editing.grants, expectedVersion: editing.member.version },
+                  );
+                  setEditing(null);
+                  return "İzinler kaydedildi.";
+                })
+              }
+            >
+              İzinleri kaydet
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="panel">
-        <h2>Yeni çalışan davet et</h2>
-        <p className="small muted">
-          Davet yalnızca yazdığın telefon numarasıyla doğrulanmış VADO hesabında açılır. 72 saat
-          geçerlidir ve bir kez kullanılabilir. Davet, tam yetkili yönetici rolü vermez.
-        </p>
-        {branches.length === 0 ? (
-          <p>Önce Şubeler ekranından en az bir şube oluştur.</p>
-        ) : (
-          <form className="form-stack" onSubmit={(event) => void invite(event)}>
+        <h2>Üyeler</h2>
+        {members.map((member) => {
+          const lines = member.role === "staff" ? grantSummary(member.grants) : [];
+          return (
+            <div className="item-row" key={member.memberId}>
+              <div>
+                <strong>{member.displayName}</strong>
+                <span className="small muted">
+                  {roleLabels[member.role]} · {member.active ? "Etkin" : "Erişimi kapalı"}
+                </span>
+                {member.role === "staff" && member.active && (
+                  <ul className="grant-summary small">
+                    {lines.length === 0 ? <li>Henüz izin verilmedi.</li> : null}
+                    {lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {isOwner && (member.role === "staff" || member.role === "manager") && (
+                <span className="row-actions">
+                  {member.role === "staff" && member.active && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setEditing({ member, grants: plainGrants(member.grants) });
+                      }}
+                    >
+                      İzinleri düzenle
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          member.active
+                            ? `${member.displayName} için işletme erişimi kapatılsın mı? Bütün izinleri silinir.`
+                            : `${member.displayName} için işletme erişimi açılsın mı? İzinleri yeniden vermen gerekir.`,
+                        )
+                      )
+                        return;
+                      void run(async () => {
+                        await call(z.null(), "/api/business/members", "PUT", {
+                          userId: member.userId,
+                          role: member.role,
+                          active: !member.active,
+                        });
+                        return member.active ? "Erişim kapatıldı." : "Erişim açıldı.";
+                      });
+                    }}
+                  >
+                    {member.active ? "Erişimi kapat" : "Erişimi aç"}
+                  </button>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </section>
+
+      {isOwner && (
+        <section className="panel">
+          <h2>Yeni çalışan davet et</h2>
+          <p className="small muted">
+            Davet, yazdığın telefon numarasıyla giriş yapılmış VADO hesabında açılır; 72 saat
+            geçerlidir ve bir kez kullanılır. SMS gönderilmez: bağlantıyı çalışanına kendin ilet.
+          </p>
+          <form
+            className="form-stack"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(async () => {
+                const result = await call(
+                  staffInvitationCreatedSchema,
+                  "/api/business/invitations",
+                  "POST",
+                  { phone, grants: inviteGrants },
+                );
+                setLink(`${window.location.origin}/join#${result.token}`);
+                setPhone("");
+                setInviteGrants([]);
+                return "Davet hazır. Bağlantıyı yalnız davet ettiğin kişiye gönder.";
+              });
+            }}
+          >
             <label>
               Çalışanın telefon numarası
               <input
@@ -159,131 +250,97 @@ export function TeamView({
                 autoComplete="off"
                 placeholder="05xx xxx xx xx"
                 value={phone}
-                onChange={(event) => { setPhone(event.target.value); }}
-                required
                 maxLength={32}
+                required
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                }}
               />
             </label>
-            <fieldset className="editor-fieldset">
-              <legend>Erişebileceği şubeler</legend>
-              {branches
-                .filter((branch) => branch.active)
-                .map((branch) => (
-                  <label key={branch.id} className="item-row">
-                    <span>{branch.name}</span>
-                    <input
-                      type="checkbox"
-                      checked={branchIds.includes(branch.id)}
-                      onChange={(event) => { selectBranch(branch.id, event.target.checked); }}
-                    />
-                  </label>
-                ))}
-            </fieldset>
-            <label>
-              Sipariş izni
-              <select
-                value={orderAccess}
-                onChange={(event) => { setOrderAccess(event.target.value as typeof orderAccess); }}
-              >
-                <option value="none">Sipariş erişimi yok</option>
-                <option value="view">Yalnız görüntüle</option>
-                <option value="manage">Siparişleri yönet</option>
-              </select>
-            </label>
-            <label className="item-row">
-              <span>Bu şubelerde ürünlerin satışta/tükendi durumunu değiştirebilsin</span>
-              <input
-                type="checkbox"
-                checked={availability}
-                onChange={(event) => { setAvailability(event.target.checked); }}
-              />
-            </label>
-            <button
-              className="primary"
-              type="submit"
-              disabled={
-                busyId !== null ||
-                branchIds.length === 0 ||
-                (orderAccess === "none" && !availability)
-              }
-            >
-              {busyId === "invite" ? "Hazırlanıyor…" : "Davet bağlantısı oluştur"}
+            <AccessGrantEditor
+              permissions={permissions}
+              branches={branches}
+              regions={regions}
+              value={inviteGrants}
+              disabled={busy}
+              onChange={setInviteGrants}
+            />
+            <button className="primary" disabled={busy || inviteGrants.length === 0}>
+              Davet bağlantısı oluştur
             </button>
           </form>
-        )}
-        {link !== "" && (
-          <div className="panel">
-            <p className="small">Bu bağlantı yalnızca şimdi gösterilir; tekrar görüntülenemez.</p>
-            <input
-              aria-label="Davet bağlantısı"
-              readOnly
-              value={link}
-              onFocus={(event) => { event.currentTarget.select(); }}
-            />
-            <button
-              type="button"
-              className="secondary"
-              onClick={() =>
-                void navigator.clipboard
-                  .writeText(link)
-                  .then(() => { setNotice("Bağlantı kopyalandı."); })
-                  .catch(() => { setError("Bağlantıyı alandan seçip kopyalayabilirsin."); })
-              }
-            >
-              Bağlantıyı kopyala
-            </button>
-          </div>
-        )}
-      </section>
-      <section className="panel">
-        <h2>Bekleyen ve geçmiş davetler</h2>
-        {invitations.length === 0 && <p className="muted">Henüz davet bulunmuyor.</p>}
-        {invitations.map((invite) => (
-          <div className="item-row" key={invite.id}>
-            <div>
-              <strong>{invite.phone}</strong>
-              <span className="small muted">
-                {invite.branches.map((branch) => branch.name).join(", ")} ·{" "}
-                {statusLabels[invite.status]}
-              </span>
-            </div>
-            {invite.status === "pending" && (
+          {link !== "" && (
+            <div className="subpanel">
+              <p className="small">Bu bağlantı yalnız şimdi gösterilir; sonra görüntülenemez.</p>
+              <input
+                aria-label="Davet bağlantısı"
+                readOnly
+                value={link}
+                onFocus={(event) => {
+                  event.currentTarget.select();
+                }}
+              />
               <button
                 type="button"
                 className="secondary"
-                disabled={busyId !== null}
-                onClick={() => void revoke(invite)}
+                onClick={() =>
+                  void navigator.clipboard
+                    .writeText(link)
+                    .then(() => {
+                      setNotice("Bağlantı kopyalandı.");
+                    })
+                    .catch(() => {
+                      setError("Bağlantıyı alandan seçip kopyalayabilirsin.");
+                    })
+                }
               >
-                İptal et
+                Bağlantıyı kopyala
               </button>
-            )}
-          </div>
-        ))}
-      </section>
-      <section className="panel">
-        <h2>İşletme üyeleri</h2>
-        <p className="small muted">Şube izinlerini Şubeler menüsünden ayrıca değiştirebilirsin.</p>
-        {members.map((member) => (
-          <div className="item-row" key={member.userId}>
-            <div>
-              <strong>{member.displayName ?? "İşletme üyesi"}</strong>
-              <span className="small muted">
-                {roleLabels[member.role]} · {member.active ? "Aktif" : "Kapalı"}
-              </span>
             </div>
-            {member.role !== "owner" && member.role !== "courier" && (
-              <button
-                type="button"
-                className="secondary"
-                disabled={busyId !== null}
-                onClick={() => void toggle(member)}
-              >
-                {member.active ? "Erişimi kapat" : "Erişimi aç"}
-              </button>
-            )}
-          </div>
-        ))}
-      </section>
+          )}
+        </section>
+      )}
+
+      {isOwner && (
+        <section className="panel">
+          <h2>Davetler</h2>
+          {invitations.length === 0 && <p className="muted">Henüz davet yok.</p>}
+          {invitations.map((invitation) => (
+            <div className="item-row" key={invitation.id}>
+              <div>
+                <strong>{invitation.phone}</strong>
+                <span className="small muted">{statusLabels[invitation.status]}</span>
+                <ul className="grant-summary small">
+                  {grantSummary(invitation.grants).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+              {invitation.status === "pending" && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    if (!window.confirm("Bu davet iptal edilsin mi?")) return;
+                    void run(async () => {
+                      await call(
+                        z.null(),
+                        `/api/business/invitations/${invitation.id}/revoke`,
+                        "POST",
+                        {},
+                      );
+                      return "Davet iptal edildi.";
+                    });
+                  }}
+                >
+                  İptal et
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { JoinInvitation } from "../../components/join-invitation";
+import { JoinInvitationLoader } from "../../components/join-invitation-loader";
 
 export default function JoinPage() {
   return (
@@ -6,7 +6,7 @@ export default function JoinPage() {
       <div className="brand">
         <span className="brand-mark">V</span>VADO Business
       </div>
-      <JoinInvitation />
+      <JoinInvitationLoader />
     </main>
   );
 }

@@ -12,7 +12,11 @@ import { useState } from "react";
 import { call, errorMessage } from "../lib/client";
 import { decimalToMinor, money } from "../lib/values";
 
-interface Edit { enabled: boolean; price: string; vat: string }
+interface Edit {
+  enabled: boolean;
+  price: string;
+  vat: string;
+}
 
 /** Şube fiyatları yalnız seçilen işletmenin mevcut kataloğundan hazırlanır. */
 export function BranchPriceMatrix({
@@ -125,7 +129,9 @@ export function BranchPriceMatrix({
           <input
             type="search"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+            }}
             placeholder="Ürün adı"
           />
         </label>
@@ -156,7 +162,9 @@ export function BranchPriceMatrix({
           disabled={busy}
           onClick={() => {
             if (changes > 0 && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?")) return;
-            void refresh().catch((cause: unknown) => { setError(errorMessage(cause)); });
+            void refresh().catch((cause: unknown) => {
+              setError(errorMessage(cause));
+            });
           }}
         >
           Yenile
@@ -168,8 +176,8 @@ export function BranchPriceMatrix({
           const general = base(item.id);
           const value = edits[item.id] ?? {
             enabled: override !== undefined,
-            price: ((override ?? general)?.amountMinor ?? 0) / 100 + "",
-            vat: ((override ?? general)?.vatBasisPoints ?? 0) / 100 + "",
+            price: String(((override ?? general)?.amountMinor ?? 0) / 100),
+            vat: String(((override ?? general)?.vatBasisPoints ?? 0) / 100),
           };
           return (
             <div className="subpanel" key={item.id}>
@@ -184,7 +192,9 @@ export function BranchPriceMatrix({
                   type="checkbox"
                   checked={value.enabled}
                   disabled={!canWrite || busy}
-                  onChange={(e) => { edit(item.id, { ...value, enabled: e.target.checked }); }}
+                  onChange={(e) => {
+                    edit(item.id, { ...value, enabled: e.target.checked });
+                  }}
                 />
                 Bu şubeye özel fiyat
               </label>
@@ -195,7 +205,9 @@ export function BranchPriceMatrix({
                     inputMode="decimal"
                     value={value.price}
                     disabled={!canWrite || busy || !value.enabled}
-                    onChange={(e) => { edit(item.id, { ...value, price: e.target.value }); }}
+                    onChange={(e) => {
+                      edit(item.id, { ...value, price: e.target.value });
+                    }}
                   />
                 </label>
                 <label>
@@ -204,7 +216,9 @@ export function BranchPriceMatrix({
                     inputMode="decimal"
                     value={value.vat}
                     disabled={!canWrite || busy || !value.enabled}
-                    onChange={(e) => { edit(item.id, { ...value, vat: e.target.value }); }}
+                    onChange={(e) => {
+                      edit(item.id, { ...value, vat: e.target.value });
+                    }}
                   />
                 </label>
               </div>
@@ -230,7 +244,9 @@ export function BranchPriceMatrix({
             type="button"
             className="secondary"
             disabled={busy || changes === 0}
-            onClick={() => { setEdits({}); }}
+            onClick={() => {
+              setEdits({});
+            }}
           >
             Vazgeç
           </button>

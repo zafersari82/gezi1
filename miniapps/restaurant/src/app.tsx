@@ -22,6 +22,9 @@ import { ProductOptions } from "./product-options";
 const pendingSchema = checkoutCartBodySchema.extend({ id: z.uuid(), key: z.uuid() });
 type Pending = z.infer<typeof pendingSchema>;
 const storageKey = "restaurant-session";
+/** Boş ya da yalnız boşluk içeren metin yayımlanmamış sayılır. */
+const filled = (value: string | null | undefined) =>
+  value === null || value === undefined || value.trim() === "" ? null : value;
 const savedSchema = z.object({
   businessId: z.uuid(),
   appInstanceId: z.uuid(),
@@ -491,8 +494,8 @@ export function App() {
           <img className="storefront-logo" src={storefront.logoUrl} alt="Restoran logosu" />
         )}
         <span className="eyebrow">{presentation?.eyebrow ?? "Masana gelen lezzet"}</span>
-        <h1>{storefront?.title || context?.businessName || "Restoran"}</h1>
-        <p>{storefront?.tagline || "Menüyü keşfet, dilediğin gibi özelleştir."}</p>
+        <h1>{filled(storefront?.title) ?? context?.businessName ?? "Restoran"}</h1>
+        <p>{filled(storefront?.tagline) ?? "Menüyü keşfet, dilediğin gibi özelleştir."}</p>
         {storefrontLayout === "enterprise" && (context?.branches.length ?? 0) > 1 && (
           <div className="storefront-branch-count">
             {context?.branches.length} şube · Sipariş vereceğin şubeyi aşağıdan seçebilirsin.

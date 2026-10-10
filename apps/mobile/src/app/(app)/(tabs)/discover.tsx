@@ -84,7 +84,9 @@ export default function DiscoverScreen() {
       <Pressable
         style={styles.location}
         accessibilityRole="button"
-        onPress={() => { router.push("/discovery-location"); }}
+        onPress={() => {
+          router.push("/discovery-location");
+        }}
         accessibilityLabel="Konumu değiştir"
       >
         <Icon name="location-outline" size={18} color="teal" />
@@ -100,7 +102,9 @@ export default function DiscoverScreen() {
         style={styles.search}
         accessibilityRole="button"
         accessibilityLabel="VADO aramasını aç"
-        onPress={() => { router.push("/search"); }}
+        onPress={() => {
+          router.push("/search");
+        }}
         testID="open-search"
       >
         <Icon name="search" size={20} color="muted" />
@@ -118,7 +122,9 @@ export default function DiscoverScreen() {
             style={styles.category}
             accessibilityRole="button"
             accessibilityLabel={`${CATEGORY_LABELS[category]} kategorisinde ara`}
-            onPress={() => { router.push({ pathname: "/search", params: { category } }); }}
+            onPress={() => {
+              router.push({ pathname: "/search", params: { category } });
+            }}
           >
             <CategoryTile category={category} />
             <AppText variant="caption" numberOfLines={2} style={styles.categoryText}>
@@ -130,7 +136,9 @@ export default function DiscoverScreen() {
       <Pressable
         accessibilityRole="button"
         style={styles.seeAll}
-        onPress={() => { router.push("/search"); }}
+        onPress={() => {
+          router.push("/search");
+        }}
       >
         <AppText color="teal" variant="caption">
           Tüm sektörleri ve hizmetleri ara
@@ -144,7 +152,9 @@ export default function DiscoverScreen() {
         subtitle="Kişilerinin paylaşımları"
         leading={<IconTile name="aperture" accent="brick" />}
         chevron
-        onPress={() => { router.push("/moments"); }}
+        onPress={() => {
+          router.push("/moments");
+        }}
         testID="open-moments"
       />
       <ListRow
@@ -152,7 +162,9 @@ export default function DiscoverScreen() {
         subtitle="Kişi, işletme veya mini uygulama aç"
         leading={<IconTile name="scan" accent="teal" />}
         chevron
-        onPress={() => { router.push("/scan"); }}
+        onPress={() => {
+          router.push("/scan");
+        }}
       />
 
       {businessItems.length > 0 && (
@@ -166,7 +178,9 @@ export default function DiscoverScreen() {
           <Pressable
             style={styles.seeAll}
             accessibilityRole="button"
-            onPress={() => { router.push({ pathname: "/search", params: { kind: "business" } }); }}
+            onPress={() => {
+              router.push({ pathname: "/search", params: { kind: "business" } });
+            }}
           >
             <AppText color="teal" variant="caption">
               Tüm işletmeleri ara
@@ -184,7 +198,9 @@ export default function DiscoverScreen() {
           <Pressable
             style={styles.seeAll}
             accessibilityRole="button"
-            onPress={() => { router.push({ pathname: "/search", params: { kind: "miniapp" } }); }}
+            onPress={() => {
+              router.push({ pathname: "/search", params: { kind: "miniapp" } });
+            }}
           >
             <AppText color="teal" variant="caption">
               Tüm mini uygulamaları ara

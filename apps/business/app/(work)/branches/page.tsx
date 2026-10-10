@@ -17,7 +17,7 @@ export default async function BranchesPage() {
       key={membership.businessId}
       initial={branches}
       canWrite={membership.role !== "staff"}
-      canDelegate={membership.role === "owner"}
+      isOwner={membership.role === "owner"}
     />
   );
 }

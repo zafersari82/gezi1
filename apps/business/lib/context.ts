@@ -3,8 +3,10 @@ import "server-only";
 import {
   appInstanceSchema,
   businessMembershipSchema,
+  type BusinessPermission,
   engineCapabilityCatalogSchema,
   instanceCapabilitiesSchema,
+  myBusinessAccessSchema,
 } from "@vado/contracts";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -59,3 +61,16 @@ export const getBusinessContext = cache(async () => {
     resolved,
   };
 });
+
+/** Oturumdaki kişinin bu işletmedeki izinleri; sunucu her istekte ayrıca denetler. */
+export const getMyAccess = cache(async () => {
+  const { membership } = await getBusinessContext();
+  return apiGet(myBusinessAccessSchema, `/v1/business/${membership.businessId}/access/me`);
+});
+
+/** İznin geçtiği şubeler: bütün şubelerse `null`, hiç yoksa boş liste. */
+export async function permittedBranchIds(permission: BusinessPermission) {
+  const access = await getMyAccess();
+  const grant = access.permissions.find((item) => item.permission === permission);
+  return grant === undefined ? [] : grant.branchIds;
+}

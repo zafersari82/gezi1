@@ -4,7 +4,10 @@ import type { QrParams } from "@vado/contracts";
 const MAX_LAUNCHES = 8;
 
 /** Kaynağı yalnız kabuk belirler; mini uygulamanın köprüsüne aktarılmaz. */
-export interface LaunchOrigin { type: "business"; businessId: string }
+export interface LaunchOrigin {
+  type: "business";
+  businessId: string;
+}
 
 interface RememberedLaunch {
   miniAppId: string;

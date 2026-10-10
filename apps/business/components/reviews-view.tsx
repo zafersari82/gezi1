@@ -1,10 +1,11 @@
 "use client";
 
 import { type Review, reviewReplyBodySchema, reviewSchema } from "@vado/contracts";
-import { type FormEvent, useRef, useState } from "react";
+import { type SyntheticEvent, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
+import { formText } from "../lib/values";
 
 const listSchema = z.object({
   items: z.array(reviewSchema),
@@ -50,7 +51,7 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
     }
   }
 
-  async function reply(event: FormEvent<HTMLFormElement>) {
+  async function reply(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canReply || selected === null || replyLock.current) return;
     replyLock.current = true;
@@ -61,7 +62,7 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
       const fields = new FormData(event.currentTarget);
       const body = reviewReplyBodySchema.parse({
         expectedVersion: selected.version,
-        reply: String(fields.get("reply") ?? ""),
+        reply: formText(fields, "reply"),
       });
       const updated = await call(
         reviewSchema,

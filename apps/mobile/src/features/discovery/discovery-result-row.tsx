@@ -24,7 +24,9 @@ export function DiscoveryResultRow({ item }: { item: DiscoveryItem }) {
           business.verified ? <Icon name="checkmark-circle" size={18} color="teal" /> : null
         }
         chevron
-        onPress={() => { router.push({ pathname: "/businesses/[id]", params: { id: business.id } }); }}
+        onPress={() => {
+          router.push({ pathname: "/businesses/[id]", params: { id: business.id } });
+        }}
         testID={`result-business-${business.id}`}
       />
     );
@@ -38,7 +40,9 @@ export function DiscoveryResultRow({ item }: { item: DiscoveryItem }) {
       leading={<MiniAppIcon miniApp={miniApp} />}
       trailing={miniApp.verified ? <Icon name="checkmark-circle" size={18} color="teal" /> : null}
       chevron
-      onPress={() => { router.push({ pathname: "/miniapps/[id]", params: { id: miniApp.id } }); }}
+      onPress={() => {
+        router.push({ pathname: "/miniapps/[id]", params: { id: miniApp.id } });
+      }}
       testID={`result-miniapp-${miniApp.id}`}
     />
   );

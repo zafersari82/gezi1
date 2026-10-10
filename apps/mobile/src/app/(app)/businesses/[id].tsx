@@ -59,6 +59,8 @@ export default function BusinessScreen() {
   const { name, category, city, description, verified, miniApps, storefront } = business.data;
   const palette = storefront === null ? null : studioPaletteById(storefront.palette);
   const layout = storefront === null ? "classic" : studioTemplateById(storefront.templateId).layout;
+  const coverUrl = storefront?.coverUrl ?? null;
+  const logoUrl = storefront?.logoUrl ?? null;
 
   return (
     <ScrollView style={styles.screen}>
@@ -78,9 +80,9 @@ export default function BusinessScreen() {
         }}
       />
 
-      {storefront?.coverUrl != null && (
+      {coverUrl !== null && (
         <Image
-          source={{ uri: storefront.coverUrl }}
+          source={{ uri: coverUrl }}
           style={[
             styles.cover,
             layout === "compact" && styles.compactCover,
@@ -98,9 +100,9 @@ export default function BusinessScreen() {
           layout === "enterprise" && styles.enterpriseHeader,
         ]}
       >
-        {storefront?.logoUrl != null ? (
+        {logoUrl !== null ? (
           <Image
-            source={{ uri: storefront.logoUrl }}
+            source={{ uri: logoUrl }}
             style={styles.logo}
             contentFit="cover"
             accessibilityLabel={`${name} logosu`}

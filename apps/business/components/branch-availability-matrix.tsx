@@ -1,71 +1,77 @@
 "use client";
 
 import {
-  accessibleBranchesSchema,
   type Branch,
   branchAvailabilityBatchBodySchema,
   branchAvailabilityBatchResultSchema,
   branchAvailabilityListSchema,
   type Catalog,
 } from "@vado/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { call, errorMessage } from "../lib/client";
 
-interface Change { expectedVersion: number; available: boolean }
-/** Small-screen, branch-scoped availability management. Never edits company-wide item flags. */
+interface Change {
+  expectedVersion: number;
+  available: boolean;
+}
+type Rows = Record<string, { version: number; available: boolean }>;
+
+async function loadRows(branchId: string): Promise<Rows> {
+  const value = await call(
+    branchAvailabilityListSchema,
+    `/api/business/branches/${branchId}/availability`,
+  );
+  return Object.fromEntries(
+    value.items.map((item) => [item.itemId, { version: item.version, available: item.available }]),
+  );
+}
+
+/**
+ * Telefon için şube bazlı satış durumu. Yalnız "ürün bulunurluğu" izninin geçtiği şubeler
+ * listelenir; ürünün işletme genelindeki durumu değişmez.
+ */
 export function BranchAvailabilityMatrix({
   catalog,
   branches,
 }: {
   catalog: Catalog;
+  /** Bulunurluk izninin geçtiği etkin şubeler. */
   branches: Branch[];
 }) {
-  const [allowed, setAllowed] = useState<string[]>([]);
-  const [branchId, setBranchId] = useState("");
-  const [rows, setRows] = useState<Record<string, { version: number; available: boolean }>>({});
+  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [rows, setRows] = useState<Rows>({});
   const [edits, setEdits] = useState<Record<string, Change>>({});
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(branches.length > 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  useEffect(() => {
-    let alive = true;
-    void call(accessibleBranchesSchema, "/api/business/branches/availability-access/me")
-      .then((value) => {
-        if (alive) {
-          setAllowed(value.items);
-          setBranchId(value.items[0] ?? "");
-        }
-      })
-      .catch((reason: unknown) => {
-        if (alive) setError(errorMessage(reason));
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  useEffect(() => {
-    if (!branchId) return;
-    let alive = true;
-    setLoading(true);
+  const request = useRef(0);
+
+  async function selectBranch(id: string) {
+    const current = ++request.current;
+    setBranchId(id);
     setRows({});
     setEdits({});
-    void call(branchAvailabilityListSchema, `/api/business/branches/${branchId}/availability`)
-      .then((value) => {
-        if (alive)
-          setRows(
-            Object.fromEntries(
-              value.items.map((item) => [
-                item.itemId,
-                { version: item.version, available: item.available },
-              ]),
-            ),
-          );
+    setLoading(true);
+    try {
+      const loaded = await loadRows(id);
+      if (current === request.current) setRows(loaded);
+    } catch (reason) {
+      if (current === request.current) setError(errorMessage(reason));
+    } finally {
+      if (current === request.current) setLoading(false);
+    }
+  }
+
+  const initialBranch = branches[0]?.id ?? "";
+  useEffect(() => {
+    if (initialBranch === "") return;
+    let alive = true;
+    loadRows(initialBranch)
+      .then((loaded) => {
+        if (alive) setRows(loaded);
       })
       .catch((reason: unknown) => {
         if (alive) setError(errorMessage(reason));
@@ -76,7 +82,7 @@ export function BranchAvailabilityMatrix({
     return () => {
       alive = false;
     };
-  }, [branchId]);
+  }, [initialBranch]);
   const filtered = catalog.items.filter(
     (item) =>
       item.active &&
@@ -86,9 +92,9 @@ export function BranchAvailabilityMatrix({
   function change(itemId: string, available: boolean) {
     const original = rows[itemId] ?? { version: 0, available: true };
     setEdits((current) => {
-      const next = { ...current };
-      if (original.available === available) delete next[itemId];
-      else next[itemId] = { expectedVersion: original.version, available };
+      const next = Object.fromEntries(Object.entries(current).filter(([id]) => id !== itemId));
+      if (original.available !== available)
+        next[itemId] = { expectedVersion: original.version, available };
       return next;
     });
     setNotice("");
@@ -108,18 +114,7 @@ export function BranchAvailabilityMatrix({
           changes: Object.entries(edits).map(([itemId, value]) => ({ itemId, ...value })),
         }),
       );
-      const updated = await call(
-        branchAvailabilityListSchema,
-        `/api/business/branches/${branchId}/availability`,
-      );
-      setRows(
-        Object.fromEntries(
-          updated.items.map((item) => [
-            item.itemId,
-            { version: item.version, available: item.available },
-          ]),
-        ),
-      );
+      setRows(await loadRows(branchId));
       setEdits({});
       setNotice("Şubenin ürün durumları kaydedildi.");
     } catch (reason) {
@@ -147,16 +142,14 @@ export function BranchAvailabilityMatrix({
               if (count > 0 && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?")) return;
               setError("");
               setNotice("");
-              setBranchId(event.target.value);
+              void selectBranch(event.target.value);
             }}
           >
-            {branches
-              .filter((branch) => allowed.includes(branch.id))
-              .map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
           </select>
         </label>
         <label>
@@ -164,13 +157,15 @@ export function BranchAvailabilityMatrix({
           <input
             type="search"
             value={search}
-            onChange={(event) => { setSearch(event.target.value); }}
+            onChange={(event) => {
+              setSearch(event.target.value);
+            }}
             placeholder="Ürün adı"
           />
         </label>
       </div>
       {loading && <p role="status">Şube bilgileri yükleniyor…</p>}
-      {!loading && allowed.length === 0 && (
+      {!loading && branches.length === 0 && (
         <p className="notice">Bu işlem için yetkili olduğun şube bulunmuyor.</p>
       )}
       {error && (
@@ -198,7 +193,9 @@ export function BranchAvailabilityMatrix({
                   type="checkbox"
                   checked={current}
                   disabled={busy}
-                  onChange={(event) => { change(item.id, event.target.checked); }}
+                  onChange={(event) => {
+                    change(item.id, event.target.checked);
+                  }}
                 />
                 {current ? "Satışta" : "Tükendi"}
               </label>
@@ -224,7 +221,9 @@ export function BranchAvailabilityMatrix({
             type="button"
             className="secondary"
             disabled={busy || count === 0}
-            onClick={() => { setEdits({}); }}
+            onClick={() => {
+              setEdits({});
+            }}
           >
             Vazgeç
           </button>

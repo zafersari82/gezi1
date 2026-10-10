@@ -33,7 +33,8 @@ export function OrdersView({
   initial: OrderList;
   title: string;
   states: string[];
-  manageBranchIds: string[];
+  /** Siparişi işleyebildiği şubeler; `null` bütün şubeler. */
+  manageBranchIds: string[] | null;
 }) {
   const [list, setList] = useState(initial);
   const [filter, setFilter] = useState<OrderFilter>("active");
@@ -254,7 +255,7 @@ export function OrdersView({
                 <dt>İçindeki KDV</dt>
                 <dd>{money(selected.vatMinor)}</dd>
               </dl>
-              {manageBranchIds.includes(selected.branchId) ? (
+              {manageBranchIds === null || manageBranchIds.includes(selected.branchId) ? (
                 <OrderActions
                   key={selected.id}
                   order={selected}

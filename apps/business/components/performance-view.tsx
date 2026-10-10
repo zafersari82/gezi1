@@ -1,6 +1,6 @@
 "use client";
 
-import { type BranchPerformance,branchPerformanceSchema } from "@vado/contracts";
+import { type BranchPerformance, branchPerformanceSchema } from "@vado/contracts";
 import { useState } from "react";
 
 import { call, errorMessage } from "../lib/client";
