@@ -22,6 +22,8 @@ Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman deği
   "Gel al" diye gösteriyordu; artık "Adrese teslim" yazar.
   - **Sözleşme değişikliği:** `tableSessionId` → `context`, `tableLabel` → `contextLabel`; sepet
     açma `context` alır. Dışarıda yayımlanmış mini uygulama yok; restoran ve mağaza güncellendi.
+- **Devir talimatı:** kalan işlerin (A2-2c, A2-3, Mağazam M1–M9, 2.8 kapanışı) ayrıntılı planı ve
+  bağlayıcı kurallar: [docs/DEVIR_CHATGPT.md](docs/DEVIR_CHATGPT.md).
 - **Mağazam planı:** telefondan kod yazmadan dükkân kurma planı
   ([docs/PLAN_MAGAZAM.md](docs/PLAN_MAGAZAM.md)).
 
