@@ -184,6 +184,7 @@ export const KITCHEN_MANIFEST = engineCapabilityManifestSchema.parse({
   id: "ordering.kitchen",
   // Cihaz etkin siparişleri yürütür; o siparişler bitmeden paket kapatılamaz.
   closableWithActiveOrders: false,
+  intake: { explicitModes: true, openingHours: true },
   configSchema: z.toJSONSchema(coreConfig),
   defaults: {},
   operations: {
@@ -264,6 +265,7 @@ function restaurantManifest(
     id,
     version: "1.0.0",
     engine: "ordering",
+    intake: { explicitModes: true, openingHours: true },
     dependsOn: [{ id: dependency, version: "1.0.0" }],
     configSchema: z.toJSONSchema(coreConfig),
     defaults: {},
@@ -393,6 +395,7 @@ export const DELIVERY_MANIFEST = engineCapabilityManifestSchema.parse({
   id: "ordering.delivery",
   version: "1.0.0",
   engine: "ordering",
+  intake: { explicitModes: true, openingHours: true },
   dependsOn: [{ id: "ordering.preparation", version: "1.0.0", alternatives: ["ordering.kitchen"] }],
   configSchema: z.toJSONSchema(coreConfig),
   defaults: {},

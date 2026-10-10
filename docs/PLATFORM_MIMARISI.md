@@ -164,6 +164,15 @@ siparişin durum akışı (`ordering_compile_graph`) bu katalogdan hesaplanır.
   iade) yalnız veri ekler.
 - **Kapatma:** etkin sipariş varken yalnız durum ekleyen paket (hazırlık) kapatılabilir.
 - **Ayar:** katalogdaki varsayılan yazılır ve paketin doğrulayıcı işleviyle denetlenir.
+- **Alış beyanı:** `explicitModes` açıkken teslim biçimleri yalnız paketlerle açılır (çekirdeğin
+  varsayılan gel-al'ı kapanır); `openingHours` açıkken sipariş yalnız şube açıkken verilir.
+- **Teslim biçimi kaydı** (`ordering_fulfilment_modes`, `0033`/`0034`): biçimi açan paket, istediği
+  bağlam türü, adres gerekip gerekmediği, tahsilat yerleri ve paketin ek kural işlevi. Geçerliliği
+  tek işlev söyler (`ordering_fulfilment_status`); sepet ve sipariş tetikleyicileri de onu kullanır.
+- **Sipariş bağlamı:** sepet ve sipariş `context_kind` + `context_id` taşır (bugün tek tür: masa
+  servisinin `table_session`'ı). Bağlamın varlığını ve adını onu kaydeden paket denetler ve üretir.
+- **Canlı olay türleri** (`live_event_types`): sipariş olayları çekirdekte; paket olayları kaynağını
+  paketin çözücü işleviyle bulur (masa çağrısı → masa oturumu).
 - Katalog yalnız şema dosyalarıyla değişir; uygulama rolleri okur. Manifest ile katalog eşitliği
   ve 256 paket bileşiminin her teslim biçimindeki akışı `capability-catalog.test.ts` ile her
   derlemede karşılaştırılır.

@@ -27,7 +27,6 @@ import { createBusinessChatService } from "./modules/chat/business-chat.service"
 import { createChatService } from "./modules/chat/chat.service";
 import { createContactService } from "./modules/contacts/contacts.service";
 import { createDeliveryService } from "./modules/delivery/delivery.service";
-import { deliveryFulfilmentPolicy } from "./modules/delivery/delivery-policy";
 import { createDeliveryAvailabilityReader } from "./modules/discovery/delivery-availability.reader";
 import { createDiscoveryService } from "./modules/discovery/discovery.service";
 import { createFeedbackService } from "./modules/feedback/feedback.service";
@@ -38,14 +37,13 @@ import { createMiniAppAdminService } from "./modules/miniapps/miniapp-admin.serv
 import { createMiniAppService } from "./modules/miniapps/miniapps.service";
 import { createMomentService } from "./modules/moments/moments.service";
 import { createNotificationService } from "./modules/notifications/notifications.service";
-import { createFulfilmentValidator } from "./modules/ordering/fulfilment";
 import { createOrderingService } from "./modules/ordering/ordering.service";
 import { createPackageService } from "./modules/packages/packages.service";
 import { createPaymentService } from "./modules/payments/payments.service";
 import { createQrService } from "./modules/qr/qr.service";
 import { createReportService } from "./modules/reports/reports.service";
 import { createRestaurantService } from "./modules/restaurant/restaurant.service";
-import { restaurantFulfilmentPolicy } from "./modules/restaurant/restaurant-fulfilment";
+import { tableSessionLabels } from "./modules/restaurant/table-session-labels";
 import { createReturnService } from "./modules/returns/returns.service";
 import { createUserService } from "./modules/users/users.service";
 import { createSignedWebhookConsumer } from "./providers/webhook";
@@ -88,7 +86,7 @@ export function createServices(context: AppContext) {
       deviceMaySetStatus,
       decisionRequired: orderDecisionRequired,
     },
-    createFulfilmentValidator([deliveryFulfilmentPolicy, restaurantFulfilmentPolicy]),
+    { table_session: tableSessionLabels },
     orderingLifecycle,
     incentives.pricing,
   );

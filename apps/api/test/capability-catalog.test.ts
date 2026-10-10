@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { tableSessionSchema } from "@vado/contracts";
+import {
+  fulfilmentSchema,
+  liveEventSchema,
+  ORDER_CONTEXT_KINDS,
+  tableSessionSchema,
+} from "@vado/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -32,6 +37,9 @@ interface CatalogRow {
   insertions: unknown[];
   default_config: Record<string, unknown>;
   closable_with_active_orders: boolean;
+  explicit_modes: boolean;
+  opening_hours: boolean;
+  decision_required: boolean;
 }
 
 const packages = CAPABILITY_DEFINITIONS.filter((d) => d.manifest.id !== "ordering");
@@ -64,7 +72,8 @@ function tsValid(selection: typeof packages): boolean {
 describe("sipariş paket kataloğu", () => {
   it("SQL kataloğu paket manifestleriyle aynıdır", async () => {
     const rows = await app.db.many<CatalogRow>(
-      sql`select id, version, role, requires, insertions, default_config, closable_with_active_orders
+      sql`select id, version, role, requires, insertions, default_config, closable_with_active_orders,
+          explicit_modes, opening_hours, decision_required
         from capability_catalog where engine = 'ordering' order by id`,
     );
     const expected = packages
@@ -91,6 +100,9 @@ describe("sipariş paket kataloğu", () => {
         })),
         default_config: manifest.defaults,
         closable_with_active_orders: manifest.closableWithActiveOrders,
+        explicit_modes: manifest.intake.explicitModes,
+        opening_hours: manifest.intake.openingHours,
+        decision_required: manifest.operations?.decisionRequired ?? false,
       }))
       .sort((a, b) => a.id.localeCompare(b.id));
     expect(rows).toEqual(expected);
@@ -139,6 +151,21 @@ describe("sipariş paket kataloğu", () => {
     expect(valid).toBe(120);
   });
 
+  it("teslim biçimi, bağlam ve canlı olay türü kayıtları sözleşmeyle aynıdır", async () => {
+    const modes = await app.db.many<{ code: string }>(
+      sql`select code from ordering_fulfilment_modes order by code`,
+    );
+    expect(modes.map((m) => m.code)).toEqual([...fulfilmentSchema.options].sort());
+    const kinds = await app.db.many<{ kind: string }>(
+      sql`select kind from ordering_context_kinds order by kind`,
+    );
+    expect(kinds.map((k) => k.kind)).toEqual([...ORDER_CONTEXT_KINDS].sort());
+    const types = await app.db.many<{ type: string }>(
+      sql`select type from live_event_types order by type`,
+    );
+    expect(types.map((t) => t.type)).toEqual([...liveEventSchema.shape.type.options].sort());
+  });
+
   it("uygulama rolleri kataloğa yazamaz", async () => {
     await expect(
       app.db.execute(
@@ -148,6 +175,12 @@ describe("sipariş paket kataloğu", () => {
     await expect(
       app.db.execute(sql`update capability_catalog set closable_with_active_orders = true`),
     ).rejects.toMatchObject({ code: "42501" });
+    for (const statement of [
+      sql`update ordering_fulfilment_modes set payment_places = '{counter,table}'`,
+      sql`insert into ordering_context_kinds (kind, capability_id, capability_version) values ('sahte', 'ordering.pickup', '1.0.0')`,
+      sql`insert into live_event_types (type) values ('sahte.olay')`,
+    ])
+      await expect(app.db.execute(statement)).rejects.toMatchObject({ code: "42501" });
   });
 
   it("ayar verilmezse katalogdaki varsayılan yazılır; geçersiz ayar reddedilir", async () => {

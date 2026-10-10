@@ -304,7 +304,7 @@ export function App() {
               branchId,
               fulfilment: mode,
               addressId: mode === "delivery" ? addressId : null,
-              tableSessionId: null,
+              context: null,
               scheduledAt: null,
             });
       if (active !== current) {

@@ -5,13 +5,8 @@ import type { TenantContext } from "./context";
 import { type Database, sql } from "./database";
 import { type TenantScope, withTenant } from "./tenant-scope";
 
-export const LIVE_EVENT_TYPES = [
-  "order.placed",
-  "order.status_changed",
-  "order.payment_recorded",
-  "table.requested",
-  "table.request_resolved",
-] as const;
+/** Canlı olay türleri sözleşmedeki kayıttır; veritabanında `live_event_types` tablosudur. */
+export const LIVE_EVENT_TYPES = liveEventSchema.shape.type.options;
 export interface LiveRow {
   business_id: string;
   branch_id: string;
@@ -20,7 +15,8 @@ export interface LiveRow {
   cursor: number;
   event_id: string;
   order_id: string | null;
-  table_session_id: string | null;
+  context_kind: string | null;
+  context_id: string | null;
   type: string;
 }
 export const liveView = (r: LiveRow): LiveEvent =>
@@ -31,7 +27,10 @@ export const liveView = (r: LiveRow): LiveEvent =>
     cursor: r.cursor,
     eventId: r.event_id,
     orderId: r.order_id,
-    tableSessionId: r.table_session_id,
+    context:
+      r.context_kind === null || r.context_id === null
+        ? null
+        : { kind: r.context_kind, id: r.context_id },
     type: r.type,
   });
 export async function readLive(tx: Database, businessId: string, eventId: string) {

@@ -43,7 +43,7 @@ it("masa hesabı kimlik ve sürüm taşır; aktif veya ödenmemiş hesabı kapat
   });
   const opened = await app.services.ordering.openCart(f.customerScope, f.branchId, {
     fulfilment: "dine_in",
-    tableSessionId: session.id,
+    context: { kind: "table_session", id: session.id },
     scheduledAt: null,
   });
   const cart = await app.services.ordering.replaceCart(f.customerScope, opened.id, {

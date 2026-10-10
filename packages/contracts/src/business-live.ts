@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { idSchema, timestampSchema } from "./common";
+import { orderContextSchema } from "./ordering";
 
 export const BUSINESS_TICKET_TTL_MS = 60_000;
 export const BUSINESS_SOCKET_TTL_MS = 5 * 60_000;
@@ -34,7 +35,7 @@ export const liveEventSchema = z.object({
     "table.request_resolved",
   ]),
   orderId: idSchema.nullable(),
-  tableSessionId: idSchema.nullable(),
+  context: orderContextSchema.nullable(),
 });
 export type LiveEvent = z.infer<typeof liveEventSchema>;
 export const liveReplayQuerySchema = z

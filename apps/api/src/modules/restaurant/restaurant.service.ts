@@ -71,7 +71,7 @@ export function createRestaurantService(
       cross join generate_series(0,coalesce(s.advance_days,7)) day_index
       cross join lateral generate_series(0,1439,coalesce(s.slot_minutes,15)) minute_index
       cross join lateral (select (((now() at time zone b.timezone)::date+day_index)::timestamp+make_interval(mins=>minute_index)) at time zone b.timezone as at) candidate
-      where b.business_id=${scope.businessId} and b.id=${branchId} and restaurant_fulfilment_allowed(${scope.businessId},${scope.appInstanceId},${branchId},'pickup',candidate.at,null,${scope.businessCustomerId}) order by candidate.at limit 500`);
+      where b.business_id=${scope.businessId} and b.id=${branchId} and ordering_fulfilment_status(${scope.businessId},${scope.appInstanceId},${branchId},'pickup',candidate.at,null,null,${scope.businessCustomerId},null,false)='ok' order by candidate.at limit 500`);
       return {
         items: rows.map((row) => ({ at: row.at.toISOString() })),
         preparationMinutes: branch.preparation_minutes,
@@ -221,7 +221,7 @@ export function createRestaurantService(
         total: number;
         paid: number;
       }>(sql`select coalesce(sum(o.total_minor),0)::bigint as total,coalesce(sum(case when p.id is null then 0 else p.amount_minor end),0)::bigint as paid
-      from orders o left join order_payments p on p.business_id=o.business_id and p.order_id=o.id where o.business_id=${scope.businessId} and o.table_session_id=${id}
+      from orders o left join order_payments p on p.business_id=o.business_id and p.order_id=o.id where o.business_id=${scope.businessId} and o.context_kind='table_session' and o.context_id=${id}
         and o.status not in ('rejected','cancelled') ${isCustomer ? sql`and o.business_customer_id=${scope.businessCustomerId} and o.app_instance_id=${scope.appInstanceId}` : sql.empty}`);
       if (isCustomer)
         return {
@@ -238,7 +238,7 @@ export function createRestaurantService(
         paidMinor: row.paid,
         dueMinor: row.total - row.paid,
         orders: await tx.many(
-          sql`select o.id,o.status,o.version,o.total_minor as "totalMinor",(o.total_minor=0 or exists(select 1 from order_payments p where p.business_id=o.business_id and p.order_id=o.id)) as paid from orders o where o.business_id=${scope.businessId} and o.table_session_id=${id} order by o.created_at,o.id`,
+          sql`select o.id,o.status,o.version,o.total_minor as "totalMinor",(o.total_minor=0 or exists(select 1 from order_payments p where p.business_id=o.business_id and p.order_id=o.id)) as paid from orders o where o.business_id=${scope.businessId} and o.context_kind='table_session' and o.context_id=${id} order by o.created_at,o.id`,
         ),
       };
     });
@@ -283,7 +283,7 @@ export function createRestaurantService(
       if (session.version !== expectedVersion || session.status !== "open")
         throw new AppError("settings_version_conflict");
       const busy = await tx.maybeOne(
-        sql`select id from orders o where o.business_id=${scope.businessId} and o.table_session_id=${id} and (o.status not in ('rejected','completed','cancelled') or (o.status='completed' and o.total_minor>0 and not exists(select 1 from order_payments p where p.business_id=o.business_id and p.order_id=o.id))) limit 1`,
+        sql`select id from orders o where o.business_id=${scope.businessId} and o.context_kind='table_session' and o.context_id=${id} and (o.status not in ('rejected','completed','cancelled') or (o.status='completed' and o.total_minor>0 and not exists(select 1 from order_payments p where p.business_id=o.business_id and p.order_id=o.id))) limit 1`,
       );
       if (busy !== null) throw new AppError("table_in_use");
       const row = await tx.maybeOne(

@@ -8,10 +8,9 @@ import { startTestApp } from "./harness";
 
 /** Boş, ayrı bir test veritabanı; üç rolün bağlantı adresleri ve silme işleviyle. */
 export async function createIsolatedDatabase() {
-  const admin = new pg.Client({
-    connectionString:
-      process.env.DATABASE_TEST_ADMIN_URL ?? "postgres://postgres:vado@localhost:5432/postgres",
-  });
+  const adminSource =
+    process.env.DATABASE_TEST_ADMIN_URL ?? "postgres://postgres:vado@localhost:5432/postgres";
+  const admin = new pg.Client({ connectionString: adminSource });
   const name = `vado_isolated_${randomBytes(6).toString("hex")}`;
   await admin.connect();
   await admin.query(`create database ${name} owner vado_owner`);
@@ -24,6 +23,8 @@ export async function createIsolatedDatabase() {
     databaseUrl: connection(inject("databaseUrl")),
     migrateUrl: connection(inject("databaseMigrateUrl")),
     platformUrl: connection(inject("databasePlatformUrl")),
+    /** Süper kullanıcı bağlantısı: yalnız eski sürüm verisini taklit eden geçiş testleri için. */
+    adminUrl: connection(adminSource),
     drop: async () => {
       await admin.query(`drop database if exists ${name} with (force)`);
       await admin.end();

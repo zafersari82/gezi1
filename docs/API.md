@@ -718,7 +718,9 @@ döner; checkout olmuş sepet `cart_closed`, eski sürüm `cart_version_conflict
 (döndürülen güncel sepet ile) verir. SDK `ordering.resetCart` sonucu
 `type:cart|cart_conflict` taşır.
 
-Sipariş özeti ve ayrıntısı sunucudan çözülmüş `tableLabel: string|null` taşır;
+Sepet ve sipariş bir bağlam taşıyabilir: `context: {kind, id} | null` (bugün tek tür
+`table_session`, masa servisi paketinin kaydı). Sipariş özeti ve ayrıntısı bağlamın adını
+`contextLabel: string|null` olarak taşır (ör. "Masa 4"); adı bağlamı kaydeden paket üretir.
 müşteri ve dar mutfak cihazı için aynı kapsam filtreleri geçerlidir. Sıfır toplam
 `paymentStatus:paid`, `paymentVersion:0` taşır; tahsilat kaydı gerektirmez.
 
@@ -748,11 +750,12 @@ kabul edilmez. Katalogda `includeUnavailable` ve teslim zamanı `at` sorgusu var
 | İşletme     | `GET /kitchen-devices`, `POST /kitchen-devices`                  | Cihazlar; onay `{code,label,branchId,appInstanceId}`      |
 | İşletme     | `POST /kitchen-devices/:id/revoke`                               | Cihaz ve açık bağlantısını kapatma                        |
 
-Sepet açma `{branchId,fulfilment,tableSessionId,scheduledAt}` alır; satırlara `note`
+Sepet açma `{branchId,fulfilment,context,addressId,scheduledAt}` alır; satırlara `note`
 eklenir. Mutfak kabulü 1–240 dakika, ret en az üç karakter ister. Sipariş
 `estimatedReadyAt`, `preparationMinutes`, `rejectionReason`, ayrı `paymentVersion`
-ve `paymentStatus` taşır. `place` table/counter, `method` cash/card; card fiziksel
-POS'tur. Online ödeme bu ucu kullanmaz. Ödeme ek kayıtla atomik tutulur.
+ve `paymentStatus` taşır. `place` teslim biçiminin kaydındaki tahsilat yerlerinden biridir
+(gel-al: counter; masada servis: table, counter; adrese teslim: delivery, counter), `method`
+cash/card; card fiziksel POS'tur. Online ödeme bu ucu kullanmaz. Ödeme ek kayıtla atomik tutulur.
 
 Kişisel giriş gerektirmeyen `POST /v1/kitchen-pairings` kısa kod ve gizli poll değeri
 verir; `POST /v1/kitchen-pairings/:id/poll` yalnız o gizli değerle sonuç alınmasını

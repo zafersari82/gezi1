@@ -71,6 +71,16 @@ export const engineCapabilityManifestSchema = z
      * için yalnız durum ekleyen paket kapatılabilir; davranış ekleyen paket kapatılamaz.
      */
     closableWithActiveOrders: z.boolean().default(false),
+    /** Paketin siparişin alınışına etkisi. */
+    intake: z
+      .object({
+        /** Açıkken teslim biçimleri yalnız paketlerle açılır; çekirdeğin varsayılan gel-al'ı kapanır. */
+        explicitModes: z.boolean(),
+        /** Açıkken sipariş yalnız şube açıkken verilir. */
+        openingHours: z.boolean(),
+      })
+      .strict()
+      .default({ explicitModes: false, openingHours: false }),
     dependsOn: z.array(
       z
         .object({

@@ -35,7 +35,7 @@ export function orderingRoutes(server: FastifyInstance, { services, guard }: Rou
       {
         addressId: body.addressId ?? null,
         fulfilment: body.fulfilment,
-        tableSessionId: body.tableSessionId ?? null,
+        context: body.context ?? null,
         scheduledAt: body.scheduledAt ?? null,
       },
     );

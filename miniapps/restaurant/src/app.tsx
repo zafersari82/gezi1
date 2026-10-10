@@ -254,7 +254,7 @@ export function App() {
           await save();
         } else if (
           existing.status === "open" &&
-          (seating === null || existing.tableSessionId === seating.id)
+          (seating === null || existing.context?.id === seating.id)
         ) {
           restoredCart = existing;
           acceptCart(existing);
@@ -464,7 +464,8 @@ export function App() {
           ...(fulfilment === "delivery" && deliveryAddressId !== null
             ? { addressId: deliveryAddressId }
             : {}),
-          tableSessionId: tableRef.current?.id ?? null,
+          context:
+            tableRef.current === null ? null : { kind: "table_session", id: tableRef.current.id },
           scheduledAt: scheduled || null,
         });
         acceptCart(current);

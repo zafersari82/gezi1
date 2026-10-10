@@ -11,6 +11,7 @@ import {
   incentiveChoiceSchema,
   incentiveQuoteSchema,
   type Order,
+  type OrderContext,
   type OrderListQuery,
   type OrderSummary,
   type RecordOrderPaymentBody,
@@ -36,7 +37,7 @@ import { withPlatformMutation } from "../../core/platform-mutations";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
 import type { CatalogService } from "../catalog/catalog.service";
 import { quoteDelivery } from "../delivery/delivery-policy";
-import { type createFulfilmentValidator, type FulfilmentChoice } from "./fulfilment";
+import { type FulfilmentChoice, validateFulfilment } from "./fulfilment";
 
 interface CartRow {
   incentive_choice: IncentiveChoice;
@@ -47,7 +48,8 @@ interface CartRow {
   app_instance_id: string;
   business_customer_id: string;
   fulfilment: Cart["fulfilment"];
-  table_session_id: string | null;
+  context_kind: OrderContext["kind"] | null;
+  context_id: string | null;
   scheduled_at: Date | null;
   status: Cart["status"];
   version: number;
@@ -72,8 +74,8 @@ interface OrderRow {
   app_instance_id: string;
   business_customer_id: string;
   fulfilment: Cart["fulfilment"];
-  table_session_id: string | null;
-  table_label?: string | null;
+  context_kind: OrderContext["kind"] | null;
+  context_id: string | null;
   scheduled_at: Date | null;
   status: string;
   version: number;
@@ -119,7 +121,15 @@ function memberOrders(
   if (scope.role === "customer" || scope.role === "device") return sql.empty;
   return permittedBranch(scope, permission, sql`orders.branch_id`);
 }
-function summary(row: OrderRow): OrderSummary {
+function contextOf(row: {
+  context_kind: OrderContext["kind"] | null;
+  context_id: string | null;
+}): OrderContext | null {
+  return row.context_kind === null || row.context_id === null
+    ? null
+    : { kind: row.context_kind, id: row.context_id };
+}
+function summary(row: OrderRow, contextLabel: string | null): OrderSummary {
   return {
     branchTimezone: row.branch_timezone,
     id: row.id,
@@ -129,8 +139,8 @@ function summary(row: OrderRow): OrderSummary {
     appInstanceId: row.app_instance_id,
     businessCustomerId: row.business_customer_id,
     fulfilment: row.fulfilment,
-    tableSessionId: row.table_session_id,
-    tableLabel: row.table_label ?? null,
+    context: contextOf(row),
+    contextLabel,
     scheduledAt: row.scheduled_at?.toISOString() ?? null,
     preparationMinutes: row.preparation_minutes,
     estimatedReadyAt: row.estimated_ready_at?.toISOString() ?? null,
@@ -146,6 +156,14 @@ function summary(row: OrderRow): OrderSummary {
     updatedAt: row.updated_at.toISOString(),
   };
 }
+
+/** Bağlam türünü kaydeden paketin, bağlamların kişiye gösterilen adlarını toplu okuyan işlevi. */
+export type ContextLabeler = (
+  tx: Database,
+  scope: TenantScope,
+  ids: readonly string[],
+) => Promise<ReadonlyMap<string, string>>;
+export type ContextLabels = Readonly<Partial<Record<OrderContext["kind"], ContextLabeler>>>;
 
 /** Paketlerin sipariş işletimine kattığı kurallar; çekirdek paket adlarını bilmez. */
 export interface OrderRules {
@@ -163,10 +181,33 @@ export function createOrderingService(
   { db }: TenantContext,
   catalog: CatalogService,
   rules: OrderRules,
-  validateFulfilment: ReturnType<typeof createFulfilmentValidator>,
+  contextLabels: ContextLabels,
   lifecycle: OrderingLifecycle,
   priceOrder: OrderPricing,
 ) {
+  /** Siparişlerin bağlam adları, bağlamı kaydeden paketten tür başına tek sorguyla okunur. */
+  async function labelsFor(
+    tx: Database,
+    scope: TenantScope,
+    rows: readonly OrderRow[],
+  ): Promise<(row: OrderRow) => string | null> {
+    const byKind = new Map<OrderContext["kind"], string[]>();
+    for (const row of rows) {
+      const context = contextOf(row);
+      if (context !== null)
+        byKind.set(context.kind, [...(byKind.get(context.kind) ?? []), context.id]);
+    }
+    const labels = new Map<string, string>();
+    for (const [kind, ids] of byKind) {
+      const labeler = contextLabels[kind];
+      if (labeler === undefined) continue;
+      for (const [id, label] of await labeler(tx, scope, ids)) labels.set(`${kind}:${id}`, label);
+    }
+    return (row) => {
+      const context = contextOf(row);
+      return context === null ? null : (labels.get(`${context.kind}:${context.id}`) ?? null);
+    };
+  }
   async function expireOwned(tx: Database, scope: TenantScope): Promise<void> {
     const { instanceId, customerId } = customer(scope);
     await tx.execute(sql`update carts set status='expired',version=version+1 where business_id=${scope.businessId}
@@ -241,7 +282,7 @@ export function createOrderingService(
           businessId: scope.businessId,
           branchId: row.branch_id,
           fulfilment: row.fulfilment,
-          tableSessionId: row.table_session_id,
+          context: contextOf(row),
           scheduledAt: row.scheduled_at?.toISOString() ?? null,
           lines,
           incentives: priced.incentives,
@@ -257,7 +298,7 @@ export function createOrderingService(
       businessCustomerId: row.business_customer_id,
       fulfilment: row.fulfilment,
       addressId: row.address_id,
-      tableSessionId: row.table_session_id,
+      context: contextOf(row),
       scheduledAt: row.scheduled_at?.toISOString() ?? null,
       status: row.status,
       version: row.version,
@@ -289,7 +330,7 @@ export function createOrderingService(
     branchId: string,
     choice: FulfilmentChoice = {
       fulfilment: "pickup",
-      tableSessionId: null,
+      context: null,
       scheduledAt: null,
     },
     connection: Database = db,
@@ -304,8 +345,8 @@ export function createOrderingService(
       await validateFulfilment(tx, scope, branchId, choice);
       for (let attempt = 0; attempt < 3; attempt++) {
         let row =
-          await tx.maybeOne<CartRow>(sql`insert into carts(business_id,branch_id,app_instance_id,business_customer_id,fulfilment,table_session_id,scheduled_at,address_id)
-          values(${scope.businessId},${branchId},${instanceId},${customerId},${choice.fulfilment},${choice.tableSessionId},${choice.scheduledAt},${choice.addressId ?? null})
+          await tx.maybeOne<CartRow>(sql`insert into carts(business_id,branch_id,app_instance_id,business_customer_id,fulfilment,context_kind,context_id,scheduled_at,address_id)
+          values(${scope.businessId},${branchId},${instanceId},${customerId},${choice.fulfilment},${choice.context?.kind ?? null},${choice.context?.id ?? null},${choice.scheduledAt},${choice.addressId ?? null})
           on conflict(business_id,app_instance_id,business_customer_id,branch_id) where status='open' do nothing returning *`);
         row ??=
           await tx.maybeOne<CartRow>(sql`select * from carts where business_id=${scope.businessId} and branch_id=${branchId}
@@ -314,11 +355,12 @@ export function createOrderingService(
           if (
             row.address_id !== (choice.addressId ?? null) ||
             row.fulfilment !== choice.fulfilment ||
-            row.table_session_id !== choice.tableSessionId ||
+            row.context_kind !== (choice.context?.kind ?? null) ||
+            row.context_id !== (choice.context?.id ?? null) ||
             (row.scheduled_at?.toISOString() ?? null) !== choice.scheduledAt
           )
             row = await tx.one<CartRow>(
-              sql`update carts set address_id=${choice.addressId ?? null},fulfilment=${choice.fulfilment},table_session_id=${choice.tableSessionId},scheduled_at=${choice.scheduledAt},version=version+1 where business_id=${scope.businessId} and id=${row.id} returning *`,
+              sql`update carts set address_id=${choice.addressId ?? null},fulfilment=${choice.fulfilment},context_kind=${choice.context?.kind ?? null},context_id=${choice.context?.id ?? null},scheduled_at=${choice.scheduledAt},version=version+1 where business_id=${scope.businessId} and id=${row.id} returning *`,
             );
           return cartView(tx, scope, row);
         }
@@ -460,7 +502,7 @@ export function createOrderingService(
           ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
           : sql.empty;
     const row = await tx.maybeOne<OrderRow>(
-      sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,(select t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=orders.business_id and s.id=orders.table_session_id) as table_label,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} and id=${id} ${owned} ${memberOrders(scope, "orders.view")} for share of orders`,
+      sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} and id=${id} ${owned} ${memberOrders(scope, "orders.view")} for share of orders`,
     );
     if (row === null) throw new AppError("not_found");
     const lines = await tx.many<OrderLineRow>(
@@ -493,7 +535,7 @@ export function createOrderingService(
       created_at: Date;
     }>(sql`select * from order_payments where business_id=${scope.businessId} and order_id=${id}`);
     return {
-      ...summary(row),
+      ...summary(row, (await labelsFor(tx, scope, [row]))(row)),
       incentives:
         row.incentive_snapshot === null ? null : incentiveQuoteSchema.parse(row.incentive_snapshot),
       payment:
@@ -556,7 +598,7 @@ export function createOrderingService(
           {
             addressId: row.address_id,
             fulfilment: row.fulfilment,
-            tableSessionId: row.table_session_id,
+            context: contextOf(row),
             scheduledAt: row.scheduled_at?.toISOString() ?? null,
           },
           true,
@@ -589,9 +631,9 @@ export function createOrderingService(
         );
         const order = await tx.one<{
           id: string;
-        }>(sql`insert into orders(business_id,cart_id,branch_id,app_instance_id,business_customer_id,fulfilment,total_minor,vat_minor,state_graph,capabilities,table_session_id,scheduled_at,delivery_fee_minor,incentive_snapshot)
+        }>(sql`insert into orders(business_id,cart_id,branch_id,app_instance_id,business_customer_id,fulfilment,total_minor,vat_minor,state_graph,capabilities,context_kind,context_id,scheduled_at,delivery_fee_minor,incentive_snapshot)
         values(${scope.businessId},${id},${row.branch_id},${row.app_instance_id},${customerId},${row.fulfilment},${cart.totalMinor},${cart.vatMinor},
-          ordering_workflow_for_fulfilment(${scope.businessId},${row.app_instance_id},${row.fulfilment}),ordering_capabilities_for_instance(${scope.businessId},${row.app_instance_id}),${row.table_session_id},${row.scheduled_at},${cart.delivery?.feeMinor ?? 0},${JSON.stringify(cart.incentives)}::jsonb) returning id`);
+          ordering_workflow_for_fulfilment(${scope.businessId},${row.app_instance_id},${row.fulfilment}),ordering_capabilities_for_instance(${scope.businessId},${row.app_instance_id}),${row.context_kind},${row.context_id},${row.scheduled_at},${cart.delivery?.feeMinor ?? 0},${JSON.stringify(cart.incentives)}::jsonb) returning id`);
         for (const [position, line] of cart.lines.entries()) {
           const saved = await tx.one<{
             id: string;
@@ -663,9 +705,11 @@ export function createOrderingService(
       const filters = sql`${page.branchId === undefined ? sql.empty : sql`and branch_id=${page.branchId}`} ${page.appInstanceId === undefined ? sql.empty : sql`and app_instance_id=${page.appInstanceId}`}`;
       const sorting = ascending ? sql`created_at asc,id asc` : sql`created_at desc,id desc`;
       const rows = await tx.many<OrderRow>(
-        sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,(select t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=orders.business_id and s.id=orders.table_session_id) as table_label,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} ${owned} ${memberOrders(scope, "orders.view")} ${cursor} ${status} ${statuses} ${active} ${filters} order by ${sorting} limit ${page.limit + 1}`,
+        sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} ${owned} ${memberOrders(scope, "orders.view")} ${cursor} ${status} ${statuses} ${active} ${filters} order by ${sorting} limit ${page.limit + 1}`,
       );
-      const items = rows.slice(0, page.limit).map(summary);
+      const visible = rows.slice(0, page.limit);
+      const labelOf = await labelsFor(tx, scope, visible);
+      const items = visible.map((row) => summary(row, labelOf(row)));
       return { items, nextCursor: rows.length > page.limit ? (items.at(-1)?.id ?? null) : null };
     });
   }
@@ -782,10 +826,11 @@ export function createOrderingService(
       const order = await readOrder(tx, scope, id);
       if (order.paymentVersion !== body.expectedPaymentVersion || order.paymentStatus === "paid")
         throw new AppError("payment_version_conflict", { order });
-      if (
-        ["placed", "rejected", "cancelled"].includes(row.status) ||
-        (body.place === "table" && row.fulfilment !== "dine_in")
-      )
+      // Tahsilat yeri teslim biçiminin paket kaydından gelir.
+      const place = await tx.one<{ allowed: boolean }>(
+        sql`select coalesce(${body.place}=any(payment_places),false) as allowed from ordering_fulfilment_modes where code=${row.fulfilment}`,
+      );
+      if (["placed", "rejected", "cancelled"].includes(row.status) || !place.allowed)
         throw new AppError("order_state_invalid");
       const actor = await tx.one<{ id: string }>(
         sql`select id from business_members where business_id=${scope.businessId} and user_id=${scope.userId} and active`,

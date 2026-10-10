@@ -186,7 +186,10 @@ describe("Restoran siparişinin gerçek işlemleri", () => {
       { body: { qr: qr.value } },
     );
     expect(session.tableId).toBe(table.id);
-    const cart = await filled(f, { fulfilment: "dine_in", tableSessionId: session.id });
+    const cart = await filled(f, {
+      fulfilment: "dine_in",
+      context: { kind: "table_session", id: session.id },
+    });
     const order = orderSchema.parse((await checkout(f, cart)).body);
     expect(order.fulfilment).toBe("dine_in");
     const key = randomUUID();

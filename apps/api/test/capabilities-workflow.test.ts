@@ -49,6 +49,7 @@ test("Studio sözleşmesi Zod'dan JSON Schema üretir; kod ve müşteri ekranı 
       "engine",
       "events",
       "id",
+      "intake",
       "permissions",
       "role",
       "stateMachine",

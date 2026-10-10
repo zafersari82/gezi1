@@ -1,5 +1,5 @@
 "use client";
-import { formatBranchDateTime } from "@vado/contracts";
+import { formatBranchDateTime, FULFILMENT_LABELS } from "@vado/contracts";
 import {
   mergeOrderSnapshot,
   type Order,
@@ -186,7 +186,7 @@ export function OrdersView({
               <div className="order-bottom">
                 <span className="muted">
                   {formatBranchDateTime(o.createdAt, o.branchTimezone)} ·{" "}
-                  {o.fulfilment === "dine_in" ? "Masada" : "Gel al"}
+                  {FULFILMENT_LABELS[o.fulfilment]}
                 </span>
                 <strong>{money(o.totalMinor)}</strong>
               </div>

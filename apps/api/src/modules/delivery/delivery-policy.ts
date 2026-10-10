@@ -5,21 +5,6 @@ import { AppError } from "../../core/errors";
 import type { TenantScope } from "../../core/tenant-scope";
 import { readOwnedAddress } from "../location/location-addresses";
 import { readMatchingServiceAreas } from "../location/location-areas";
-import type { FulfilmentPolicy } from "../ordering/fulfilment";
-export const deliveryFulfilmentPolicy: FulfilmentPolicy = {
-  supports: (caps, choice) =>
-    choice.fulfilment === "delivery" && caps.includes("ordering.delivery@1.0.0"),
-  async validate(tx, scope, branchId, choice, checkout) {
-    if (choice.tableSessionId !== null || !choice.addressId)
-      throw new AppError("fulfilment_unavailable");
-    if (checkout) {
-      const row = await tx.one<{ open: boolean }>(
-        sql`select branch_is_open(${scope.businessId},${branchId},now()) as open`,
-      );
-      if (!row.open) throw new AppError("branch_closed");
-    }
-  },
-};
 export async function quoteDelivery(
   tx: Database,
   scope: TenantScope,

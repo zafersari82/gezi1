@@ -1,5 +1,5 @@
 "use client";
-import { formatBranchDateTime } from "@vado/contracts";
+import { formatBranchDateTime, FULFILMENT_LABELS } from "@vado/contracts";
 import {
   type Branch,
   type LiveEvent,
@@ -248,12 +248,12 @@ export function KitchenView({
               </span>
             </div>
             <p>
-              {o.fulfilment === "dine_in" ? "Masada servis" : "Gel al"} ·{" "}
+              {FULFILMENT_LABELS[o.fulfilment]} ·{" "}
               {formatBranchDateTime(o.createdAt, o.branchTimezone)}
             </p>
-            {o.fulfilment === "dine_in" && o.tableLabel && (
+            {o.contextLabel !== null && (
               <p>
-                <strong>{o.tableLabel}</strong>
+                <strong>{o.contextLabel}</strong>
               </p>
             )}
             {o.scheduledAt && (

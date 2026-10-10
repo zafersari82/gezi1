@@ -114,7 +114,7 @@ async function seated(f: Awaited<ReturnType<typeof createRestaurantFixture>>, la
   );
   const opened = await app.services.ordering.openCart(f.customerScope, f.branchId, {
     fulfilment: "dine_in",
-    tableSessionId: session.id,
+    context: { kind: "table_session", id: session.id },
     scheduledAt: null,
   });
   const cart = await app.services.ordering.replaceCart(f.customerScope, opened.id, {
@@ -176,9 +176,9 @@ it("mutfak kuyruğu ve müşterinin siparişi sunucudan doğru masa etiketini al
     status: 200,
     body: {
       items: [
-        { id: f.order.id, tableLabel: null },
-        { id: a.order.id, tableLabel: "Teras 12" },
-        { id: b.order.id, tableLabel: "Salon 3" },
+        { id: f.order.id, contextLabel: null },
+        { id: a.order.id, contextLabel: "Teras 12" },
+        { id: b.order.id, contextLabel: "Salon 3" },
       ],
     },
   });
@@ -187,5 +187,5 @@ it("mutfak kuyruğu ve müşterinin siparişi sunucudan doğru masa etiketini al
       "GET",
       `/v1/shell/${f.businessId}/${f.instanceId}/orders/${b.order.id}`,
     ),
-  ).toMatchObject({ status: 200, body: { tableLabel: "Salon 3" } });
+  ).toMatchObject({ status: 200, body: { contextLabel: "Salon 3" } });
 });

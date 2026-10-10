@@ -24,13 +24,26 @@ export const CORE_ORDER_GRAPH: Readonly<Record<string, readonly string[]>> = {
 export const orderStateSchema = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/);
 export const orderGraphSchema = z.record(orderStateSchema, z.array(orderStateSchema).max(20));
 export const expectedVersionSchema = z.number().int().min(1).max(2_147_483_647);
+/** Paketlerin kaydettiği teslim biçimleri. Çekirdek bir biçimin adını bilmez. */
 export const fulfilmentSchema = z.enum(["pickup", "dine_in", "delivery"]);
+export type Fulfilment = z.infer<typeof fulfilmentSchema>;
+export const FULFILMENT_LABELS: Readonly<Record<Fulfilment, string>> = {
+  pickup: "Gel-al",
+  dine_in: "Masada servis",
+  delivery: "Adrese teslim",
+};
+/** Paketlerin kaydettiği sipariş bağlamı türleri (masa servisi: masa oturumu). */
+export const ORDER_CONTEXT_KINDS = ["table_session"] as const;
+export const orderContextSchema = z
+  .object({ kind: z.enum(ORDER_CONTEXT_KINDS), id: idSchema })
+  .strict();
+export type OrderContext = z.infer<typeof orderContextSchema>;
 export const openCartBodySchema = z
   .object({
     branchId: idSchema,
     addressId: idSchema.nullable().optional(),
     fulfilment: fulfilmentSchema.default("pickup"),
-    tableSessionId: idSchema.nullable().optional(),
+    context: orderContextSchema.nullable().optional(),
     scheduledAt: z.iso.datetime({ offset: true }).nullable().optional(),
   })
   .strict();
@@ -84,7 +97,7 @@ export const cartSchema = z.object({
   fulfilment: fulfilmentSchema,
   /** Sepet sahibine ait adres kimliği; tam adres teslimat teklifinde izinle açılır. */
   addressId: idSchema.nullable().optional(),
-  tableSessionId: idSchema.nullable().default(null),
+  context: orderContextSchema.nullable().default(null),
   scheduledAt: timestampSchema.nullable().default(null),
   status: z.enum(["open", "checked_out", "expired"]),
   version: expectedVersionSchema,
@@ -107,8 +120,9 @@ export const orderSummarySchema = z.object({
   appInstanceId: idSchema,
   businessCustomerId: idSchema,
   fulfilment: fulfilmentSchema,
-  tableSessionId: idSchema.nullable().default(null),
-  tableLabel: z.string().nullable().default(null),
+  context: orderContextSchema.nullable().default(null),
+  /** Bağlamın kişiye gösterilen adı (ör. "Masa 4"); bağlamı kaydeden paket üretir. */
+  contextLabel: z.string().nullable().default(null),
   scheduledAt: timestampSchema.nullable().default(null),
   status: orderStateSchema,
   version: expectedVersionSchema,

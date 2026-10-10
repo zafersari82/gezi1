@@ -14,6 +14,14 @@ Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman deği
   derleyicisi de paket adına göre sıralamayı bıraktı. Manifest ile katalog ve 256 paket bileşiminin
   akışı her derlemede karşılaştırılır. Masa servisi, açık masa varken kapatılamaz (önceden başka
   bir kuralın içindeydi, artık paketin kendi kuralı).
+- **Sipariş bağlamı ve teslim biçimi kaydı (A2-2b):** masa oturumu sepet, sipariş ve canlı olay
+  tablolarından çıktı; yerine genel bağlam (`context: {kind, id}`, `contextLabel`) geldi. Teslim
+  biçimleri, tahsilat yerleri ve canlı olay türleri paket kayıtlarından okunur (`0033`, `0034`).
+  Eski masa bağları yükseltmede bağlama taşınır. API'de restorana ve teslimata özel teslim biçimi
+  denetimleri tek, genel denetime indi. Mutfak ekranı ve sipariş listesi eve teslim siparişlerini
+  "Gel al" diye gösteriyordu; artık "Adrese teslim" yazar.
+  - **Sözleşme değişikliği:** `tableSessionId` → `context`, `tableLabel` → `contextLabel`; sepet
+    açma `context` alır. Dışarıda yayımlanmış mini uygulama yok; restoran ve mağaza güncellendi.
 - **Mağazam planı:** telefondan kod yazmadan dükkân kurma planı
   ([docs/PLAN_MAGAZAM.md](docs/PLAN_MAGAZAM.md)).
 
