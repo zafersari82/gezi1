@@ -12,7 +12,19 @@ export const timezoneSchema = z
     }
   });
 
-/** Cihaz saat diliminden bağımsız şube tarihi; saat dilimi kullanıcıya açıkça gösterilir. */
+/** Platformun yurt içi saat dilimi; bu dilimdeki saatler kişiye dilim adı olmadan gösterilir. */
+export const HOME_TIMEZONE = "Europe/Istanbul";
+
+/** Saat diliminin kişiye gösterilen adı ("Europe/Berlin" → "Berlin"); yurt içinde gösterilmez. */
+export function timezoneLabel(timezone: string): string | null {
+  if (timezone === HOME_TIMEZONE) return null;
+  return (timezone.split("/").at(-1) ?? timezone).replaceAll("_", " ");
+}
+
+/**
+ * Cihaz saat diliminden bağımsız şube tarihi. Şube yurt dışındaysa şehir adı eklenir; teknik
+ * saat dilimi adı ("Europe/Istanbul") hiç gösterilmez.
+ */
 export function formatBranchDateTime(value: string, timezone: string): string {
   const parts = new Intl.DateTimeFormat("tr-TR", {
     timeZone: timezone,
@@ -24,5 +36,7 @@ export function formatBranchDateTime(value: string, timezone: string): string {
   }).formatToParts(new Date(value));
   const part = (name: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === name)?.value ?? "";
-  return `${part("day")} ${part("month")} ${part("hour")}:${part("minute")} · ${timezone}`;
+  const time = `${part("day")} ${part("month")} ${part("hour")}:${part("minute")}`;
+  const label = timezoneLabel(timezone);
+  return label === null ? time : `${time} · ${label}`;
 }

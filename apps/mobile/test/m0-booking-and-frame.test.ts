@@ -21,3 +21,15 @@ test("M0: WebView yükleme hatası kullanıcı tekrar denemeden silinmez", () =>
   expect(webFrame).toContain("if (failed)");
   expect(webFrame).toMatch(/onError=\{\(\) => \{?\s*setFailed\(true\);?\s*\}?\}/);
 });
+
+test("M0: işletme sayfasında açılamayan mini uygulamanın nedeni kalıcı kalır", () => {
+  const page = read("../src/app/(app)/businesses/[id].tsx");
+  const launch = page.slice(
+    page.indexOf("async function openBusinessApp"),
+    page.indexOf("async function openDeliveryStore"),
+  );
+  expect(launch).toContain("setAppError({ miniAppId, message: errorMessage(error) })");
+  expect(launch).not.toContain("notify(");
+  expect(page).toContain("Mini uygulama açılamadı:");
+  expect(page).toContain('label="Yeniden dene"');
+});

@@ -11,6 +11,7 @@ import {
   studioPaletteById,
   studioTemplateById,
   type TableSession,
+  timezoneLabel,
 } from "@vado/contracts";
 import { vado } from "@vado/miniapp-sdk";
 import { unmetDeliveryMinimum } from "@vado/miniapp-shared/cart-rules";
@@ -589,6 +590,8 @@ export function App() {
           "--store-surface": storefrontPalette.surface,
         } as CSSProperties);
   const selectedBranch = context?.branches.find((b) => b.id === branch);
+  const zoneLabel = selectedBranch === undefined ? null : timezoneLabel(selectedBranch.timezone);
+  const zoneSuffix = zoneLabel === null ? "" : ` · ${zoneLabel}`;
   const belowDeliveryMinimum = unmetDeliveryMinimum(cart) !== null;
   const canOrder =
     ready &&
@@ -706,7 +709,7 @@ export function App() {
                   Teslimat bilgisini yenile
                 </button>
                 <label>
-                  Teslim zamanı · {selectedBranch?.timezone}
+                  Teslim zamanı{zoneSuffix}
                   <select
                     value={scheduled}
                     disabled={cart !== null || busy}
@@ -749,7 +752,7 @@ export function App() {
                   </select>
                 </label>
                 <label>
-                  Teslim zamanı · {selectedBranch?.timezone}
+                  Teslim zamanı{zoneSuffix}
                   <select
                     value={scheduled}
                     disabled={cart !== null || busy}

@@ -49,10 +49,13 @@ export default function BusinessScreen() {
   const [reporting, setReporting] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
   const [openingApp, setOpeningApp] = useState<string | null>(null);
+  // Açılamayan mini uygulamanın nedeni satırın altında kalır; kısa bildirim gibi kaybolmaz.
+  const [appError, setAppError] = useState<{ miniAppId: string; message: string } | null>(null);
   const { notify } = useFeedback();
   async function openBusinessApp(miniAppId: string) {
     if (openingApp !== null || !id) return;
     setOpeningApp(miniAppId);
+    setAppError(null);
     try {
       // İşletme örneğini sunucu belirler; kabuk bu kapsamı her işlemde doğrular.
       const context = businessMiniAppLaunchSchema.parse(
@@ -66,7 +69,7 @@ export default function BusinessScreen() {
       });
       router.push({ pathname: "/miniapps/[id]", params: { id: miniAppId, launch } });
     } catch (error) {
-      notify(errorMessage(error));
+      setAppError({ miniAppId, message: errorMessage(error) });
     } finally {
       setOpeningApp(null);
     }
@@ -272,23 +275,37 @@ export default function BusinessScreen() {
         </AppText>
       )}
       {miniApps.map((miniApp) => (
-        <ListRow
-          key={miniApp.id}
-          title={miniApp.name}
-          subtitle={miniApp.description}
-          subtitleLines={2}
-          leading={<MiniAppIcon miniApp={miniApp} />}
-          trailing={openingApp === miniApp.id ? <ActivityIndicator color={colors.teal} /> : null}
-          chevron
-          onPress={
-            openingApp === null
-              ? () => {
+        <View key={miniApp.id}>
+          <ListRow
+            title={miniApp.name}
+            subtitle={miniApp.description}
+            subtitleLines={2}
+            leading={<MiniAppIcon miniApp={miniApp} />}
+            trailing={openingApp === miniApp.id ? <ActivityIndicator color={colors.teal} /> : null}
+            chevron
+            onPress={
+              openingApp === null
+                ? () => {
+                    void openBusinessApp(miniApp.id);
+                  }
+                : undefined
+            }
+            testID={`business-miniapp-${miniApp.id}`}
+          />
+          {appError?.miniAppId === miniApp.id && (
+            <View style={styles.appError} accessibilityRole="alert">
+              <AppText color="coral">Mini uygulama açılamadı: {appError.message}</AppText>
+              <Button
+                label="Yeniden dene"
+                variant="secondary"
+                size="small"
+                onPress={() => {
                   void openBusinessApp(miniApp.id);
-                }
-              : undefined
-          }
-          testID={`business-miniapp-${miniApp.id}`}
-        />
+                }}
+              />
+            </View>
+          )}
+        </View>
       ))}
 
       <ReportSheet
@@ -302,6 +319,14 @@ export default function BusinessScreen() {
 }
 
 const styles = StyleSheet.create({
+  appError: {
+    gap: space.sm,
+    marginHorizontal: space.lg,
+    marginBottom: space.md,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.coralSoft,
+  },
   channelFollow: {
     padding: space.lg,
     gap: space.sm,

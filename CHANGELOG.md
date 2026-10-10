@@ -1,10 +1,32 @@
 # Değişiklikler
 
-## Hazırlanıyor: M0 ekran kabulü (doğrulama bekliyor)
+## 2.8.0-alpha.7 — ekranlarda görülen kusurlar (M0) (2026-10-10)
 
-- Restoran ve mağaza dar ekran düzenleri, operasyon tarihi ve kısa sipariş kimlikleri sadeleştirildi.
-- İptal/tahsilat görünürlüğü, tutar taşması, randevu başlıkları ve örnek berber uygulama örneği iyileştirildi.
-- M0 gerçek cihaz, PostgreSQL ve bütün çalışma alanı testleri tamamlanmadan yeni sürüm yayımlanmaz.
+Uygulama gerçek veriyle çalıştırılıp telefon boyutunda (390×844) ekran görüntüsü alındığında
+görülen yedi kusur düzeltildi ve her biri yine gerçek uygulamada, 360 ve 390 px genişlikte
+doğrulandı. Kayıt: [docs/M0_EKRAN_KABUL.md](docs/M0_EKRAN_KABUL.md).
+
+- **Dar ekran:** restoran menüsü 560 px altında tek sütun; restoran ve mağaza mini uygulamaları
+  360 ve 390 px'te yana taşmaz (önceden menü yüklenince içerik 468 px oluyordu).
+- **Ham teknik bilgi kaldırıldı:** ortak tarih biçimlendiricisi (`formatBranchDateTime`) yurt içi
+  şubede saat dilimi adı göstermez, yurt dışındaki şubede şehir adını ekler ("· Berlin"). Business
+  siparişleri, mutfak ve restoranın teslim zamanı listesi aynı kurala uyar. Business'ta sipariş
+  numarası kısa ve okunur (#696D); tam kimlik kayıtta değişmez.
+- **Business telefon menüsü:** en çok dört günlük iş ve "Diğer"; restoranda Siparişler, Mutfak,
+  Masalar, Mesajlar; randevu işletmesinde Randevular, Mesajlar, Şubeler, Ayarlar. Randevu
+  işletmesinde sipariş bölümleri gizli; uygulama örneği olmayan işletme çekirdek bölümleri görür.
+- **Sipariş ayrıntısı:** iptal düğmesi "İptal et"; tahsilat kutusu yalnız kabulden sonra; iade
+  paketi açıkken doğrudan iptal yerine iptal talebinin İadeler'den değerlendirileceği yazar.
+- **Tutar kartları** telefonda tek satırda kalır.
+- **Randevu ekranı** uygulamanın başlık ölçeğini kullanır.
+- **Mini uygulama açılamazsa** neden işletme sayfasında satırın altında kalıcı görünür ve
+  "Yeniden dene" düğmesi vardır (önceden kısa bildirimle kayboluyordu); mini uygulama çerçevesi
+  yüklenemezse de kalıcı hata ekranı çıkar. Örnek veri berberin mini uygulaması için uygulama örneği
+  açar; komut tekrar çalıştırılınca tek örnek kalır.
+- Kaynak ChatGPT'de yazıldı ve orada çalıştırılamadı. Doğrulamada düzeltilenler: biçim ve lint
+  hataları; menü değişikliğinin yeni işletmelerde Şubeler/Ayarlar/Ürünler bölümlerini gizlemesi;
+  saat dilimi düzeltmesinin yalnız Business'ta kalıp restoranda sürmesi (ortak biçimlendiricide
+  çözüldü); asıl şikâyet olan işletme sayfasındaki kaybolan açılış hatasının ele alınmamış olması.
 
 ## 2.8.0-alpha.6 — tarafsız sipariş çekirdeği (A2) (2026-10-10)
 

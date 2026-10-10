@@ -1,6 +1,6 @@
 # VADO 2.8 — devir talimatı (yapay zekâ geliştiriciye yapıştırılacak metin)
 
-Bu metnin tamamını, birlikte verilen tam kaynak ZIP'iyle (`VADO_2.8.0-alpha.6.zip` ya da
+Bu metnin tamamını, birlikte verilen tam kaynak ZIP'iyle (`VADO_2.8.0-alpha.7.zip` ya da
 daha yenisi) birlikte geliştiriciye ver. Metin bağlayıcıdır; belirsizlikte bu metin ve
 `docs/` altındaki belgeler kazanır.
 
@@ -88,7 +88,7 @@ PostgreSQL ya da Redis çalıştıramıyorsa:
 
 ### İlk iş: devraldığın ZIP'i doğrula
 
-Sana verilen ZIP (`VADO_2.8.0-alpha.6.zip` ya da daha yenisi) boş klasörde
+Sana verilen ZIP (`VADO_2.8.0-alpha.7.zip` ya da daha yenisi) boş klasörde
 `npm ci` + `npm run check` ile doğrulandı. Yine de ilk adımın kendi ortamında aynı iki komutu
 çalıştırmak ve sonucu sayılarla yazmaktır. Ortamın çalıştıramıyorsa bunu açıkça söyle.
 
@@ -112,6 +112,20 @@ alfabetik, büyük harfle başlayan adlar küçüklerden önce).
   kaydı benzersiz adlandır.
 - Veritabanı tetikleyicisinin iş kuralı reddi (23514) API'den 500 olarak çıkmamalı; servis ya
   önceden sorar ya da `isCheckViolation` ile uygun hata koduna çevirir.
+
+**M0 turundan dersler:** Biçim ve lint hataları yine vardı (3 + 8 dosya, 2 tip hatası). Ayrıca:
+
+- **Kusuru kaynağında düzelt.** "Europe/Istanbul" ortak biçimlendiriciden geliyordu; yalnız
+  Business ekranlarını düzeltmek restoranda kusuru bıraktı. Önce metnin nereden üretildiğini ara
+  (`grep`), düzeltmeyi oraya yap.
+- **Şikâyet edilen yeri düzelt.** Madde 7'deki kaybolan hata, işletme sayfasındaki açılış
+  isteğinin bildirimiydi; mini uygulama çerçevesinin hata ekranı başka bir durumdu.
+- **Bir şeyi gizlerken yedeği silme.** Randevu işletmesinde Siparişler'i gizlemek için menü
+  yedeğini kaldırmak, uygulama örneği olmayan her işletmede Şubeler/Ayarlar/Ürünler'i de gizledi.
+- **Next.js tipli bağlantı:** `href` olarak düz metin değil, `{ pathname, query }` ver.
+- **Kaynak metnini arayan test zayıftır;** biçimlendirme değişince kırılır, davranışı kanıtlamaz.
+  Mümkünse işlevi ya da bileşeni çalıştıran test yaz. Ekranla ilgili kabulün asıl kanıtı gerçek
+  uygulamada tarayıcı ölçümüdür (bkz. `docs/M0_EKRAN_KABUL.md`).
 
 ---
 
@@ -311,7 +325,9 @@ Aşağıdaki tanım uygulandı. Yeniden yapma; sıradaki adım "Adım M0".
 4. Sürüm `2.8.0-alpha.6` (her yerde + kilit dosyası). CHANGELOG'daki "Hazırlanıyor" bölümü tarihli
    `2.8.0-alpha.6` olur. `docs/PLAN_2.8.md` A2'yi tamamlandı olarak işaretle.
 
-### Adım M0 — Ekranlarda görülen kusurlar (Mağazam'dan önce) → sürüm 2.8.0-alpha.7
+### Adım M0 — TAMAMLANDI ve doğrulandı, sürüm 2.8.0-alpha.7 (yalnız başvuru için)
+
+Kabul kaydı: `docs/M0_EKRAN_KABUL.md`. Sıradaki adım: Mağazam M1.
 
 Uygulama gerçek veriyle çalıştırılıp 390×844 telefon boyutunda ekran görüntüsü alındığında görüldü.
 Testler bunları yakalamadı. Hepsini düzelt ve her biri için en az bir test yaz (bileşen testi ya
