@@ -37,6 +37,9 @@ begin
   end loop;
 end $$;
 
+-- Canlı olay defterinin cihaz sorgusu dizini de genel adını alır.
+alter index live_events_kitchen rename to live_events_device;
+
 alter trigger kitchen_device_check on operation_devices rename to operation_device_check;
 alter trigger kitchen_ticket_check on operation_device_tickets rename to operation_device_ticket_check;
 alter function lookup_kitchen_pairing(text,uuid,uuid) rename to lookup_device_pairing;

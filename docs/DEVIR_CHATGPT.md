@@ -35,8 +35,9 @@ eder. Kapsam küçültülebilir; kalite küçültülemez. Yarım özellik "varm�
 3. Yasak: `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`, `TODO`, `FIXME`,
    `XXX`, `HACK`. Kuralı susturma; kodu kurala uydur.
 4. **Kod İngilizce; yorumlar, arayüz metinleri, belgeler ve commit mesajları Türkçe.**
-5. **Yayımlanmış şema dosyaları değişmez.** `apps/api/migrations/0001…0034` dosyalarına dokunma.
-   Her değişiklik yeni dosyadır: `0035_…sql`, `0036_…sql` (biçim `NNNN_kucuk_harf_alt_cizgi.sql`,
+5. **Yayımlanmış şema dosyaları değişmez.** `apps/api/migrations/0001…0036` dosyalarına dokunma
+   (özetleri `docs/yayimlanmis-sema-ozetleri.json` içinde; `npm run conventions` değişikliği yakalar).
+   Her değişiklik yeni dosyadır: `0037_…sql`, `0038_…sql` (biçim `NNNN_kucuk_harf_alt_cizgi.sql`,
    numara boşluksuz artar).
 6. Sürüm numarası değişince **her yerde birlikte** değişir (kök ve bütün çalışma alanlarının
    `package.json`'ı, `README.md` 9. satırdaki sürüm), ardından **yalnız**
@@ -87,10 +88,16 @@ PostgreSQL ya da Redis çalıştıramıyorsa:
 
 ### İlk iş: devraldığın ZIP'i doğrula
 
-Sana verilen `A2-2b` ZIP'i, sürüm sahibinin acelesi yüzünden **boş klasörde tam denetimden
-geçmeden** teslim edildi (ayrı ayrı: API 706 test + 16 yeni test, diğer çalışma alanları 358 test,
-tip ve lint temizdi). İlk adımın: boş klasörde `npm ci` + `npm run check`. Kırılan bir şey varsa
-önce onu düzelt, ayrı ZIP ver.
+Sana verilen ZIP (`VADO_2.8.0-alpha.5_A2-2c_dogrulandi.zip` ya da daha yenisi) boş klasörde
+`npm ci` + `npm run check` ile doğrulandı. Yine de ilk adımın kendi ortamında aynı iki komutu
+çalıştırmak ve sonucu sayılarla yazmaktır. Ortamın çalıştıramıyorsa bunu açıkça söyle.
+
+**Önceki turdan ders:** A2-2c'yi yazdığın ortamda hiçbir test çalışmadı; kod gerçek PostgreSQL'de
+doğru çıktı, ama 7 dosyada biçim (Prettier) ve 5 dosyada içe aktarma sırası hatası vardı ve
+`npm run check` ilk aşamada durdu. Çalıştıramasan da teslimden önce `npx prettier --write` ve
+`npx eslint --fix` uygulamış gibi yaz: satır en çok 100 karakter, içe aktarmalar
+`simple-import-sort` sırasında (önce `node:`, sonra paketler, sonra göreli yollar; her grup
+alfabetik, büyük harfle başlayan adlar küçüklerden önce).
 
 ---
 
@@ -203,10 +210,11 @@ Her adım = ayrı ZIP. Sıra bağımlılığa göredir; değiştirme.
 
 ### Adım 0 — Devraldığın kaynağı doğrula
 
-Boş klasörde `npm ci` + `npm run check`. Sonucu sayılarla yaz. Kırık varsa düzelt.
-ZIP: `VADO_2.8.0-alpha.5_A2-2b_dogrulandi.zip` (yalnız düzeltme gerekirse).
+Boş klasörde `npm ci` + `npm run check`. Sonucu sayılarla yaz. Kırık varsa düzelt, ayrı ZIP ver.
 
-### Adım A2-2c — Operasyon cihazının genel adı ve cihaz kuralı
+### Adım A2-2c — TAMAMLANDI ve doğrulandı (yalnız başvuru için)
+
+Aşağıdaki tanım uygulandı (`0035`, `0036`). Yeniden yapma; A2-3'ten devam et.
 
 **Amaç:** Çekirdekte "kitchen" (mutfak) adı kalmasın. Cihaz her sektörün operasyon cihazıdır
 (restoranda "Mutfak ekranı", markette "Toplama ekranı" adıyla görünür).

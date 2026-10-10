@@ -30,7 +30,9 @@ export type Fulfilment = z.infer<typeof fulfilmentSchema>;
 /** Sunucu teslim biçimi kayıtlarındaki tahsilat yerleriyle aynı sırada tanımlanır. */
 export const PAYMENT_PLACES = ["counter", "table", "delivery"] as const;
 export type PaymentPlace = (typeof PAYMENT_PLACES)[number];
-export const FULFILMENT_PAYMENT_PLACES: Readonly<Record<Fulfilment, readonly [PaymentPlace, ...PaymentPlace[]]>> = {
+export const FULFILMENT_PAYMENT_PLACES: Readonly<
+  Record<Fulfilment, readonly [PaymentPlace, ...PaymentPlace[]]>
+> = {
   pickup: ["counter"],
   dine_in: ["table", "counter"],
   delivery: ["delivery", "counter"],

@@ -51,18 +51,14 @@ it("mutfak ve müşteri anlık olay alır; cihaz diğer şubeyi ve kişisel kana
   const pair = await anonymous(app).ok(devicePairingSchema, "POST", "/v1/device-pairings", {
     body: {},
   });
-  const approval = await as(app, f.owner).request(
-    "POST",
-    `/v1/business/${f.businessId}/devices`,
-    {
-      body: {
-        code: pair.code,
-        label: "Mutfak ekranı",
-        branchId: f.branchId,
-        appInstanceId: f.instanceId,
-      },
+  const approval = await as(app, f.owner).request("POST", `/v1/business/${f.businessId}/devices`, {
+    body: {
+      code: pair.code,
+      label: "Mutfak ekranı",
+      branchId: f.branchId,
+      appInstanceId: f.instanceId,
     },
-  );
+  });
   expect(approval.status).toBe(200);
   const poll = await anonymous(app).ok(
     devicePairingPollSchema,

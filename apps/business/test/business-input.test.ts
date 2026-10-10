@@ -1,11 +1,6 @@
 import { expect, test } from "vitest";
 
-import {
-  businessApiPath,
-  deviceApiPath,
-  readLimitedJson,
-  sameOrigin,
-} from "../lib/request-policy";
+import { businessApiPath, deviceApiPath, readLimitedJson, sameOrigin } from "../lib/request-policy";
 import { decimalToMinor, minutesFromTime } from "../lib/values";
 
 const businessId = "e18a3454-5328-4a14-bb30-cb45f735a2b0";

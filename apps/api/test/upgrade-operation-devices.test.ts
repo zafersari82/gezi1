@@ -66,13 +66,32 @@ describe("operasyon cihazlarının eski tablolardan taşınması", () => {
         "select id,label,token_hash from operation_devices where id=$1",
         [device],
       );
-      expect(retained.rows).toEqual([{ id: device, label: "Eski tablet", token_hash: "a".repeat(64) }]);
+      expect(retained.rows).toEqual([
+        { id: device, label: "Eski tablet", token_hash: "a".repeat(64) },
+      ]);
       const oldObjects = await admin.query<{ name: string }>(
         `select proname as name from pg_proc where proname in
          ('lookup_kitchen_pairing','approve_kitchen_pairing',
           'protect_kitchen_device','protect_kitchen_ticket')`,
       );
       expect(oldObjects.rows).toEqual([]);
+      // Çekirdekte eski ad kalmaz; yalnız mutfak paketinin kendi kapatma kuralı adını korur.
+      const leftovers = await admin.query<{ kind: string; name: string }>(
+        `select 'relation' as kind, relname as name from pg_class
+         where relnamespace = 'public'::regnamespace and relname ~ 'kitchen'
+         union all select 'constraint', conname from pg_constraint
+         where connamespace = 'public'::regnamespace and conname ~ 'kitchen'
+         union all select 'trigger', tgname from pg_trigger
+         where not tgisinternal and tgname ~ 'kitchen'
+         union all select 'function', proname from pg_proc
+         where pronamespace = 'public'::regnamespace
+           and (proname ~ 'kitchen' or prosrc ~ 'kitchen_(devices|pairings|socket_tickets)')
+         order by kind, name`,
+      );
+      expect(leftovers.rows).toEqual([
+        { kind: "function", name: "protect_kitchen_capability" },
+        { kind: "trigger", name: "kitchen_capability_check" },
+      ]);
       const triggers = await admin.query<{ table_name: string; trigger_name: string }>(
         `select tgrelid::regclass::text as table_name,tgname as trigger_name from pg_trigger
          where tgrelid in ('operation_devices'::regclass,'operation_device_tickets'::regclass)

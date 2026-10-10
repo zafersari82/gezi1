@@ -1,11 +1,15 @@
-import { businessSocketTicketSchema, operationDeviceInfoSchema, orderSchema } from "@vado/contracts";
+import {
+  businessSocketTicketSchema,
+  operationDeviceInfoSchema,
+  orderSchema,
+} from "@vado/contracts";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { z } from "zod";
 
 import { sql } from "../src/core/database";
 import { withTenant } from "../src/core/tenant-scope";
-import { anonymous, as, startTestApp, type TestApp } from "./support/harness";
 import { createCatalogFixture } from "./support/catalog-fixture";
+import { anonymous, as, startTestApp, type TestApp } from "./support/harness";
 import { createRestaurantFixture } from "./support/restaurant-fixture";
 import { scoped } from "./support/tenant-fixture";
 
@@ -369,12 +373,11 @@ it("cihaz, kendisinden önce açılmış cihaz paketsiz siparişleri göremez", 
       expectedVersion: opened.version,
       lines: [{ itemId: fixture.itemId, quantity: 1, optionIds: [], note: "" }],
     });
-    const response = await app.services.ordering.checkout(
-      fixture.customerScope,
-      cart.id,
-      cart.id,
-      { cartVersion: cart.version, seenTotalMinor: cart.totalMinor, quoteHash: cart.quoteHash },
-    );
+    const response = await app.services.ordering.checkout(fixture.customerScope, cart.id, cart.id, {
+      cartVersion: cart.version,
+      seenTotalMinor: cart.totalMinor,
+      quoteHash: cart.quoteHash,
+    });
     expect(response.status).toBe(200);
     return orderSchema.parse(response.body);
   }
@@ -452,9 +455,9 @@ it("cihaz, kendisinden önce açılmış cihaz paketsiz siparişleri göremez", 
     headers,
   });
   expect(replayResponse.status).toBe(200);
-  const replay = z.object({ items: z.array(z.object({ orderId: z.uuid().nullable() })) }).parse(
-    replayResponse.body,
-  );
+  const replay = z
+    .object({ items: z.array(z.object({ orderId: z.uuid().nullable() })) })
+    .parse(replayResponse.body);
   expect(replay.items.map((event) => event.orderId)).toContain(later.id);
   expect(replay.items.map((event) => event.orderId)).not.toContain(earlier.id);
   expect(
@@ -522,11 +525,13 @@ it("eski cihaz tabloları taşınır ve bağlı nesnelerin adları güncellenir"
 });
 
 it("cihaz durumları katalogda sözleşme biçimine uyar", async () => {
-  for (const statuses of ["{\"\"}", "{NULL}", "{invalid-status}"]) {
-    await expect(app.migrationDb.execute(sql`
+  for (const statuses of ['{""}', "{NULL}", "{invalid-status}"]) {
+    await expect(
+      app.migrationDb.execute(sql`
       update capability_catalog set device_statuses=${statuses}::text[]
       where id='ordering.kitchen' and version='1.0.0'
-    `)).rejects.toMatchObject({ code: "23514" });
+    `),
+    ).rejects.toMatchObject({ code: "23514" });
   }
 });
 

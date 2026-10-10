@@ -29,12 +29,8 @@ export function DevicesView({
     try {
       await action();
       setDevices(
-        (
-          await call(
-            z.object({ items: z.array(operationDeviceSchema) }),
-            "/api/business/devices",
-          )
-        ).items,
+        (await call(z.object({ items: z.array(operationDeviceSchema) }), "/api/business/devices"))
+          .items,
       );
     } catch (cause) {
       setError(errorMessage(cause));

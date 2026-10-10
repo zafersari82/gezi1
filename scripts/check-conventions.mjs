@@ -33,7 +33,7 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".js", ".mjs"]);
 const FRAMEWORK_FILE = /^(_layout|\+[a-z-]+|\[[a-zA-Z.]+\])\.tsx?$/;
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$/;
 const MIGRATION_FILE = /^(\d{4})_[a-z0-9]+(_[a-z0-9]+)*\.sql$/;
-const PUBLISHED_MIGRATION_COUNT = 34;
+const PUBLISHED_MIGRATION_COUNT = 36;
 
 const SUPPRESSION = /eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck/;
 const LEFTOVER_NOTE = /\b(TODO|FIXME|XXX|HACK)\b/;

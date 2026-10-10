@@ -1,5 +1,5 @@
 {
-  "publishedThrough": 34,
+  "publishedThrough": 36,
   "sha256": {
     "0001_baseline.sql": "4867f040787c53dc376e731285cf86e912d84e5392318802044e9d954d4eb0c7",
     "0002_device_security.sql": "10a7c1c50068d8000755acaceb4253c0aef2ba6d13bdc58612d006944dc8b752",
@@ -34,6 +34,8 @@
     "0031_ordering_catalog.sql": "6a01734f3a666fd75b8d67d353ee7726df00e9f82f0e02dac278a44c38cad054",
     "0032_ordering_packages.sql": "396a629a00078db3dacd343b286011c2cc3dd7ad6a47a716fa1df6b208572174",
     "0033_ordering_fulfilment.sql": "e1aa2982ee9dadc79197ec63a39376a4bb703b4791ecfefedd4e745e59e6b7d2",
-    "0034_ordering_fulfilment_packages.sql": "1205df130ee3e55e0d69a82146132463b354dbda062a4a913c6691f384d0e924"
+    "0034_ordering_fulfilment_packages.sql": "1205df130ee3e55e0d69a82146132463b354dbda062a4a913c6691f384d0e924",
+    "0035_operation_devices.sql": "d4303ad70cdb9fb16d8fb8a439678cf02a4d4c57a5ac14633a6e8a1cf7ff2a52",
+    "0036_operation_device_packages.sql": "8965596832b4b29625b07c9cc6f06980150ef3f8025d551f82f0cc51586b5e0a"
   }
 }

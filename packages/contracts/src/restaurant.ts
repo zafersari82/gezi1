@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { idSchema } from "./common";
-import { PAYMENT_PLACES, expectedVersionSchema } from "./ordering";
+import { expectedVersionSchema, PAYMENT_PLACES } from "./ordering";
 import { storeContextSchema } from "./storefront";
 
 export const initialVersionSchema = z.number().int().min(0).max(2_147_483_647);

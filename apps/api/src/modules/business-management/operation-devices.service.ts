@@ -112,7 +112,9 @@ export function createOperationDeviceService({ db, platformDb, config, realtime 
       );
       if (row === null) return null;
       if (!safeEqual(row.poll_hash, sha256(secret))) {
-        await tx.execute(sql`update operation_device_pairings set attempts=attempts+1 where id=${id}`);
+        await tx.execute(
+          sql`update operation_device_pairings set attempts=attempts+1 where id=${id}`,
+        );
         return null;
       }
       if (row.status === "pending")
