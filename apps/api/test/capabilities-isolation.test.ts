@@ -70,13 +70,13 @@ test("SQL ve manifest aynı hazırlık akışını korur; keyfi grafik reddedili
   const stored = await app.db.one<{
     graph: Record<string, string[]>;
     allowed: boolean;
-  }>(sql`select ordering_preparation_graph() as graph,
-    ordering_graph_allowed(${JSON.stringify(compiled.graph)}::jsonb,'["ordering.preparation@1.0.0"]'::jsonb) as allowed`);
+  }>(sql`select ordering_compile_graph('["ordering.preparation@1.0.0"]'::jsonb, null) as graph,
+    ordering_graph_allowed(${JSON.stringify(compiled.graph)}::jsonb,'["ordering.preparation@1.0.0"]'::jsonb, null) as allowed`);
   expect(stored).toEqual({ graph: compiled.graph, allowed: true });
   const wrong = { ...compiled.graph, completed: ["placed"] };
   expect(
     await app.db.one(
-      sql`select ordering_graph_allowed(${JSON.stringify(wrong)}::jsonb,'["ordering.preparation@1.0.0"]'::jsonb) as allowed`,
+      sql`select ordering_graph_allowed(${JSON.stringify(wrong)}::jsonb,'["ordering.preparation@1.0.0"]'::jsonb, null) as allowed`,
     ),
   ).toEqual({ allowed: false });
 });

@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 
 export class CapabilityValidationError extends Error {}
+type WorkflowInsertion = EngineCapabilityManifest["stateMachine"]["insertions"][number];
 const coreConfig = z.object({}).strict();
 const preparationConfig = z
   .object({
@@ -117,6 +118,7 @@ export const PREPARATION_MANIFEST = engineCapabilityManifestSchema.parse({
   id: "ordering.preparation",
   version: "1.0.0",
   engine: "ordering",
+  closableWithActiveOrders: true,
   dependsOn: [{ id: "ordering", version: "1.0.0" }],
   configSchema: z.toJSONSchema(preparationConfig),
   defaults: preparationConfig.parse({}),
@@ -180,6 +182,8 @@ export const PREPARATION_MANIFEST = engineCapabilityManifestSchema.parse({
 export const KITCHEN_MANIFEST = engineCapabilityManifestSchema.parse({
   ...PREPARATION_MANIFEST,
   id: "ordering.kitchen",
+  // Cihaz etkin siparişleri yürütür; o siparişler bitmeden paket kapatılamaz.
+  closableWithActiveOrders: false,
   configSchema: z.toJSONSchema(coreConfig),
   defaults: {},
   operations: {
@@ -466,6 +470,7 @@ function dataPackage(
     id,
     version: "1.0.0",
     engine: "ordering",
+    role: "data",
     dependsOn: [{ id: "ordering", version: "1.0.0" }],
     configSchema: z.toJSONSchema(coreConfig),
     defaults: {},
@@ -530,64 +535,72 @@ export function compileOrderWorkflow(
     ]),
   );
   const occupied = new Set<string>();
-  for (const raw of [...manifests].sort(
-    (a, b) => Number(a.id === "ordering.delivery") - Number(b.id === "ordering.delivery"),
-  )) {
-    const manifest = engineCapabilityManifestSchema.parse(raw);
-    for (const insertion of manifest.stateMachine.insertions) {
-      if (
-        fulfilment !== undefined &&
-        insertion.fulfilments !== undefined &&
-        !insertion.fulfilments.includes(fulfilment)
-      )
-        continue;
-      const point = `${insertion.from}:${insertion.to}`;
-      if (
-        !allowedInsertionPoints.some((p) => p.from === insertion.from && p.to === insertion.to) ||
-        occupied.has(point) ||
-        !graph[insertion.from]?.includes(insertion.to)
-      )
-        throw new CapabilityValidationError(
-          "Ekleme noktası çekirdek tarafından izinli ve tekil olmalıdır",
-        );
-      occupied.add(point);
-      const added = new Set(insertion.states.map((s) => s.id));
-      if (
-        added.size !== insertion.states.length ||
-        !added.has(insertion.entry) ||
-        insertion.states.some((s) => Object.hasOwn(graph, s.id))
-      )
-        throw new CapabilityValidationError("Ek durumlar yeni ve tekil olmalıdır");
-      const outgoing = graph[insertion.from];
-      const outgoingRules = rules[insertion.from];
-      if (outgoing === undefined || outgoingRules === undefined)
-        throw new CapabilityValidationError("Ekleme noktası yok");
-      graph[insertion.from] = outgoing.map((next) =>
-        next === insertion.to ? insertion.entry : next,
+  function apply(insertion: WorkflowInsertion): void {
+    const point = `${insertion.from}:${insertion.to}`;
+    if (
+      !allowedInsertionPoints.some((p) => p.from === insertion.from && p.to === insertion.to) ||
+      occupied.has(point) ||
+      !graph[insertion.from]?.includes(insertion.to)
+    )
+      throw new CapabilityValidationError(
+        "Ekleme noktası çekirdek tarafından izinli ve tekil olmalıdır",
       );
-      rules[insertion.from] = {
-        ...Object.fromEntries(
-          Object.entries(outgoingRules).filter(([target]) => target !== insertion.to),
-        ),
-        [insertion.entry]: "always",
-      };
-      for (const state of insertion.states) {
-        if (new Set(state.transitions.map((t) => t.to)).size !== state.transitions.length)
-          throw new CapabilityValidationError("Geçişler tekil olmalıdır");
-        for (const transition of state.transitions) {
-          if (!Object.hasOwn(namedRules, transition.rule))
-            throw new CapabilityValidationError("Kayıtlı olmayan kural çalıştırılamaz");
-          if (
-            !added.has(transition.to) &&
-            transition.to !== insertion.to &&
-            transition.to !== "cancelled"
-          )
-            throw new CapabilityValidationError("Geçiş izinli ara adımdan çıkamaz");
-        }
-        graph[state.id] = state.transitions.map((t) => t.to);
-        rules[state.id] = Object.fromEntries(state.transitions.map((t) => [t.to, t.rule]));
+    occupied.add(point);
+    const added = new Set(insertion.states.map((s) => s.id));
+    if (
+      added.size !== insertion.states.length ||
+      !added.has(insertion.entry) ||
+      insertion.states.some((s) => Object.hasOwn(graph, s.id))
+    )
+      throw new CapabilityValidationError("Ek durumlar yeni ve tekil olmalıdır");
+    const outgoing = graph[insertion.from];
+    const outgoingRules = rules[insertion.from];
+    if (outgoing === undefined || outgoingRules === undefined)
+      throw new CapabilityValidationError("Ekleme noktası yok");
+    graph[insertion.from] = outgoing.map((next) =>
+      next === insertion.to ? insertion.entry : next,
+    );
+    rules[insertion.from] = {
+      ...Object.fromEntries(
+        Object.entries(outgoingRules).filter(([target]) => target !== insertion.to),
+      ),
+      [insertion.entry]: "always",
+    };
+    for (const state of insertion.states) {
+      if (new Set(state.transitions.map((t) => t.to)).size !== state.transitions.length)
+        throw new CapabilityValidationError("Geçişler tekil olmalıdır");
+      for (const transition of state.transitions) {
+        if (!Object.hasOwn(namedRules, transition.rule))
+          throw new CapabilityValidationError("Kayıtlı olmayan kural çalıştırılamaz");
+        if (
+          !added.has(transition.to) &&
+          transition.to !== insertion.to &&
+          transition.to !== "cancelled"
+        )
+          throw new CapabilityValidationError("Geçiş izinli ara adımdan çıkamaz");
       }
+      graph[state.id] = state.transitions.map((t) => t.to);
+      rules[state.id] = Object.fromEntries(state.transitions.map((t) => [t.to, t.rule]));
     }
+  }
+  // Bir ekleme, ekleme noktası akışta açıldığında uygulanır; başka bir eklemenin açtığı nokta da
+  // sayılır. Paket adına göre sıra yoktur. SQL'deki `ordering_compile_graph` aynı kuralı izler.
+  let pending = manifests
+    .flatMap((raw) => engineCapabilityManifestSchema.parse(raw).stateMachine.insertions)
+    .filter(
+      (insertion) =>
+        fulfilment === undefined ||
+        insertion.fulfilments === undefined ||
+        insertion.fulfilments.includes(fulfilment),
+    );
+  while (pending.length > 0) {
+    const ready = pending.filter((insertion) => graph[insertion.from]?.includes(insertion.to));
+    if (ready.length === 0)
+      throw new CapabilityValidationError(
+        "Ekleme noktası çekirdek tarafından izinli ve tekil olmalıdır",
+      );
+    for (const insertion of ready) apply(insertion);
+    pending = pending.filter((insertion) => !ready.includes(insertion));
   }
   for (const terminal of TERMINAL_ORDER_STATES)
     if (graph[terminal]?.length !== 0)

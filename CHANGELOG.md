@@ -8,6 +8,12 @@ Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman deği
   Cihazın verebileceği durumlar ve kabul/ret kararının zorunluluğu paket manifestindeki
   `operations` alanından okunur; sipariş servisi `ordering.kitchen` adını bilmez. Restoranda cihaz
   yine "Mutfak ekranı" olarak görünür; davranış değişmedi.
+- **Paket kataloğu (A2-2a):** sipariş paketleri veritabanında `capability_catalog` tablosunda.
+  Paket kümesinin geçerliliği ve siparişin durum akışı bu katalogdan hesaplanır; çekirdek SQL'de
+  paket adıyla yazılmış akış işlevleri ve kısıtlar kaldırıldı (`0031`, `0032`). API'deki akış
+  derleyicisi de paket adına göre sıralamayı bıraktı. Manifest ile katalog ve 256 paket bileşiminin
+  akışı her derlemede karşılaştırılır. Masa servisi, açık masa varken kapatılamaz (önceden başka
+  bir kuralın içindeydi, artık paketin kendi kuralı).
 - **Mağazam planı:** telefondan kod yazmadan dükkân kurma planı
   ([docs/PLAN_MAGAZAM.md](docs/PLAN_MAGAZAM.md)).
 

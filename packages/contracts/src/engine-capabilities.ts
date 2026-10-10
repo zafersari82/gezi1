@@ -64,6 +64,13 @@ export const engineCapabilityManifestSchema = z
     id: engineCapabilityIdSchema,
     version: engineCapabilityVersionSchema,
     engine: z.literal("ordering"),
+    /** `data`: yalnız veri ekler (ör. tekrar sipariş); akışa ve teslim biçimine katılmaz. */
+    role: z.enum(["workflow", "data"]).default("workflow"),
+    /**
+     * Onu kullanan etkin sipariş varken kapatılabilir mi? Sipariş kendi akış görüntüsünü taşıdığı
+     * için yalnız durum ekleyen paket kapatılabilir; davranış ekleyen paket kapatılamaz.
+     */
+    closableWithActiveOrders: z.boolean().default(false),
     dependsOn: z.array(
       z
         .object({

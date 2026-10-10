@@ -41,6 +41,7 @@ test("Studio sözleşmesi Zod'dan JSON Schema üretir; kod ve müşteri ekranı 
     [
       "api",
       "businessBlocks",
+      "closableWithActiveOrders",
       "configSchema",
       "customerBlocks",
       "defaults",
@@ -49,6 +50,7 @@ test("Studio sözleşmesi Zod'dan JSON Schema üretir; kod ve müşteri ekranı 
       "events",
       "id",
       "permissions",
+      "role",
       "stateMachine",
       "validation",
       "version",

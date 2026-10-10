@@ -149,6 +149,25 @@ parçalardan oluşur ve bunları açıkça bildirir:
 
 Paketler işletme uygulaması başına açılır, kapatılır ve ayarlanır.
 
+### Paket kataloğu (Sipariş motoru, 2.8)
+
+Paketin manifesti (`apps/api/src/modules/capabilities/capabilities.registry.ts`) API'deki
+kaynaktır; veritabanındaki karşılığı `capability_catalog` tablosudur (`0031`, satırlar `0032`).
+Çekirdek SQL paket adı bilmez: paket kümesinin geçerliliği (`ordering_capabilities_valid`) ve
+siparişin durum akışı (`ordering_compile_graph`) bu katalogdan hesaplanır.
+
+- **Gereksinim:** gruplar hâlinde; her grup içindeki seçeneklerden biriyle karşılanır (eve teslim,
+  hazırlık ya da operasyon cihazı ister).
+- **Akış eklemesi:** bir ekleme, ekleme noktası akışta açıldığında uygulanır; başka bir eklemenin
+  açtığı nokta da sayılır. Aynı noktaya iki ekleme derlenemez. Paket adına göre sıra yoktur.
+- **Rol:** `workflow` paketi akışa ya da teslim biçimine katılır; `data` paketi (tekrar sipariş,
+  iade) yalnız veri ekler.
+- **Kapatma:** etkin sipariş varken yalnız durum ekleyen paket (hazırlık) kapatılabilir.
+- **Ayar:** katalogdaki varsayılan yazılır ve paketin doğrulayıcı işleviyle denetlenir.
+- Katalog yalnız şema dosyalarıyla değişir; uygulama rolleri okur. Manifest ile katalog eşitliği
+  ve 256 paket bileşiminin her teslim biçimindeki akışı `capability-catalog.test.ts` ile her
+  derlemede karşılaştırılır.
+
 ### Hangi yetenek hangi katmanda
 
 Karar kuralı: **iki ya da daha fazla motor kullanıyorsa platform servisi; bir motorun alanını
