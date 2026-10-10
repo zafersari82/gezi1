@@ -1,6 +1,6 @@
 # VADO 2.8 — devir talimatı (yapay zekâ geliştiriciye yapıştırılacak metin)
 
-Bu metnin tamamını, birlikte verilen tam kaynak ZIP'iyle (`VADO_2.8.0-alpha.5_A2-2b.zip` ya da
+Bu metnin tamamını, birlikte verilen tam kaynak ZIP'iyle (`VADO_2.8.0-alpha.6.zip` ya da
 daha yenisi) birlikte geliştiriciye ver. Metin bağlayıcıdır; belirsizlikte bu metin ve
 `docs/` altındaki belgeler kazanır.
 
@@ -88,7 +88,7 @@ PostgreSQL ya da Redis çalıştıramıyorsa:
 
 ### İlk iş: devraldığın ZIP'i doğrula
 
-Sana verilen ZIP (`VADO_2.8.0-alpha.5_A2-2c_dogrulandi.zip` ya da daha yenisi) boş klasörde
+Sana verilen ZIP (`VADO_2.8.0-alpha.6.zip` ya da daha yenisi) boş klasörde
 `npm ci` + `npm run check` ile doğrulandı. Yine de ilk adımın kendi ortamında aynı iki komutu
 çalıştırmak ve sonucu sayılarla yazmaktır. Ortamın çalıştıramıyorsa bunu açıkça söyle.
 
@@ -98,6 +98,20 @@ doğru çıktı, ama 7 dosyada biçim (Prettier) ve 5 dosyada içe aktarma sıra
 `npx eslint --fix` uygulamış gibi yaz: satır en çok 100 karakter, içe aktarmalar
 `simple-import-sort` sırasında (önce `node:`, sonra paketler, sonra göreli yollar; her grup
 alfabetik, büyük harfle başlayan adlar küçüklerden önce).
+
+**A2-3 turundan dersler:** Biçim ve içe aktarma hataları yine vardı (5 + 7 dosya). Ayrıca:
+
+- Yalnız tip olarak kullandığın içe aktarmayı ve kullanmadığın içe aktarmayı bırakma
+  (`no-unused-vars`). Bir koruma tip sistemine göre gereksizse (`no-unnecessary-condition`),
+  korumayı silme; değişkenin tipini açıkça genişlet (örnek: `ordering-host.ts` `listOrders`).
+- Yazdığın mağaza kanıtı testi gerçek bir hata buldu, ama test yanlış şeyi bekliyordu: iade paketi
+  açıkken sahip siparişi doğrudan iptal edemez (iptal, müşterinin gerekçeli talebine bağlıdır).
+  Test yazarken önce kuralı oku (`0034`, `check_returns_cancellation`).
+- Testler tek bir ortak veritabanında paralel koşar. Başka dosyaların da oluşturduğu adlarla
+  ("Kapsam işletmesi") arama yapan test, sayfa sınırına (20) takılıp rastgele kırılır. Arayacağın
+  kaydı benzersiz adlandır.
+- Veritabanı tetikleyicisinin iş kuralı reddi (23514) API'den 500 olarak çıkmamalı; servis ya
+  önceden sorar ya da `isCheckViolation` ile uygun hata koduna çevirir.
 
 ---
 
@@ -144,7 +158,7 @@ security`). Politika `business_id = nullif(current_setting('vado.business_id', t
 (`apps/api/src/core/business-access.ts`). Yeni modül ayrı izin tablosu açmaz; kataloğa izin ekler.
 Ayrıntı: `docs/YETKI.md`.
 
-### Tarafsız sipariş çekirdeği (A2 — kısmen bitti)
+### Tarafsız sipariş çekirdeği (A2 — tamamlandı, 2.8.0-alpha.6)
 
 - **Paket kataloğu** `capability_catalog` (0031–0032): paketin rolü (`workflow`/`data`),
   gereksinimleri, akış eklemeleri, varsayılan ayarı, ayar doğrulayıcısı, etkin siparişte
@@ -263,7 +277,9 @@ denetim gelene kadar raporda).
 Kabul: `npm run check` yeşil; `grep -ri kitchen apps/api/src/core apps/api/src/modules/ordering`
 boş.
 
-### Adım A2-3 — Köprü ad alanları, kalıcı denetim, mağaza kanıtı → sürüm 2.8.0-alpha.6
+### Adım A2-3 — TAMAMLANDI ve doğrulandı, sürüm 2.8.0-alpha.6 (yalnız başvuru için)
+
+Aşağıdaki tanım uygulandı. Yeniden yapma; sıradaki adım "Adım M0".
 
 1. **Köprü:** `ordering.joinTable`, `ordering.getTable`, `ordering.getBill`,
    `ordering.requestService` → `tableService.join`, `tableService.get`, `tableService.getBill`,
@@ -294,6 +310,37 @@ boş.
    olaylarda bağlam yok; denetim betiği temiz.
 4. Sürüm `2.8.0-alpha.6` (her yerde + kilit dosyası). CHANGELOG'daki "Hazırlanıyor" bölümü tarihli
    `2.8.0-alpha.6` olur. `docs/PLAN_2.8.md` A2'yi tamamlandı olarak işaretle.
+
+### Adım M0 — Ekranlarda görülen kusurlar (Mağazam'dan önce) → sürüm 2.8.0-alpha.7
+
+Uygulama gerçek veriyle çalıştırılıp 390×844 telefon boyutunda ekran görüntüsü alındığında görüldü.
+Testler bunları yakalamadı. Hepsini düzelt ve her biri için en az bir test yaz (bileşen testi ya
+da Playwright ile 390 px genişlikte tarayıcı testi).
+
+1. **Restoran mini uygulaması telefonda sağdan taşıyor.** Menü yüklendikten sonra içerik 468 px,
+   ekran 390 px; arama kutusu ve menü kartları kesik, sayfa yana kayıyor. Sebebi henüz bulunmadı;
+   aday: `miniapps/restaurant/src/styles.css` içindeki `.restaurant-layout`
+   (`minmax(0, 1fr) 340px`) ve 900/560 px kırılımları. Kabul: 360 ve 390 px genişlikte
+   `document.documentElement.scrollWidth` ile bütün öğelerin sağ kenarı ekran genişliğini geçmez.
+   Mağaza mini uygulamasını da aynı ölçüyle sına.
+2. **Esnafa ham teknik bilgi gösteriliyor.** Sipariş kartında, mutfak ekranında ve teslim saati
+   listesinde "Europe/Istanbul" yazıyor; şubenin saat dilimi işletmenin kendi saat dilimiyse hiç
+   gösterme, farklıysa şehir adıyla göster. Sipariş numarası "#F8415492" gibi kod: kısa, okunur
+   bir numara göster (ör. günlük sıra numarası ya da son 4 hane).
+3. **Business telefon alt menüsü.** "Siparişler" görünmüyor, ilk sırada "Mağaza tasarımı" var;
+   restoranda gereksiz "Randevular" çıkıyor; "Performans" yazısı kesik. Alt menüde en çok 5 öğe,
+   işletmenin açık paketlerine göre ve önce günlük işler (Siparişler, Mutfak/Masalar ya da
+   Randevular, Mesajlar); geri kalanı "Diğer" altında.
+4. **Sipariş ayrıntısı.** İptal düğmesinde "İptal et" yerine "İptal edildi" yazıyor. Tahsilat kutusu
+   sipariş kabul edilmeden görünüyor; yalnız kabulden sonra göster. İade paketi açıkken iptal
+   düğmesi doğrudan iptal yerine kuralı anlatsın (API artık `order_state_invalid` döner).
+5. **Telefonda tutar kartı** "₺1.600,0 / 0" diye iki satıra bölünüyor; tutar tek satırda kalsın
+   (yazı boyutu kart genişliğine uysun).
+6. **Mobil "Randevu al" ekranında** başlıklar uygulamanın geri kalanından farklı ve çok büyük;
+   uygulamanın başlık stillerini kullan.
+7. **Mini uygulama açılamadığında** hata mesajı bir an görünüp kayboluyor; kullanıcı nedenini
+   anlamıyor. Kalıcı bir hata durumu göster. Ayrıca örnek veri (`npm run db:seed`) berberin mini
+   uygulaması için uygulama örneği açmıyor; açsın.
 
 ### Mağazam (M1–M8) — `docs/PLAN_MAGAZAM.md`'nin uygulanması
 

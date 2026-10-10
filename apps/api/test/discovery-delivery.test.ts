@@ -11,16 +11,22 @@ import { as, createUser, startTestApp, type TestApp } from "./support/harness";
 describe("S8: kayıtlı adrese teslimat keşfi", () => {
   let app: TestApp;
   let fixture: Awaited<ReturnType<typeof createDeliveryFixture>>;
+  // Teslimat düzenekleri aynı mahalleyi paylaşır; paralel test dosyalarının işletmeleri ilk sayfayı
+  // doldurmasın diye bu işletme benzersiz adıyla aranır.
+  const name = `Teslimat keşfi ${randomUUID().slice(0, 8)}`;
   beforeAll(async () => {
     app = await startTestApp();
     fixture = await createDeliveryFixture(app);
+    await app.platformDb.execute(
+      sql`update businesses set name = ${name} where id = ${fixture.businessId}`,
+    );
   });
   afterAll(async () => {
     await app.stop();
   });
 
   const url = (addressId: string) =>
-    `/v1/discovery/search?kind=business&q=Kapsam&deliveryAddressId=${addressId}`;
+    `/v1/discovery/search?kind=business&q=${encodeURIComponent(name)}&deliveryAddressId=${addressId}`;
 
   it("sözleşme adresli aramayı işletmelerle sınırlar", () => {
     expect(

@@ -6,7 +6,7 @@ Türkiye için mesajlaşma, mini uygulama ve ödeme platformu. Telefon numarası
 birebir ve grup sohbetleri, Anlar, QR ile ekleme, uygulama içinde açılan mini uygulamalar, ödeme
 onayı ve işletme hesapları tek bir uygulamada toplanır.
 
-Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.5) yama olarak değil, o
+Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.6) yama olarak değil, o
 temelin üzerine aynı standartla eklenir. Standart yalnızca belgede durmaz; biçim, lint, proje
 kuralları, tip denetimi ve testler `npm run check` komutuyla makine tarafından denetlenir.
 

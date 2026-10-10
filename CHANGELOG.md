@@ -1,53 +1,37 @@
 # Değişiklikler
 
-## Hazırlanıyor: 2.8.0-alpha.6 — tarafsız sipariş çekirdeği (A2)
+## 2.8.0-alpha.6 — tarafsız sipariş çekirdeği (A2) (2026-10-10)
 
-Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman değişir.
+Sipariş çekirdeği artık hiçbir sektörün adını bilmez: paketler, teslim biçimleri, sipariş
+bağlamı, tahsilat yerleri, operasyon cihazı ve canlı olay türleri paket kayıtlarından okunur ve
+bunu `npm run conventions` her derlemede denetler. Bir alışveriş işletmesinin restoran paketleri
+olmadan baştan sona çalıştığı gerçek HTTP ve SQL testiyle kanıtlandı.
 
-- **A2-3 ara teslim 9 (tam kabul bekliyor):** Mobil masa köprüsü `tableService.get`
-  yanıtında istenen oturum kimliğini de doğrular. Sipariş listesi isteğinde boş
-  filtreler URL'ye eklenmez. İki yeni mobil regresyon testi yazıldı; tam test
-  bağımlılıklar kurulamadığı için henüz çalıştırılamadı.
-
-- **A2-3 ara teslim 8 (tam kabul bekliyor):** Masa servis isteğinin mobil köprü
-  yanıtı artık aynı masa oturumuna ve istenen çağrı türüne ait olmalıdır; farklı
-  oturumun yanıtı mini uygulamaya aktarılmaz. Doğru cevap, idempotency anahtarı ve
-  iki olumsuz bağlam senaryosu için mobil test eklendi. Tam denetim bekliyor.
-
-- **A2-3 ara teslim 7 (tam kabul bekliyor):** Eski `ordering` masa köprüsü adlarının
-  sözleşme, SDK, mobil kabuk ve mini uygulama kaynaklarında yeniden eklenmesini engelleyen
-  kalıcı kural ve onu sınayan negatif test eklendi. Kod standartlarındaki yayımlanmış
-  şema sınırı 0001–0036 olarak düzeltildi. Gerçek test/derleme kabulü bekleniyor.
-
-- **A2-3 ara teslim 6 (tam kabul bekliyor):** Mağaza kanıtının `food` kategorili
-  test işletmesinde koşması düzeltildi. Ortak kurucular varsayılan restoran davranışını
-  koruyarak `shopping` işletmesi/mini uygulaması oluşturabilir; mağaza senaryosu kategori
-  eşleşmesini ve masa/cihaz paketlerinin kapalı olduğunu SQL üzerinden doğrular.
-  PostgreSQL ve tam `npm run check` bu ortamda geçilemediğinden ara kaynak olarak kalır.
-
-- **A2-3 ara teslim 5 (tam kabul bekliyor):** Mağaza vitrin gizliliği artık Zod
-  ayrıştırmasının temizlediği nesne yerine doğrudan HTTP yanıtı üzerinde sınanır;
-  alıcı, müşteri ve işletme sahibi telefonları ile müşteri kimliğinin
-  gönderilmediği denetlenir. Eski fiyat teklifiyle başarısız ödeme isteğinin
-  aynı idempotency anahtarıyla yeniden 409 döndüğü, sipariş/puan yazmadığı
-  ve yalnız yeni teklif ile tek sipariş ürettiği regresyon testine eklendi.
-  Gerçek PostgreSQL testleri ve tam denetim henüz çalıştırılamadı.
-
-- **A2-3 ara teslim 4 (tam kabul bekliyor):** Mağaza teslimat kanıtında puan ayarları
-  değiştikten sonra eski sepet `quoteHash` değerini kullanma riski düzeltildi.
-  Yeni HTTP regresyon testi eski teklifin `cart_changed` ile reddedilmesini ve
-  yenilenmiş sepetle siparişin oluşmasını sınar. Testler gerçek PostgreSQL'de
-  henüz çalıştırılmadığından sürüm yükseltilmedi.
-
-- **A2-3 ara teslim 3 (tam kabul bekliyor):** Mağaza HTTP/SQL kanıtı, kazanılan sadakat
-  puanlarının sonraki gel-al siparişinde harcanmasını ve sipariş iptal edilince geri yüklenmesini
-  de kapsıyor. Teslimat senaryosu sıfır yerine 10.000 kuruşluk gerçek asgari tutarı ve
-  değişmez sipariş görüntüsündeki bölge ücretini denetliyor. Mimari negatif testler artık hem
-  TypeScript çekirdeğini hem de yeni çekirdek SQL migration'larını sınar. PostgreSQL, tam tip
-  denetimi ve üretim derlemesi doğrulanmadığından sürüm yükseltilmedi.
-
-- **A2-3 ara teslim 2 (tam kabul bekliyor):** Eksik sipariş rotası şema içe aktarımı düzeltildi. Ortak vitrin servisi, restoran modülüne bağımlı olmadan `/store` ve `/restaurant` yanıtlarını üretir. API import düzeni ve mağaza kanıtı güncellendi. PostgreSQL/test/derleme henüz onaylanmadı.
-- **A2-3 geliştirme kaydı (tam kabul bekliyor):** Köprüden eski masa/restaurant yöntemleri kaldırıldı; `tableService.*` ve `table_service.basic` eklendi. Restoran `ordering.getStore` kullanıyor. Sektörel canlı olaylar, genel mağaza rotası, sipariş kayıtları ve HTTP durum eşlemeleri katmanlarına ayrıldı. Yeni çekirdek adlandırma denetimi ve negatif testi yazıldı. Mağaza gel-al/teslimat HTTP+SQL kanıt testleri eklendi, henüz çalıştırılmadı. Bu madde doğrulanmış sürüm değildir; ayrıntı [A2_3_KONTROL.md](docs/A2_3_KONTROL.md).
+- **Köprü ad alanları, kalıcı denetim, mağaza kanıtı (A2-3):**
+  - **Kırıcı köprü değişikliği:** masa yöntemleri `ordering.*` altından ayrı bir ad alanına taşındı:
+    `tableService.join`, `tableService.get`, `tableService.getBill`, `tableService.request`. Yeni
+    izni `table_service.basic`. `ordering.getRestaurant` kaldırıldı; restoran mini uygulaması da
+    genel `ordering.getStore` kullanır (paket 1.2.0). Dışarıda yayımlanmış mini uygulama yok.
+  - Mobil kabuk masa yanıtının istenen oturuma ve çağrı türüne ait olduğunu doğrular; sipariş
+    listesi isteğinde boş filtreler adrese yazılmaz.
+  - **Kalıcı denetim:** `npm run conventions` çekirdekte (`apps/api/src/core`,
+    `modules/ordering`, yeni çekirdek şemaları) sektör kavramı (masa, mutfak, kurye, restoran…)
+    ve eski masa köprüsü adlarını reddeder; kuralın kendisi `scripts/check-conventions.test.mjs`
+    ile sınanır. Sözleşmedeki teslim biçimi ve bağlam kayıtları
+    `packages/contracts/src/ordering-registry.ts` dosyasına, restoran canlı olayı restoran
+    modülüne, HTTP durum kodları sözleşmeye (`http-statuses.ts`; 105 kodun hepsi aynı) taşındı.
+  - **Mağaza kanıtı** (`apps/api/test/store-proof.test.ts`): masa ve cihaz paketi kapalı bir
+    alışveriş işletmesinde gerçek HTTP ve SQL ile katalog, kupon, puan kazanma ve harcama, gel-al,
+    tahsilat, değerlendirme, iade talebi ve kararı, tekrar sipariş; ayrıca adrese teslim (bölge,
+    ücret, en az tutar, yolda, teslim) ve vitrin gizliliği.
+  - **Düzeltilen hata:** iade paketi açık işletmede sahip siparişi doğrudan iptal edince paket
+    kuralı veritabanında reddediliyor, API 500 dönüyordu (Business'taki iptal düğmesi "beklenmeyen
+    hata" gösterirdi). Sipariş durumu güncellemesinde veritabanı kural reddi artık
+    `order_state_invalid` (409) olur; iptal müşterinin gerekçeli talebiyle yapılır.
+  - Test yalıtımı: teslimat keşfi testi, paralel test dosyalarının aynı mahalleye teslimat yapan
+    işletmeleri ilk sayfayı doldurduğunda kırılabiliyordu; artık benzersiz adla arar.
+  - Kaynak ChatGPT'de dokuz ara teslimde yazıldı ve orada çalıştırılamadı; gerçek PostgreSQL'de
+    doğrulandı, biçim ve lint hataları düzeltildi.
 
 - **Operasyon cihazı rolü (A2-1):** çekirdekteki `kitchen` rolü genel `device` rolüne dönüştü.
   Cihazın verebileceği durumlar ve kabul/ret kararının zorunluluğu paket manifestindeki
