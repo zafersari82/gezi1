@@ -18,6 +18,10 @@ export default async function OrdersPage({
       queue !== undefined &&
       new URL(b.path, "https://vado.invalid").searchParams.get("queue") === queue,
   );
+  const permissions = await apiGet(
+    z.object({ viewBranchIds: z.array(z.string().uuid()), manageBranchIds: z.array(z.string().uuid()) }),
+    `/v1/business/${context.membership.businessId}/orders/access/me`,
+  );
   const initial = await apiGet(
     z.object({ items: z.array(orderSummarySchema), nextCursor: z.string().nullable() }),
     `/v1/business/${context.membership.businessId}/orders?${orderListSearch("active", block?.states ?? [])}`,
@@ -29,6 +33,7 @@ export default async function OrdersPage({
       initial={initial}
       title={block?.title ?? "Siparişler"}
       states={block?.states ?? []}
+      manageBranchIds={permissions.manageBranchIds}
     />
   );
 }

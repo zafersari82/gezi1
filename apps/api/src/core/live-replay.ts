@@ -3,6 +3,7 @@ import { type LiveEvent, liveEventSchema, type LiveReplay } from "@vado/contract
 import type { TenantContext } from "./context";
 import { type Database, sql } from "./database";
 import { type TenantScope, withTenant } from "./tenant-scope";
+import { orderAccess } from "../modules/ordering/order-access";
 
 export const LIVE_EVENT_TYPES = [
   "order.placed",
@@ -56,7 +57,9 @@ export function createLiveReplayService({ db }: TenantContext) {
           ? sql`and business_customer_id=${scope.businessCustomerId} and app_instance_id=${scope.appInstanceId}`
           : scope.role === "kitchen"
             ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId} and order_id is not null`
-            : sql.empty;
+            : scope.role === "staff"
+              ? sql`and order_id is not null ${orderAccess(scope, sql`business_live_events.branch_id`)}`
+              : sql.empty;
       const rows = await tx.many<LiveRow>(
         sql`select * from business_live_events where business_id=${scope.businessId} and cursor>${after} and cursor<=${latest} ${filter} order by cursor limit 500`,
       );

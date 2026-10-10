@@ -80,7 +80,7 @@ export function adminRoutes(server: FastifyInstance, { services, adminGuard }: R
     const { actor } = await adminGuard(request);
     const { id } = parse(idParamsSchema, request.params);
     const body = parse(adminUpdateReportBodySchema, request.body);
-    await admin.updateReport(actor, id, body.status);
+    await admin.updateReport(actor, id, body.status, body.reviewVisibility);
     return noContent(reply);
   });
 

@@ -5,6 +5,7 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import {
   type BusinessOrderEvent,
   type ClientToServerEvents,
+  type CourierLiveEvent,
   idSchema,
   type LiveEvent,
   type ServerToClientEvents,
@@ -21,6 +22,11 @@ export interface BusinessSocketAuth extends AuthContext {
   businessId: string;
   liveUntil: number;
 }
+export interface CourierSocketAuth extends AuthContext {
+  kind: "courier";
+  businessId: string;
+  liveUntil: number;
+}
 export interface KitchenSocketAuth {
   kind: "kitchen";
   businessId: string;
@@ -30,7 +36,9 @@ export interface KitchenSocketAuth {
   liveUntil: number;
 }
 type RealtimeAuth =
-  (AuthContext & { kind?: never; businessId?: string; liveUntil?: number }) | KitchenSocketAuth;
+  | (AuthContext & { kind?: never; businessId?: string; liveUntil?: number })
+  | KitchenSocketAuth
+  | CourierSocketAuth;
 
 type RealtimeServer = Server<
   ClientToServerEvents,
@@ -53,6 +61,7 @@ const deviceRoom = (id: string) => `kitchen-device:${id}`;
 
 /** Servislerin istemcilere bildirim göndermek için kullandığı arayüz. */
 export interface RealtimePublisher {
+  emitCourier: (businessId: string, userId: string, event: CourierLiveEvent) => void;
   emitBusinessLive: (businessId: string, userIds: readonly string[], event: LiveEvent) => void;
   emitKitchen: (event: LiveEvent) => void;
   disconnectKitchenDevice: (deviceId: string) => void;
@@ -68,6 +77,7 @@ export interface RealtimePublisher {
 }
 
 export interface RealtimeHandlers {
+  authenticateCourierTicket: (ticket: string) => Promise<CourierSocketAuth>;
   authenticateKitchenTicket: (ticket: string) => Promise<KitchenSocketAuth>;
   isKitchenDeviceActive: (deviceId: string) => Promise<boolean>;
   authenticate: (token: string) => Promise<AuthContext>;
@@ -120,6 +130,9 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
 
   return {
     emit,
+    emitCourier(businessId, userId, event) {
+      io.to(`courier:${businessId}:user:${userId}`).emit("courier:event", event);
+    },
     emitBusiness(businessId, userIds, event) {
       if (userIds.length > 0)
         io.to(userIds.map((id) => businessRoom(businessId, id))).emit("business:order", event);
@@ -158,23 +171,38 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
       }
 
       io.use((socket, next) => {
+        const courierTicket: unknown = socket.handshake.auth.courierTicket;
         const token: unknown = socket.handshake.auth.token;
         const ticket: unknown = socket.handshake.auth.businessTicket;
         const kitchenTicket: unknown = socket.handshake.auth.kitchenTicket;
         let authentication: Promise<RealtimeAuth>;
-        if (typeof kitchenTicket === "string" && ticket === undefined && token === undefined) {
+        if (
+          typeof courierTicket === "string" &&
+          kitchenTicket === undefined &&
+          ticket === undefined &&
+          token === undefined
+        ) {
+          authentication = handlers.authenticateCourierTicket(courierTicket);
+        } else if (
+          typeof kitchenTicket === "string" &&
+          ticket === undefined &&
+          token === undefined &&
+          courierTicket === undefined
+        ) {
           authentication = handlers.authenticateKitchenTicket(kitchenTicket);
         } else if (
           typeof ticket === "string" &&
           token === undefined &&
-          kitchenTicket === undefined
+          kitchenTicket === undefined &&
+          courierTicket === undefined
         ) {
           authentication = handlers.authenticateBusinessTicket(ticket);
         } else if (
           typeof token === "string" &&
           token !== "" &&
           ticket === undefined &&
-          kitchenTicket === undefined
+          kitchenTicket === undefined &&
+          courierTicket === undefined
         ) {
           authentication = handlers.authenticate(token);
         } else {
@@ -184,7 +212,12 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
         authentication
           .then(async (auth) => {
             socket.data = auth;
-            if (auth.kind === "kitchen") {
+            if (auth.kind === "courier") {
+              await socket.join([
+                `courier:${auth.businessId}:user:${auth.userId}`,
+                sessionRoom(auth.sessionId),
+              ]);
+            } else if (auth.kind === "kitchen") {
               await socket.join([
                 kitchenRoom(auth.businessId, auth.branchId, auth.appInstanceId),
                 deviceRoom(auth.deviceId),
@@ -235,7 +268,12 @@ export function createRealtime(config: Config, logger: FastifyBaseLogger): Realt
           });
         }
         socket.on("conversation:typing", (event) => {
-          if (socket.data.kind === "kitchen" || socket.data.businessId !== undefined) return;
+          if (
+            socket.data.kind === "kitchen" ||
+            socket.data.kind === "courier" ||
+            socket.data.businessId !== undefined
+          )
+            return;
           const parsed = typingEventSchema.safeParse(event);
           const now = Date.now();
           if (!parsed.success || now - lastTypingAt < TYPING_MIN_INTERVAL_MS) return;

@@ -246,6 +246,7 @@ export type AdminReport = z.infer<typeof adminReportSchema>;
 
 export const adminUpdateReportBodySchema = z.object({
   status: reportStatusSchema,
+  reviewVisibility: z.enum(["published", "hidden"]).optional(),
 });
 export type AdminUpdateReportBody = z.infer<typeof adminUpdateReportBodySchema>;
 

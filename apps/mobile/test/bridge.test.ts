@@ -7,6 +7,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { type BridgeHost, handleBridgeMessage, isLeftNotice } from "@/features/miniapps/bridge";
+import { createLocationHost } from "@/features/miniapps/location-host";
 
 const ALL_CAPABILITIES: Capability[] = [
   "identity.basic",
@@ -153,6 +154,31 @@ describe("handleBridgeMessage", () => {
         allowed.host,
       ),
     ).toMatchObject({ ok: false, error: { code: "unavailable" } });
+  });
+
+  it("değerlendirme, favori ve iade yetkisi kabukta denetlenir", async () => {
+    const id = "0468d9b0-5837-41c2-bb46-a2ca5a87d8fc";
+    const withoutOrdering = createHost({ capabilities: [] });
+    for (const [method, params] of [
+      ["feedback.listReviews", { limit: 10 }],
+      ["feedback.saveFavorite", { itemId: null, value: true, expectedVersion: 0, key: "test" }],
+      ["returns.list", { id }],
+      ["ordering.reorder", { id, key: "test", branchId: id, cartId: null, expectedVersion: 0, replace: false }],
+    ] as const) {
+      expect(await handleBridgeMessage(request(method, params), withoutOrdering.host)).toMatchObject({
+        ok: false,
+        error: { code: "capability_denied" },
+      });
+    }
+    const allowed = createHost({ capabilities: ["ordering.basic"] });
+    expect(await handleBridgeMessage(request("returns.list", { id }), allowed.host)).toMatchObject({
+      ok: false,
+      error: { code: "unavailable" },
+    });
+    expect(await handleBridgeMessage(request("returns.list", { id, userId: id }), allowed.host)).toMatchObject({
+      ok: false,
+      error: { code: "invalid_params" },
+    });
   });
 
   it("paketin işletme, uygulama veya oturum seçmesini hiçbir sipariş metodunda kabul etmez", async () => {
@@ -373,4 +399,93 @@ describe("handleBridgeMessage", () => {
       result: { params: { masa: "12", sube: "kadikoy" } },
     });
   });
+});
+it("adresler paket yetkisi ve kullanıcı onayı olmadan okunamaz", async () => {
+  for (const options of [
+    { capabilities: [] },
+    { capabilities: ["location.addresses"] as Capability[], answer: false },
+  ]) {
+    const { host } = createHost(options);
+    const response = await handleBridgeMessage(
+      { vado: 1, id: "adres", method: "location.listAddresses" },
+      host,
+    );
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: options.capabilities.length === 0 ? "capability_denied" : "user_denied" },
+    });
+  }
+});
+it("izin verilen adres isteği gerçek transporta gider; kullanıcı kapsamı enjekte edilemez", async () => {
+  const { host } = createHost({ capabilities: ["location.addresses"], answer: true }),
+    requests: string[] = [];
+  host.location = createLocationHost({
+    request: (_method, path) => {
+      requests.push(path);
+      return Promise.resolve({ items: [] });
+    },
+  });
+  expect(
+    await handleBridgeMessage(
+      { vado: 1, id: "adres-listesi", method: "location.listAddresses" },
+      host,
+    ),
+  ).toMatchObject({ ok: true, result: { items: [] } });
+  expect(requests).toEqual(["/v1/location/addresses"]);
+  expect(
+    await handleBridgeMessage(
+      {
+        vado: 1,
+        id: "sahte-sahip",
+        method: "location.getAddress",
+        params: {
+          id: "92c806f2-070a-4245-b450-0b7bd156c054",
+          userId: "92c806f2-070a-4245-b450-0b7bd156c054",
+        },
+      },
+      host,
+    ),
+  ).toMatchObject({ ok: false, error: { code: "invalid_params" } });
+  expect(requests).toHaveLength(1);
+});
+it("teslimat teklifi hem sipariş hem adres yetkisi ve adres izni ister", async () => {
+  const params = {
+    branchId: "0468d9b0-5837-41c2-bb46-a2ca5a87d8fc",
+    addressId: "0468d9b0-5837-41c2-bb46-a2ca5a87d8fc",
+  };
+  const orderingOnly = createHost({ capabilities: ["ordering.basic"] });
+  expect(
+    await handleBridgeMessage(request("ordering.getDeliveryQuote", params), orderingOnly.host),
+  ).toMatchObject({ ok: false, error: { code: "capability_denied" } });
+  const addressesOnly = createHost({
+    capabilities: ["location.addresses"],
+    granted: ["location.addresses"],
+  });
+  expect(
+    await handleBridgeMessage(request("ordering.getDeliveryQuote", params), addressesOnly.host),
+  ).toMatchObject({ ok: false, error: { code: "capability_denied" } });
+  const refused = createHost({
+    capabilities: ["ordering.basic", "location.addresses"],
+    answer: false,
+  });
+  expect(
+    await handleBridgeMessage(request("ordering.getDeliveryQuote", params), refused.host),
+  ).toMatchObject({ ok: false, error: { code: "user_denied" } });
+  expect(refused.calls).toEqual(["ask:location.addresses"]);
+});
+
+it("kuponla sepet değiştirmek teşvik ve sipariş yetkilerini birlikte ister", async () => {
+  const params = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    key: "kupon-1",
+    expectedVersion: 1,
+    couponCode: "VADO10",
+    pointsToSpend: 0,
+  };
+  for (const capabilities of [["incentives.basic"], ["ordering.basic"]] as const) {
+    const scope = createHost({ capabilities: [...capabilities] });
+    expect(
+      await handleBridgeMessage(request("incentives.applyCart", params), scope.host),
+    ).toMatchObject({ ok: false, error: { code: "capability_denied" } });
+  }
 });

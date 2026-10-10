@@ -26,6 +26,9 @@ test("açık sözleşme ve işletme ayarı doğrulanır; personel ve yabancı m�
     "ordering.pickup",
     "ordering.scheduling",
     "ordering.kitchen",
+    "ordering.delivery",
+    "ordering.reorder",
+    "ordering.returns",
   ]);
   const f = await createOrderingFixture(app);
   const path = `/v1/business/${f.businessId}/app-instances/${f.instanceId}/capabilities`;
@@ -51,6 +54,7 @@ test("açık sözleşme ve işletme ayarı doğrulanır; personel ve yabancı m�
     { body },
   );
   expect(saved.businessBlocks.map((b) => b.title)).toContain("Paketleme");
+  expect(saved.businessBlocks.map((b) => b.view)).toEqual(expect.arrayContaining(["reviews", "returns"]));
   expect(saved.stateGraph.accepted).toEqual(["preparing", "cancelled"]);
 });
 

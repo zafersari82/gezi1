@@ -2,7 +2,14 @@ import { z } from "zod";
 
 export const REPORT_NOTE_MAX = 500;
 
-export const reportTargetTypeSchema = z.enum(["user", "message", "moment", "miniapp", "business"]);
+export const reportTargetTypeSchema = z.enum([
+  "user",
+  "message",
+  "moment",
+  "miniapp",
+  "business",
+  "review",
+]);
 export type ReportTargetType = z.infer<typeof reportTargetTypeSchema>;
 
 export const REPORT_REASONS = ["spam", "abuse", "fraud", "illegal", "other"] as const;

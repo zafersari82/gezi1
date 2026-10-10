@@ -7,8 +7,9 @@ import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
 
-const roles = { owner: "İşletme sahibi", manager: "Yönetici", staff: "Personel" };
+const roles = { owner: "İşletme sahibi", manager: "Yönetici", staff: "Personel", courier: "Kurye" };
 export function BusinessChooser({ memberships }: { memberships: BusinessMembership[] }) {
+  const managementMemberships = memberships.filter((membership) => membership.role !== "courier");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -27,7 +28,7 @@ export function BusinessChooser({ memberships }: { memberships: BusinessMembersh
   return (
     <>
       <div className="business-grid">
-        {memberships.map((m) => (
+        {managementMemberships.map((m) => (
           <button
             disabled={busy}
             className="business-card"
@@ -41,7 +42,7 @@ export function BusinessChooser({ memberships }: { memberships: BusinessMembersh
           </button>
         ))}
       </div>
-      {memberships.length === 0 && (
+      {managementMemberships.length === 0 && (
         <section className="empty">
           <h2>Henüz bir işletmeye bağlı değilsin.</h2>
           <p>İşletme sahibi seni VADO hesabınla üye olarak eklediğinde burada görünecek.</p>

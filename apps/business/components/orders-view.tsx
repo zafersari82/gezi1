@@ -1,5 +1,5 @@
 "use client";
-
+import { formatBranchDateTime } from "@vado/contracts";
 import {
   mergeOrderSnapshot,
   type Order,
@@ -27,11 +27,13 @@ export function OrdersView({
   initial,
   title,
   states,
+  manageBranchIds,
 }: {
   businessId: string;
   initial: OrderList;
   title: string;
   states: string[];
+  manageBranchIds: string[];
 }) {
   const [list, setList] = useState(initial);
   const [filter, setFilter] = useState<OrderFilter>("active");
@@ -182,11 +184,8 @@ export function OrdersView({
               </div>
               <div className="order-bottom">
                 <span className="muted">
-                  {new Date(o.createdAt).toLocaleTimeString("tr-TR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
-                  · {o.fulfilment === "dine_in" ? "Masada" : "Gel al"}
+                  {formatBranchDateTime(o.createdAt, o.branchTimezone)} ·{" "}
+                  {o.fulfilment === "dine_in" ? "Masada" : "Gel al"}
                 </span>
                 <strong>{money(o.totalMinor)}</strong>
               </div>
@@ -255,25 +254,20 @@ export function OrdersView({
                 <dt>İçindeki KDV</dt>
                 <dd>{money(selected.vatMinor)}</dd>
               </dl>
-              <OrderActions
+              {manageBranchIds.includes(selected.branchId) ? <OrderActions
                 key={selected.id}
                 order={selected}
                 onChanged={async (detail) => {
                   acceptDetail(detail);
                   await refresh();
                 }}
-              />
+              /> : <p className="muted small">Bu siparişi görüntüleyebilirsiniz; işlem yapma yetkiniz yok.</p>}
               <h3 className="history-title">İşlem geçmişi</h3>
               <ol className="history">
                 {selected.history.map((entry) => (
                   <li key={entry.version}>
                     <span>{STATE_LABELS[entry.toStatus] ?? entry.toStatus}</span>
-                    <time>
-                      {new Date(entry.createdAt).toLocaleTimeString("tr-TR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </time>
+                    <time>{formatBranchDateTime(entry.createdAt, selected.branchTimezone)}</time>
                   </li>
                 ))}
               </ol>

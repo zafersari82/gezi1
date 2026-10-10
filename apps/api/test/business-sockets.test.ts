@@ -126,6 +126,8 @@ test("üyelik ve oturum iptali önceden verilmiş bileti geçersiz kılar", asyn
     role: "staff",
     active: true,
   });
+  await as(app, staff).fail("forbidden", "POST", `/v1/business/${f.businessId}/socket-ticket`);
+  await app.services.businessManagement.setMember(f.scope, { userId: staff.id, role: "manager", active: true });
   const ticket = await as(app, staff).ok(
     ticketSchema,
     "POST",
@@ -183,7 +185,7 @@ test("outbox sipariş olayı yalnız ilgili işletme soketine gider; tekrar etki
   const other = await createTenantFixture(app);
   await app.services.businessManagement.setMember(other.scope, {
     userId: f.owner.id,
-    role: "staff",
+    role: "manager",
     active: true,
   });
   const first = await as(app, f.owner).ok(
@@ -303,7 +305,7 @@ test("üyelik kapatıldıktan sonra açık sokete yeni sipariş olayı gönderil
   const staff = await createUser(app, "Eski personel");
   await scoped(app.db, f.businessId, (tx) =>
     tx.execute(
-      sql`insert into business_members(business_id,user_id,role) values(${f.businessId},${staff.id},'staff')`,
+      sql`insert into business_members(business_id,user_id,role) values(${f.businessId},${staff.id},'manager')`,
     ),
   );
   const ticket = await as(app, staff).ok(

@@ -2,6 +2,9 @@ import { z } from "zod";
 
 import { catalogSelectionSchema, moneyMinorSchema, vatBasisPointsSchema } from "./catalog";
 import { idSchema, timestampSchema } from "./common";
+import { deliverySummarySchema } from "./delivery";
+import { incentiveQuoteSchema } from "./incentives";
+import { timezoneSchema } from "./time";
 
 export const CORE_ORDER_STATES = [
   "placed",
@@ -21,10 +24,11 @@ export const CORE_ORDER_GRAPH: Readonly<Record<string, readonly string[]>> = {
 export const orderStateSchema = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/);
 export const orderGraphSchema = z.record(orderStateSchema, z.array(orderStateSchema).max(20));
 export const expectedVersionSchema = z.number().int().min(1).max(2_147_483_647);
-export const fulfilmentSchema = z.enum(["pickup", "dine_in"]);
+export const fulfilmentSchema = z.enum(["pickup", "dine_in", "delivery"]);
 export const openCartBodySchema = z
   .object({
     branchId: idSchema,
+    addressId: idSchema.nullable().optional(),
     fulfilment: fulfilmentSchema.default("pickup"),
     tableSessionId: idSchema.nullable().optional(),
     scheduledAt: z.iso.datetime({ offset: true }).nullable().optional(),
@@ -64,6 +68,7 @@ export const cartLineSchema = catalogSelectionSchema.extend({
   name: z.string(),
   available: z.boolean(),
   priceChanged: z.boolean(),
+  discountMinor: moneyMinorSchema.optional(),
   unitPriceMinor: moneyMinorSchema,
   totalMinor: moneyMinorSchema,
   vatBasisPoints: vatBasisPointsSchema,
@@ -87,9 +92,12 @@ export const cartSchema = z.object({
   vatMinor: moneyMinorSchema,
   currency: z.literal("TRY"),
   quoteHash: z.string(),
+  delivery: deliverySummarySchema.nullable().optional(),
+  incentives: incentiveQuoteSchema.optional(),
 });
 export type Cart = z.infer<typeof cartSchema>;
 export const orderSummarySchema = z.object({
+  branchTimezone: timezoneSchema,
   id: idSchema,
   businessId: idSchema,
   cartId: idSchema,
@@ -115,6 +123,7 @@ export const orderSummarySchema = z.object({
 });
 export type OrderSummary = z.infer<typeof orderSummarySchema>;
 export const orderLineSchema = z.object({
+  discountMinor: moneyMinorSchema.optional(),
   id: idSchema,
   itemId: idSchema,
   name: z.string(),
@@ -135,7 +144,19 @@ export const orderHistorySchema = z.object({
   actorKind: z.enum(["customer", "business", "system", "device"]),
   createdAt: timestampSchema,
 });
+export const orderPaymentSchema = z.object({
+  id: idSchema,
+  amountMinor: moneyMinorSchema,
+  place: z.enum(["table", "counter", "delivery"]),
+  method: z.enum(["cash", "card"]),
+  memberId: idSchema,
+  reference: z.string().nullable(),
+  createdAt: timestampSchema,
+});
+export type OrderPayment = z.infer<typeof orderPaymentSchema>;
 export const orderSchema = orderSummarySchema.extend({
+  payment: orderPaymentSchema.nullable().optional(),
+  incentives: incentiveQuoteSchema.nullable().optional(),
   lines: z.array(orderLineSchema),
   history: z.array(orderHistorySchema),
   stateGraph: orderGraphSchema,
@@ -172,3 +193,23 @@ export function mergeOrderSnapshot<T extends OrderSummary>(current: T | null, in
   const payment = incoming.paymentVersion >= current.paymentVersion ? incoming : current;
   return { ...state, paymentStatus: payment.paymentStatus, paymentVersion: payment.paymentVersion };
 }
+
+/** Operational totals: completed order amounts are not proof of collected payments. */
+export const branchPerformanceQuerySchema = z.object({
+  days: z.enum(["7", "30"]).default("30"),
+});
+export const branchPerformanceRowSchema = z.object({
+  branchId: idSchema,
+  branchName: z.string(),
+  orderCount: z.number().int().nonnegative(),
+  completedCount: z.number().int().nonnegative(),
+  cancelledCount: z.number().int().nonnegative(),
+  openCount: z.number().int().nonnegative(),
+  completedAmountMinor: z.string().regex(/^\d+$/),
+});
+export const branchPerformanceSchema = z.object({
+  days: z.union([z.literal(7), z.literal(30)]),
+  currency: z.literal("TRY"),
+  items: z.array(branchPerformanceRowSchema),
+});
+export type BranchPerformance = z.infer<typeof branchPerformanceSchema>;

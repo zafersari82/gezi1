@@ -1,4 +1,5 @@
 "use client";
+import { formatBranchDateTime } from "@vado/contracts";
 import {
   type Branch,
   type LiveEvent,
@@ -248,10 +249,7 @@ export function KitchenView({
             </div>
             <p>
               {o.fulfilment === "dine_in" ? "Masada servis" : "Gel al"} ·{" "}
-              {new Date(o.createdAt).toLocaleTimeString("tr-TR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatBranchDateTime(o.createdAt, o.branchTimezone)}
             </p>
             {o.fulfilment === "dine_in" && o.tableLabel && (
               <p>
@@ -260,7 +258,7 @@ export function KitchenView({
             )}
             {o.scheduledAt && (
               <p className="scheduled-time">
-                İleri saat · {new Date(o.scheduledAt).toLocaleString("tr-TR")}
+                İleri saat · {formatBranchDateTime(o.scheduledAt, o.branchTimezone)}
               </p>
             )}
             <ul className="kitchen-lines">

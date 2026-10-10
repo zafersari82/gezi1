@@ -1,5 +1,6 @@
 import type { BusinessOrderEvent, LiveEvent } from "./business-live";
 import type { Message } from "./chat";
+import type { CourierLiveEvent } from "./courier";
 
 /**
  * Gerçek zamanlı kanal yalnızca sunucudan istemciye bildirim taşır.
@@ -7,6 +8,7 @@ import type { Message } from "./chat";
  * tek istisna, kalıcı olmayan "yazıyor" bildirimidir.
  */
 export interface ServerToClientEvents {
+  "courier:event": (event: CourierLiveEvent) => void;
   "business:live": (event: LiveEvent) => void;
   "order:changed": (event: LiveEvent) => void;
   "kitchen:event": (event: LiveEvent) => void;

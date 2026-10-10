@@ -5,6 +5,19 @@ import { z } from "zod";
  * Yeni bir hata eklemek için yalnızca bu tabloya satır eklenir.
  */
 export const ERROR_MESSAGES = {
+  incentive_code_taken: "Bu kupon kodu zaten kullanılıyor. Başka bir kod seç.",
+  incentive_unavailable: "Kupon veya kampanya artık uygun değil. Sepeti yenile.",
+  incentive_stack_forbidden: "Bu kampanya kuponla birlikte kullanılamaz.",
+  loyalty_insufficient: "Kullanılabilir sadakat puanın yeterli değil.",
+  courier_busy: "Kuryenin etkin bir işi var. Başka bir kurye seçin.",
+  location_catalog_not_ready:
+    "Adres kataloğu henüz hazır değil. Kurulumda konum kataloğu içe aktarılmalıdır.",
+  location_parent_invalid: "Adresin il, ilçe ve mahalle seçimi uyuşmuyor.",
+  record_version_conflict: "Kayıt değişti. Güncel bilgiyi açıp yeniden dene.",
+  review_exists: "Bu sipariş için zaten bir değerlendirme var.",
+  review_order_invalid: "Yalnız tamamlanmış sipariş değerlendirilebilir.",
+  location_version_conflict: "Adres veya bölge değişti. Güncel kaydı aç.",
+  location_inactive: "Bu adres veya bölge artık etkin değil.",
   table_in_use: "Masada açık veya ödenmemiş sipariş var; oturum kapatılamaz.",
   branch_closed: "Şube şu anda kapalı; sipariş verilemez.",
   fulfilment_unavailable: "Bu masa veya teslim saati artık uygun değil. Yeniden seçin.",
@@ -60,6 +73,7 @@ export const ERROR_MESSAGES = {
   // Medya
   media_invalid: "Yalnızca JPEG, PNG veya WebP görsel yüklenebilir.",
   media_too_large: "Görsel boyutu çok büyük.",
+  media_quota_exceeded: "İşletmenin görsel depolama alanı doldu. Kullanılmayan fotoğrafları temizleyin.",
   media_not_found: "Görsel bulunamadı.",
 
   // Anlar

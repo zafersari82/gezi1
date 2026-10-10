@@ -201,7 +201,7 @@ anlık bildirim tamamlandı. Her sürüm işe başlamadan önce tek sayfalık pl
 | 2.5   | Kimlik belirteci, parametreli QR, anlık bildirim, işletme girişi (tamamlandı)                                                                                                 |
 | 2.6   | Platform temeli (müşteri kimliği, şube, katalog ve fiyat, olay altyapısı, işletme yalıtımı), Sipariş motoru çekirdeği, yetenek paketi altyapısı, VADO Business temeli         |
 | 2.7   | Restoran: masadan QR sipariş, gel-al, ileri saate sipariş, mutfak operasyonu                                                                                                  |
-| 2.8   | Restoran: eve teslim, kurye, kampanya, sadakat, değerlendirme, tekrar sipariş                                                                                                 |
+| 2.8   | Restoran: eve teslim, kurye, kampanya, sadakat, değerlendirme, tekrar sipariş; pilot işletme ve "Restoran PRO"                                                                |
 | 2.9   | Rezervasyon motoru; güzellik, berber ve özel ders ile doğrulama                                                                                                               |
 | 3.x   | VADO Studio (kod yazmadan kurma) ve diğer sektör deneyimleri; gerçek ödeme (lisanslı kuruluş), cihaz doğrulama (Play Integrity, App Attest), WebView için yerel güvenlik kodu |
 
@@ -270,5 +270,16 @@ fiziksel tahsilat, kalıcı canlı replay uygulanmıştır. Üç ekran boyutu, z
 bozma ve gerçek 2.6 geçiş/geri dönüş kanıtları [KABUL_2.7.md](KABUL_2.7.md)
 belgesindedir. Docker çalıştırması Claude'a, fiziksel tablet sesi/uyku ve native
 telefon denemesi hedef cihaza bırakılmıştır. Eve teslim, kurye, promosyon/sadakat,
-değerlendirme/tekrar sipariş 2.8 kapsamındadır. Sektör başına pilot yapılmaz; bütün sektörler
-bittikten sonra yayın öncesi tek bir toplu deneme yapılır, arada ara cihaz denemeleri.
+değerlendirme/tekrar sipariş ve iki haftalık pilot 2.8 kapsamındadır.
+
+## 2.8 ilk ara sürüm durumu
+
+`2.8.0-alpha.1`: Konum platformunun ulusal kataloğu, kullanıcıya ait adres CRUD'u,
+şube hizmet bölgesi CRUD'u ve işlem içi eşleştirmesi; sürüm, tekrar koruması,
+RLS/FORCE, denetim/outbox, SDK ve kullanıcı izinli LocationAPI köprüsü tamamlandı.
+Masa QR yetki görünürlüğü ve şube saat dilimi sunumu düzeltildi.
+
+Adres seçme/düzenleme ve Business hizmet bölgesi ekranları Görev 5 kapsamındadır.
+Eve teslim checkout'u, kurye, kampanya, sadakat, değerlendirme ve tekrar sipariş
+sonraki görevlerdir. Canlı GPS, arka plan konum izni ve online ödeme bu kapsamda
+yoktur. Gerçek iki haftalık pilot tamamlanmadan Restoran PRO etiketi kullanılmaz.

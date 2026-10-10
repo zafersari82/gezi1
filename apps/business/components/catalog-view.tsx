@@ -17,6 +17,8 @@ import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
 import { decimalToMinor, formText, money } from "../lib/values";
+import { BranchAvailabilityMatrix } from "./branch-availability-matrix";
+import { BranchPriceMatrix } from "./branch-price-matrix";
 import { MenuOperations } from "./menu-operations";
 
 type Item = Catalog["items"][number];
@@ -79,6 +81,8 @@ export function CatalogView({
             ["items", "Ürünler"],
             ["categories", "Kategoriler"],
             ["groups", "Seçenekler"],
+            ["branch-prices", "Şube fiyatları"],
+            ["branch-availability", "Şube stok durumu"],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -95,7 +99,7 @@ export function CatalogView({
             </button>
           ))}
         </div>
-        {canWrite && (
+        {canWrite && !["branch-prices", "branch-availability"].includes(tab) && (
           <button
             className="primary"
             disabled={busy}
@@ -123,146 +127,152 @@ export function CatalogView({
           Değişikliklerin kaydedildi.
         </p>
       )}
-      <div className="editor-layout">
-        <section className="panel">
-          <label className="search">
-            Katalogda ara
-            <input
-              type="search"
-              placeholder="Ada göre ara"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-              }}
-            />
-          </label>
-          {data
-            .filter((entry) =>
-              entry.name.toLocaleLowerCase("tr-TR").includes(search.toLocaleLowerCase("tr-TR")),
-            )
-            .map((entry) => (
-              <div className="item-row" key={entry.id}>
-                <div>
-                  <strong>{entry.name}</strong>
-                  <span className="muted small">
-                    {entry.active ? "Etkin" : "Arşivde"}
-                    {tab === "items" &&
-                      ` · ${money(catalog.prices.find((p) => p.itemId === entry.id && p.branchId === null)?.amountMinor ?? 0)}`}
-                  </span>
+      {tab === "branch-prices" ? (
+        <BranchPriceMatrix initial={catalog} branches={branches} canWrite={canWrite} />
+      ) : tab === "branch-availability" ? (
+        <BranchAvailabilityMatrix catalog={catalog} branches={branches} />
+      ) : (
+        <div className="editor-layout">
+          <section className="panel">
+            <label className="search">
+              Katalogda ara
+              <input
+                type="search"
+                placeholder="Ada göre ara"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                }}
+              />
+            </label>
+            {data
+              .filter((entry) =>
+                entry.name.toLocaleLowerCase("tr-TR").includes(search.toLocaleLowerCase("tr-TR")),
+              )
+              .map((entry) => (
+                <div className="item-row" key={entry.id}>
+                  <div>
+                    <strong>{entry.name}</strong>
+                    <span className="muted small">
+                      {entry.active ? "Etkin" : "Arşivde"}
+                      {tab === "items" &&
+                        ` · ${money(catalog.prices.find((p) => p.itemId === entry.id && p.branchId === null)?.amountMinor ?? 0)}`}
+                    </span>
+                  </div>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      setSelectedId(entry.id);
+                      setSaved(false);
+                    }}
+                  >
+                    {canWrite ? "Düzenle" : "Görüntüle"}
+                  </button>
                 </div>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    setSelectedId(entry.id);
-                    setSaved(false);
-                  }}
-                >
-                  {canWrite ? "Düzenle" : "Görüntüle"}
-                </button>
+              ))}
+            {data.length === 0 && (
+              <div className="empty">
+                <h2>Kataloğun burada büyüyecek.</h2>
+                <p>İlk kaydını sağdaki formdan ekle.</p>
               </div>
-            ))}
-          {data.length === 0 && (
-            <div className="empty">
-              <h2>Kataloğun burada büyüyecek.</h2>
-              <p>İlk kaydını sağdaki formdan ekle.</p>
-            </div>
-          )}
-        </section>
-        <section className="panel">
-          <fieldset disabled={!canWrite || busy} className="editor-fieldset">
-            {tab === "items" && (
-              <>
-                <ProductForm
-                  key={`${item?.id ?? "new"}:${revision}`}
-                  item={item}
-                  catalog={catalog}
+            )}
+          </section>
+          <section className="panel">
+            <fieldset disabled={!canWrite || busy} className="editor-fieldset">
+              {tab === "items" && (
+                <>
+                  <ProductForm
+                    key={`${item?.id ?? "new"}:${revision}`}
+                    item={item}
+                    catalog={catalog}
+                    mutate={mutate}
+                    onSaved={setSelectedId}
+                  />
+                  {item !== undefined && (
+                    <>
+                      <div className="subpanel">
+                        <h3>Ürünün seçenek grupları</h3>
+                        <form
+                          key={`${item.id}:${revision}`}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const data = new FormData(event.currentTarget);
+                            void mutate(async () => {
+                              await call(
+                                z.null(),
+                                `/api/business/catalog/items/${item.id}/option-groups`,
+                                "PUT",
+                                {
+                                  groupIds: data
+                                    .getAll("groupIds")
+                                    .filter((v): v is string => typeof v === "string"),
+                                },
+                              );
+                            });
+                          }}
+                        >
+                          <div className="chip-list">
+                            {catalog.optionGroups.map((g) => (
+                              <label className="check-label" key={g.id}>
+                                <input
+                                  type="checkbox"
+                                  name="groupIds"
+                                  value={g.id}
+                                  defaultChecked={item.optionGroupIds.includes(g.id)}
+                                />
+                                {g.name}
+                              </label>
+                            ))}
+                          </div>
+                          <button className="secondary">Seçenekleri kaydet</button>
+                        </form>
+                      </div>
+                      <MenuOperations
+                        key={`menu-${item.id}`}
+                        id={item.id}
+                        kind="item"
+                        branches={branches}
+                      />
+                      <PriceForm
+                        key={`prices-${item.id}`}
+                        item={item}
+                        catalog={catalog}
+                        branches={branches}
+                        mutate={mutate}
+                      />
+                    </>
+                  )}
+                </>
+              )}
+              {tab === "categories" && (
+                <CategoryForm
+                  key={`${category?.id ?? "new"}:${revision}`}
+                  category={category}
                   mutate={mutate}
                   onSaved={setSelectedId}
                 />
-                {item !== undefined && (
-                  <>
-                    <div className="subpanel">
-                      <h3>Ürünün seçenek grupları</h3>
-                      <form
-                        key={`${item.id}:${revision}`}
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          const data = new FormData(event.currentTarget);
-                          void mutate(async () => {
-                            await call(
-                              z.null(),
-                              `/api/business/catalog/items/${item.id}/option-groups`,
-                              "PUT",
-                              {
-                                groupIds: data
-                                  .getAll("groupIds")
-                                  .filter((v): v is string => typeof v === "string"),
-                              },
-                            );
-                          });
-                        }}
-                      >
-                        <div className="chip-list">
-                          {catalog.optionGroups.map((g) => (
-                            <label className="check-label" key={g.id}>
-                              <input
-                                type="checkbox"
-                                name="groupIds"
-                                value={g.id}
-                                defaultChecked={item.optionGroupIds.includes(g.id)}
-                              />
-                              {g.name}
-                            </label>
-                          ))}
-                        </div>
-                        <button className="secondary">Seçenekleri kaydet</button>
-                      </form>
-                    </div>
-                    <MenuOperations
-                      key={`menu-${item.id}`}
-                      id={item.id}
-                      kind="item"
-                      branches={branches}
-                    />
-                    <PriceForm
-                      key={`prices-${item.id}`}
-                      item={item}
-                      catalog={catalog}
-                      branches={branches}
-                      mutate={mutate}
-                    />
-                  </>
-                )}
-              </>
-            )}
-            {tab === "categories" && (
-              <CategoryForm
-                key={`${category?.id ?? "new"}:${revision}`}
-                category={category}
-                mutate={mutate}
-                onSaved={setSelectedId}
-              />
-            )}
-            {tab === "groups" && (
-              <GroupForm
-                key={`${group?.id ?? "new"}:${revision}`}
-                group={group}
-                mutate={mutate}
-                onSaved={setSelectedId}
-              />
-            )}
-            {tab === "categories" && category && (
-              <MenuOperations
-                key={`menu-${category.id}`}
-                id={category.id}
-                kind="category"
-                branches={branches}
-              />
-            )}
-          </fieldset>
-        </section>
-      </div>
+              )}
+              {tab === "groups" && (
+                <GroupForm
+                  key={`${group?.id ?? "new"}:${revision}`}
+                  group={group}
+                  mutate={mutate}
+                  onSaved={setSelectedId}
+                />
+              )}
+              {tab === "categories" && category && (
+                <MenuOperations
+                  key={`menu-${category.id}`}
+                  id={category.id}
+                  kind="category"
+                  branches={branches}
+                />
+              )}
+            </fieldset>
+          </section>
+        </div>
+      )}
     </>
   );
 }

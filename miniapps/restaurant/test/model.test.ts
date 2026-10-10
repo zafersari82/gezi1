@@ -1,7 +1,7 @@
 import type { Catalog } from "@vado/contracts";
 import { expect, it } from "vitest";
 
-import { selectionProblem } from "../src/model";
+import { dateTime, selectionProblem } from "../src/model";
 const group: Catalog["optionGroups"][number] = {
   id: "grup",
   businessId: "isletme",
@@ -25,4 +25,12 @@ it("zorunlu seçim boş bırakılamaz; en çok seçim, yabancı veya kapalı se�
       ["bir"],
     ),
   ).not.toBeNull();
+});
+
+it.each([
+  ["2026-01-15T22:30:00Z", "Europe/Istanbul", "16 Oca 01:30 · Europe/Istanbul"],
+  ["2026-01-15T22:30:00Z", "America/New_York", "15 Oca 17:30 · America/New_York"],
+  ["2026-07-15T22:30:00Z", "America/New_York", "15 Tem 18:30 · America/New_York"],
+])("%s saati cihaz yerine %s şubesinde gösterilir", (value, timezone, expected) => {
+  expect(dateTime(value, timezone)).toBe(expected);
 });

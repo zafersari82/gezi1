@@ -5,7 +5,10 @@ import {
   type EngineCapabilityManifest,
   type InstanceCapabilities,
   instanceCapabilitiesSchema,
+  studioTemplateById,
+  type StudioConfiguration,
 } from "@vado/contracts";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
@@ -31,6 +34,7 @@ export function SettingsView({
   packages,
   resolved,
   canWrite,
+  studio,
 }: {
   businessId: string;
   instances: z.infer<typeof appInstanceSchema>[];
@@ -38,6 +42,7 @@ export function SettingsView({
   packages: EngineCapabilityManifest[];
   resolved: InstanceCapabilities | null;
   canWrite: boolean;
+  studio: StudioConfiguration | null;
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,6 +56,24 @@ export function SettingsView({
           <p className="muted">Kurulu uygulamanın yeteneklerini ve ayarlarını yönet.</p>
         </div>
       </div>
+      <section className="panel settings-picker">
+        <h2>Mağaza taslağın</h2>
+        {studio === null ? (
+          <p className="muted">
+            Bu işletme için henüz bir şablon seçilmemiş. İlk mağaza oluşturucu açıldığında
+            şablonunu buradan yöneteceksin.
+          </p>
+        ) : (
+          <p>
+            <strong>{studioTemplateById(studio.templateId).name}</strong> ·{" "}
+            {studio.status === "draft" ? "Taslak" : "Hazır"}
+          </p>
+        )}
+        <p className="small muted">
+          Mağaza görünümünü telefonundan düzenleyebilirsin. Taslağı kaydetmek yayınlamak değildir.
+        </p>
+        <Link className="secondary" href="/studio">Mağazamı tasarla</Link>
+      </section>
       <section className="panel settings-picker">
         <label>
           İşletme uygulaman

@@ -155,27 +155,29 @@ export function TablesView({
                   >
                     Hesabı aç
                   </button>
-                  <button
-                    className="secondary"
-                    disabled={busy || !t.active}
-                    onClick={() =>
-                      void mutate(async () => {
-                        const value = await call(
-                          issuedQrSchema,
-                          `/api/business/tables/${t.id}/qr`,
-                          "POST",
-                          {},
-                        );
-                        const image = await QRCode.toDataURL(value.value, {
-                          width: 360,
-                          errorCorrectionLevel: "M",
-                        });
-                        setQr({ value: value.value, image, label: t.label });
-                      })
-                    }
-                  >
-                    Masa QR
-                  </button>
+                  {canWrite && (
+                    <button
+                      className="secondary"
+                      disabled={busy || !t.active}
+                      onClick={() =>
+                        void mutate(async () => {
+                          const value = await call(
+                            issuedQrSchema,
+                            `/api/business/tables/${t.id}/qr`,
+                            "POST",
+                            {},
+                          );
+                          const image = await QRCode.toDataURL(value.value, {
+                            width: 360,
+                            errorCorrectionLevel: "M",
+                          });
+                          setQr({ value: value.value, image, label: t.label });
+                        })
+                      }
+                    >
+                      Masa QR
+                    </button>
+                  )}
                   {canWrite && (
                     <details>
                       <summary>Düzenle</summary>
@@ -255,7 +257,7 @@ export function TablesView({
           )}
         </section>
         <section className="panel">
-          {qr && (
+          {canWrite && qr && (
             <div className="table-qr">
               <h2>{qr.label} · imzalı masa QR</h2>
               <Image
@@ -345,7 +347,13 @@ export function TablesView({
               </p>
             </>
           ) : (
-            !qr && <p>Bir masanın hesabını veya QR kodunu seç.</p>
+            (!canWrite || !qr) && (
+              <p>
+                {canWrite
+                  ? "Bir masanın hesabını veya QR kodunu seç."
+                  : "Bir masanın hesabını seç."}
+              </p>
+            )
           )}
         </section>
       </div>

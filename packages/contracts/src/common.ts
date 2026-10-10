@@ -13,7 +13,10 @@ export const PAGE_SIZE_MAX = 100;
 export const pageQuerySchema = z.object({
   cursor: z
     .string()
-    .regex(/^\d{1,18}$/)
+    .refine(
+      (value) => /^\d{1,19}$/.test(value) && BigInt(value) <= 9223372036854775807n,
+      "Geçersiz sayfalama imleci.",
+    )
     .optional(),
   limit: z.coerce.number().int().min(1).max(PAGE_SIZE_MAX).default(PAGE_SIZE_DEFAULT),
 });

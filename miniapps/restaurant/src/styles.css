@@ -129,6 +129,128 @@ label {
 .service-bar p {
   margin: 0;
 }
+/* Studio vitrin sunumları: ortak katalog/sepet davranışı değişmez. */
+.storefront-intro {
+  background: var(--store-surface, #edf0e4);
+  border-top-color: var(--green);
+  border-radius: 18px;
+  padding-inline: clamp(18px, 4vw, 38px);
+}
+.storefront-intro .eyebrow { color: var(--green); }
+.storefront-branch-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 650;
+}
+.menu-item { min-width: 0; }
+.menu-item strong, .menu-item span { overflow-wrap: anywhere; }
+
+/* Hızlı servis: birkaç satırda okunabilen, düşük görsel yükü olan kompakt liste. */
+.page[data-storefront-layout="compact"] .storefront-intro { border-radius: 12px; }
+.page[data-storefront-layout="compact"] .menu-grid { grid-template-columns: 1fr; gap: 9px; }
+.page[data-storefront-layout="compact"] .menu-item {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, auto);
+  align-content: center;
+  column-gap: 12px;
+  row-gap: 4px;
+  min-height: 94px;
+  padding: 12px;
+  border-radius: 12px;
+}
+.page[data-storefront-layout="compact"] .menu-item .menu-image,
+.page[data-storefront-layout="compact"] .menu-item .item-symbol {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  align-self: center;
+  height: 70px;
+  width: 70px;
+}
+.page[data-storefront-layout="compact"] .menu-item .item-symbol {
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--store-surface, #edf0e4);
+}
+.page[data-storefront-layout="compact"] .menu-item strong { grid-column: 2; grid-row: 1; font-size: 16px; }
+.page[data-storefront-layout="compact"] .menu-item span:not(.item-symbol) { grid-column: 2; grid-row: 2; }
+.page[data-storefront-layout="compact"] .menu-item b { grid-column: 3; grid-row: 1 / span 2; align-self: center; white-space: nowrap; }
+.page[data-storefront-layout="compact"] .menu-item em { grid-column: 2 / 4; grid-row: 3; }
+
+/* Klasik restoran: dengeli, hızlı taranabilir kart ızgarası. */
+.page[data-storefront-layout="classic"] .menu-item {
+  border-radius: 16px;
+  min-height: 210px;
+}
+.page[data-storefront-layout="classic"] .menu-item .menu-image { height: 148px; }
+
+/* Premium: fotoğraf büyük, başlık sakin, düzen ferah. */
+.page[data-storefront-layout="editorial"] .storefront-intro {
+  border: 0;
+  border-radius: 22px;
+  text-align: center;
+  padding: 48px clamp(20px, 5vw, 68px);
+}
+.page[data-storefront-layout="editorial"] .storefront-cover {
+  max-height: 340px;
+  border-radius: 18px;
+  margin-bottom: 22px;
+}
+.page[data-storefront-layout="editorial"] .storefront-logo { margin-inline: auto; }
+.page[data-storefront-layout="editorial"] .storefront-intro h1 { font-size: clamp(36px, 5vw, 64px); }
+.page[data-storefront-layout="editorial"] .menu-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 22px;
+}
+.page[data-storefront-layout="editorial"] .menu-item {
+  padding: 18px;
+  border-radius: 20px;
+  gap: 14px;
+  text-align: center;
+}
+.page[data-storefront-layout="editorial"] .menu-item .menu-image { height: 230px; border-radius: 14px; }
+.page[data-storefront-layout="editorial"] .menu-item strong { font-size: 21px; }
+.page[data-storefront-layout="editorial"] .menu-item b { color: var(--green); }
+
+/* Kurumsal: güçlü marka hiyerarşisi ve çok şubede kolay taranan katalog. */
+.page[data-storefront-layout="enterprise"] .storefront-intro {
+  border-radius: 10px;
+  border-top-width: 6px;
+  padding-block: 34px;
+}
+.page[data-storefront-layout="enterprise"] .storefront-intro h1 { font-size: clamp(30px, 4vw, 45px); }
+.page[data-storefront-layout="enterprise"] .storefront-cover {
+  max-height: 210px;
+  border-radius: 8px;
+}
+.page[data-storefront-layout="enterprise"] .service-bar { border: 1px solid var(--line); border-radius: 10px; }
+.page[data-storefront-layout="enterprise"] .menu-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.page[data-storefront-layout="enterprise"] .menu-item {
+  border-radius: 10px;
+  border-top: 3px solid var(--green);
+  padding: 18px;
+}
+.page[data-storefront-layout="enterprise"] .menu-item .menu-image { height: 150px; }
+.page[data-storefront-layout="enterprise"] .category-tabs button.selected { background: var(--green); }
+
+@media (max-width: 560px) {
+  .page[data-storefront-layout="compact"] .menu-item { grid-template-columns: 54px minmax(0, 1fr); }
+  .page[data-storefront-layout="compact"] .menu-item .menu-image,
+  .page[data-storefront-layout="compact"] .menu-item .item-symbol { height: 52px; width: 52px; }
+  .page[data-storefront-layout="compact"] .menu-item b { grid-column: 2; grid-row: 3; justify-self: start; }
+  .page[data-storefront-layout="compact"] .menu-item em { grid-column: 2; grid-row: 4; }
+  .page[data-storefront-layout="editorial"] .storefront-intro { padding: 28px 18px; }
+  .page[data-storefront-layout="editorial"] .menu-grid { grid-template-columns: 1fr; }
+  .page[data-storefront-layout="editorial"] .menu-item .menu-image { height: 210px; }
+  .page[data-storefront-layout="enterprise"] .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page[data-storefront-layout="enterprise"] .menu-item { padding: 12px; }
+  .page[data-storefront-layout="enterprise"] .menu-item .menu-image { height: 100px; }
+}
+
 .restaurant-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -326,3 +448,17 @@ fieldset small {
     padding: 24px;
   }
 }
+
+/* Sipariş sonrası deneyim */
+.aftercare { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #fff; display: grid; gap: 14px; }
+.aftercare h3, .aftercare h4 { margin: 0; }
+.aftercare-section { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.aftercare label { display: grid; gap: 6px; }
+.aftercare select, .aftercare textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.aftercare textarea { min-height: 74px; resize: vertical; }
+.aftercare-request { display: grid; gap: 8px; padding: 10px; border-radius: 8px; background: #f4f7f1; }
+
+/* Yayınlanmış işletme ve katalog görselleri (taslaklar müşteriye aktarılmaz). */
+.storefront-cover { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+.storefront-logo { display: block; width: 68px; height: 68px; object-fit: cover; border-radius: 12px; margin-bottom: 8px; }
+.menu-image { width: 100%; height: 120px; object-fit: cover; border-radius: 10px; }

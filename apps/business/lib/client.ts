@@ -16,18 +16,23 @@ export async function call<Schema extends z.ZodType>(
   path: string,
   method = "GET",
   body?: unknown,
+  idempotencyKey?: string,
+  redirectOnUnauthorized = true,
 ): Promise<z.infer<Schema>> {
   const response = await fetch(path, {
     method,
     cache: "no-store",
-    headers: body === undefined ? {} : { "content-type": "application/json" },
+    headers: {
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+      ...(idempotencyKey === undefined ? {} : { "idempotency-key": idempotencyKey }),
+    },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const value: unknown = response.status === 204 ? null : await response.json();
   if (!response.ok) {
     const result = apiErrorBodySchema.safeParse(value);
     const code = result.success ? result.data.error.code : "internal_error";
-    if (response.status === 401)
+    if (response.status === 401 && redirectOnUnauthorized)
       window.location.assign(path.startsWith("/api/kitchen/") ? "/kitchen-pair" : "/login");
     throw new ClientApiError(
       response.status,

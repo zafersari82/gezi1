@@ -55,6 +55,7 @@ export default function AppLayout() {
               name="moments/compose"
               options={{ title: "Yeni paylaşım", presentation: "modal" }}
             />
+            <Stack.Screen name="search" options={{ title: "VADO Arama" }} />
             <Stack.Screen name="miniapps/index" options={{ title: "Mini uygulamalar" }} />
             <Stack.Screen name="miniapps/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="businesses/index" options={{ title: "İşletmeler" }} />

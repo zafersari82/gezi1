@@ -109,12 +109,14 @@ export const REPORT_TARGET_LABELS: Record<ReportTargetType, string> = {
   moment: "Paylaşım",
   miniapp: "Mini uygulama",
   business: "İşletme",
+  review: "Değerlendirme",
 };
 
 /** Denetim kaydındaki kayıt türlerinin okunur karşılıkları; bilinmeyen tür olduğu gibi gösterilir. */
 export const AUDIT_TARGET_LABELS: Record<string, string> = {
   user: "Kullanıcı",
   business: "İşletme",
+  review: "Değerlendirme",
   miniapp: "Mini uygulama",
   package: "Paket",
   payment: "Ödeme",

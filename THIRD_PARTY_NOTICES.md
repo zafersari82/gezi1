@@ -94,3 +94,20 @@ Neredeyse tamamı MIT, ISC, BSD ve Apache-2.0 gibi serbest lisanslardır. Farkl�
 Mobil uygulamayı mağazada yayınlarken ve imajları başkalarına dağıtırken bağımlılıkların lisans
 metinleri korunmalıdır; kapsamını hukukçunuzla netleştirin. Yeni bir paket eklediğinizde bu dosyayı
 güncelleyin.
+
+## Türkiye konum kataloğu
+
+Kaynak: [onurusluca/turkey-geo-api](https://github.com/onurusluca/turkey-geo-api),
+sabit commit `5a16cef20f2335e3fe643c9618f931866bb8134c`.
+Lisans: MIT. Telif: Copyright (c) 2025 Onur Usluca. Erişim tarihi: 2026-10-07.
+
+Normalize edilmiş UTF-8 katalog 81 il, 973 ilçe ve 73.496 mahalle/köy/yerleşim
+kaydını içerir; kaynak kimlikleri korunur. Kısa adı boş 12.299 kayıt resmî tam
+adıyla gösterilir. Normalize kaynağın SHA-256 özeti:
+`76219fdbd23fa5183a918fd4730f60d91e53b29b593b7638bf8f317078add37f`.
+
+Lisansın tam metni `apps/api/data/location/LICENSE`, kaynak izleri ve dosya
+özetleri `apps/api/data/location/provenance.json`, sıkıştırılmış katalog
+`apps/api/data/location/turkey-geo.json.gz` içindedir. Bunlar API derlemesinde
+`dist/data/location` içine de kopyalanır. Verinin kaynak tarihi fiilî hizmet
+bölgesi doğrulamasının yerini tutmaz; işletme kendi bölgelerini doğrulamalıdır.

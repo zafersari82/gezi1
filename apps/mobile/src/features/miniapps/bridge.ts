@@ -21,14 +21,22 @@ import {
   type ShareParams,
 } from "@vado/contracts";
 
+import type { FeedbackHost } from "./feedback-host";
+import type { IncentivesHost } from "./incentives-host";
+import type { LocationHost } from "./location-host";
 import type { OrderingHost } from "./ordering-host";
+import type { ReturnsHost } from "./returns-host";
 
 /**
  * Köprünün kabuktan beklediği işlevler. Mini uygulama ekranı gerçek uygulamaları verir;
  * bu sayede köprü mantığı telefona ve tarayıcıya bağlı olmadan sınanabilir.
  */
 export interface BridgeHost {
+  feedback?: FeedbackHost | undefined;
+  returns?: ReturnsHost | undefined;
+  incentives?: IncentivesHost | undefined;
   ordering?: OrderingHost | undefined;
+  location?: LocationHost | undefined;
   miniApp: MiniAppDetail;
   /** Uygulamayı açan QR kodunun imzalı parametreleri; listeden açıldıysa boş. */
   launchParams: Record<string, string>;
@@ -77,7 +85,52 @@ function ordering(host: BridgeHost): OrderingHost {
   return host.ordering;
 }
 
+function location(host: BridgeHost): LocationHost {
+  if (host.location === undefined)
+    throw new BridgeFailure("unavailable", "Adres servisi kullanılamıyor.");
+  return host.location;
+}
+function feedback(host: BridgeHost): FeedbackHost {
+  if (host.feedback === undefined)
+    throw new BridgeFailure("unavailable", "Değerlendirme ve favori servisi kullanılamıyor.");
+  return host.feedback;
+}
+function returns(host: BridgeHost): ReturnsHost {
+  if (host.returns === undefined)
+    throw new BridgeFailure("unavailable", "İade servisi kullanılamıyor.");
+  return host.returns;
+}
+function incentives(host: BridgeHost): IncentivesHost {
+  if (host.incentives === undefined)
+    throw new BridgeFailure("unavailable", "Teşvik servisi kullanılamıyor.");
+  return host.incentives;
+}
 const handlers: Handlers = {
+  "feedback.listReviews": (host, params) => feedback(host).listReviews(params),
+  "feedback.createReview": (host, params) => feedback(host).createReview(params),
+  "feedback.editReview": (host, params) => feedback(host).editReview(params),
+  "feedback.listFavorites": (host, params) => feedback(host).listFavorites(params),
+  "feedback.saveFavorite": (host, params) => feedback(host).saveFavorite(params),
+  "returns.list": (host, params) => returns(host).list(params),
+  "returns.create": (host, params) => returns(host).create(params),
+  "returns.withdraw": (host, params) => returns(host).withdraw(params),
+  "ordering.reorder": (host, params) => ordering(host).reorder(params),
+  "incentives.getAvailable": (host, params) => incentives(host).getAvailable(params),
+  "incentives.getLoyalty": (host, params) => incentives(host).getLoyalty(params),
+  "incentives.applyCart": (host, params) => incentives(host).applyCart(params),
+  "location.listCountries": (host, params) => location(host).listCountries(params),
+  "location.listProvinces": (host, params) => location(host).listProvinces(params),
+  "location.listDistricts": (host, params) => location(host).listDistricts(params),
+  "location.listNeighborhoods": (host, params) => location(host).listNeighborhoods(params),
+  "location.getNeighborhood": (host, params) => location(host).getNeighborhood(params),
+  "location.listAddresses": (host, params) => location(host).listAddresses(params),
+  "location.getAddress": (host, params) => location(host).getAddress(params),
+  "location.createAddress": (host, params) => location(host).createAddress(params),
+  "location.updateAddress": (host, params) => location(host).updateAddress(params),
+  "location.archiveAddress": (host, params) => location(host).archiveAddress(params),
+
+  "ordering.getDeliveryQuote": (host, params) => ordering(host).getDeliveryQuote(params),
+  "ordering.getDeliverySnapshot": (host, params) => ordering(host).getDeliverySnapshot(params),
   "ordering.getRestaurant": (host, params) => ordering(host).getRestaurant(params),
   "ordering.getSlots": (host, params) => ordering(host).getSlots(params),
   "ordering.joinTable": (host, params) => ordering(host).joinTable(params),
@@ -137,6 +190,14 @@ const handlers: Handlers = {
 };
 
 async function run(method: BridgeMethod, rawParams: unknown, host: BridgeHost): Promise<unknown> {
+  if (
+    (method.startsWith("ordering.") ||
+      method.startsWith("feedback.") ||
+      method.startsWith("returns.") ||
+      method === "incentives.applyCart") &&
+    !host.miniApp.capabilities.includes("ordering.basic")
+  )
+    throw new BridgeFailure("capability_denied", "Bu mini uygulamanın sipariş yetkisi yok.");
   const capability = BRIDGE_METHODS[method];
   if (capability !== null && !host.miniApp.capabilities.includes(capability)) {
     throw new BridgeFailure(

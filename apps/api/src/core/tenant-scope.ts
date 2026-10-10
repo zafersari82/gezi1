@@ -59,6 +59,14 @@ export function withTenant<T>(
     if (current.business_id !== null && current.business_id !== scope.businessId)
       throw new AppError("forbidden");
     await tx.execute(sql`select set_config('vado.business_id', ${scope.businessId}, true)`);
+    if (scope.role !== "kitchen") {
+      const actor = await tx.one<{ user_id: string | null }>(
+        sql`select nullif(current_setting('vado.user_id',true),'') as user_id`,
+      );
+      if (actor.user_id !== null && actor.user_id !== scope.userId) throw new AppError("forbidden");
+      await tx.execute(sql`select set_config('vado.user_id',${scope.userId},true)`);
+      if (scope.role === "courier") throw new AppError("forbidden");
+    }
     if (scope.role === "kitchen") {
       const device = await tx.maybeOne(sql`
         select d.id from kitchen_devices d join app_instances i on i.business_id=d.business_id and i.id=d.app_instance_id

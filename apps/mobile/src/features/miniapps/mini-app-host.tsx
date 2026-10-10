@@ -30,11 +30,16 @@ import { Icon } from "@/ui/icon";
 import { type BridgeHost, handleBridgeMessage } from "./bridge";
 import { type ConsentRequest, ConsentSheet } from "./consent-sheet";
 import { consentStatusOf, grantConsent, miniAppStorage } from "./consents";
+import { createFeedbackHost } from "./feedback-host";
+import { createIncentivesHost } from "./incentives-host";
+import { createLocationHost } from "./location-host";
 import { MiniAppFrame } from "./mini-app-frame";
 import type { MiniAppFrameHandle } from "./mini-app-frame.types";
 import { MiniAppIcon } from "./mini-app-icon";
+import type { LaunchOrigin } from "./launch-params";
 import { createOrderingHost } from "./ordering-host";
 import { fetchMiniAppIdentity, fetchMiniAppIdentityToken } from "./queries";
+import { createReturnsHost } from "./returns-host";
 
 /** "Yaklaşık konum" yetkisi: koordinatlar yaklaşık 100 metre duyarlılığa yuvarlanır. */
 const COARSE_PRECISION = 1000;
@@ -52,10 +57,12 @@ export function MiniAppHost({
   miniApp,
   launchParams,
   launchQr = null,
+  launchOrigin = null,
 }: {
   miniApp: MiniAppDetail;
   launchParams: Record<string, string>;
   launchQr?: string | null;
+  launchOrigin?: LaunchOrigin | null;
 }) {
   const me = useMe();
   const insets = useSafeAreaInsets();
@@ -84,21 +91,29 @@ export function MiniAppHost({
     miniAppId: miniApp.id,
   });
 
+  // Tüm kabuk servisleri aynı kimlik doğrulamalı HTTP taşıyıcısını kullanır.
+  // Mini uygulama yalnız yöntem ve alan seçebilir; URL ve oturum bağlamını seçemez.
+  const transport = {
+    request: (method: "GET" | "POST" | "PUT", path: string, body?: unknown, key?: string) =>
+      method === "GET"
+        ? api.get<unknown>(path)
+        : method === "PUT"
+          ? key === undefined
+            ? api.put<unknown>(path, body)
+            : api.putIdempotent<unknown>(path, key, body)
+          : key === undefined
+            ? api.post<unknown>(path, body)
+            : api.postIdempotent<unknown>(path, key, body),
+  };
+  const selected = context.success
+    ? { ...context.data, miniAppId: miniApp.id }
+    : { miniAppId: miniApp.id };
   const host: BridgeHost = {
-    ordering: createOrderingHost(
-      context.success ? { ...context.data, miniAppId: miniApp.id } : { miniAppId: miniApp.id },
-      {
-        request: (method, path, body, key) =>
-          method === "GET"
-            ? api.get<unknown>(path)
-            : method === "PUT"
-              ? api.put<unknown>(path, body)
-              : key === undefined
-                ? api.post<unknown>(path, body)
-                : api.postIdempotent<unknown>(path, key, body),
-      },
-      launchQr,
-    ),
+    location: createLocationHost(transport),
+    incentives: createIncentivesHost(selected, transport),
+    feedback: createFeedbackHost(selected, transport),
+    returns: createReturnsHost(selected, transport),
+    ordering: createOrderingHost(selected, transport, launchQr),
     miniApp,
     launchParams,
     containerInfo: () => ({
@@ -187,7 +202,7 @@ export function MiniAppHost({
           />
           <HeaderButton
             icon="close"
-            label="Mini uygulamayı kapat"
+            label={launchOrigin?.type === "business" ? "Mağazaya dön" : "Mini uygulamayı kapat"}
             color="ink"
             onPress={() => {
               router.back();

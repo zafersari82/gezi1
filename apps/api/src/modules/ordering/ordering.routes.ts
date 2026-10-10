@@ -1,4 +1,5 @@
 import {
+  branchPerformanceQuerySchema,
   businessParamsSchema,
   businessRecordParamsSchema,
   checkoutCartBodySchema,
@@ -25,6 +26,7 @@ export function orderingRoutes(server: FastifyInstance, { services, guard }: Rou
       await businessManagement.customerScope(userId, businessId, appInstanceId),
       body.branchId,
       {
+        addressId: body.addressId ?? null,
         fulfilment: body.fulfilment,
         tableSessionId: body.tableSessionId ?? null,
         scheduledAt: body.scheduledAt ?? null,
@@ -88,6 +90,17 @@ export function orderingRoutes(server: FastifyInstance, { services, guard }: Rou
       await businessManagement.authorise(userId, businessId),
       parse(orderListQuerySchema, request.query),
     );
+  });
+  server.get("/v1/business/:businessId/orders/performance", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId } = parse(businessParamsSchema, request.params);
+    const { days } = parse(branchPerformanceQuerySchema, request.query);
+    return ordering.branchPerformance(await businessManagement.authorise(userId, businessId), Number(days) as 7 | 30);
+  });
+  server.get("/v1/business/:businessId/orders/access/me", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId } = parse(businessParamsSchema, request.params);
+    return ordering.permittedBranches(await businessManagement.authorise(userId, businessId));
   });
   server.get("/v1/business/:businessId/orders/:id", async (request) => {
     const { userId } = await guard(request);

@@ -3,8 +3,11 @@ import {
   branchBodySchema,
   branchHoursBodySchema,
   businessContextBodySchema,
+  businessMiniAppLaunchParamsSchema,
   businessMemberBodySchema,
   businessParamsSchema,
+  staffInvitationCreateSchema,
+  staffInvitationTokenBodySchema,
   businessRecordParamsSchema,
   miniAppIdSchema,
 } from "@vado/contracts";
@@ -39,9 +42,38 @@ export function businessManagementRoutes(
     const { businessId } = parse(businessParamsSchema, request.params);
     await business.setMember(
       await business.authorise(userId, businessId),
-      parse(businessMemberBodySchema, request.body),
+      parse(businessMemberBodySchema, request.body), false,
     );
     return reply.code(204).send();
+  });
+  server.get("/v1/business/:businessId/invitations", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId } = parse(businessParamsSchema, request.params);
+    return business.invitations(await business.authorise(userId, businessId));
+  });
+  server.post("/v1/business/:businessId/invitations", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId } = parse(businessParamsSchema, request.params);
+    return business.createInvitation(await business.authorise(userId, businessId),
+      parse(staffInvitationCreateSchema, request.body));
+  });
+  server.post("/v1/business/:businessId/invitations/:id/revoke", async (request, reply) => {
+    const { userId } = await guard(request);
+    const { businessId, id } = parse(businessRecordParamsSchema, request.params);
+    parse(z.object({}).strict(), request.body ?? {});
+    await business.revokeInvitation(await business.authorise(userId, businessId), id);
+    return reply.code(204).send();
+  });
+  // The recipient has a verified session, but is not a business member yet.
+  server.post("/v1/business/invitations/preview", async (request) => {
+    const { userId } = await guard(request);
+    const { token } = parse(staffInvitationTokenBodySchema, request.body);
+    return business.previewInvitation(userId, token);
+  });
+  server.post("/v1/business/invitations/accept", async (request) => {
+    const { userId } = await guard(request);
+    const { token } = parse(staffInvitationTokenBodySchema, request.body);
+    return business.acceptInvitation(userId, token);
   });
   server.get("/v1/business/:businessId/branches", async (request) => {
     const { userId } = await guard(request);
@@ -92,6 +124,13 @@ export function businessManagementRoutes(
       await business.authorise(userId, businessId),
       parse(appInstanceBodySchema, request.body),
     );
+  });
+  // Vitrinden gelen açılış: oturum doğrulanır, işletme + mini uygulama bağlamı
+  // sunucuda bulunur. Örnek kimliği istemcinin serbest girdisi değildir.
+  server.get("/v1/businesses/:businessId/miniapps/:miniAppId/launch", async (request) => {
+    await guard(request);
+    const { businessId, miniAppId } = parse(businessMiniAppLaunchParamsSchema, request.params);
+    return business.businessLaunch(businessId, miniAppId);
   });
   server.post("/v1/shell/resolve-context", async (request) => {
     const { userId } = await guard(request);

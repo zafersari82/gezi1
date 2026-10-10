@@ -56,7 +56,45 @@ interface PendingCall {
 }
 
 export interface Vado {
+  feedback: {
+    listReviews: (
+      params: BridgeParams["feedback.listReviews"],
+    ) => Promise<BridgeResults["feedback.listReviews"]>;
+    createReview: (
+      params: BridgeParams["feedback.createReview"],
+    ) => Promise<BridgeResults["feedback.createReview"]>;
+    editReview: (
+      params: BridgeParams["feedback.editReview"],
+    ) => Promise<BridgeResults["feedback.editReview"]>;
+    listFavorites: (
+      params: BridgeParams["feedback.listFavorites"],
+    ) => Promise<BridgeResults["feedback.listFavorites"]>;
+    saveFavorite: (
+      params: BridgeParams["feedback.saveFavorite"],
+    ) => Promise<BridgeResults["feedback.saveFavorite"]>;
+  };
+  returns: {
+    list: (params: BridgeParams["returns.list"]) => Promise<BridgeResults["returns.list"]>;
+    create: (params: BridgeParams["returns.create"]) => Promise<BridgeResults["returns.create"]>;
+    withdraw: (params: BridgeParams["returns.withdraw"]) => Promise<BridgeResults["returns.withdraw"]>;
+  };
+  incentives: {
+    getAvailable: () => Promise<BridgeResults["incentives.getAvailable"]>;
+    getLoyalty: () => Promise<BridgeResults["incentives.getLoyalty"]>;
+    applyCart: (
+      params: BridgeParams["incentives.applyCart"],
+    ) => Promise<BridgeResults["incentives.applyCart"]>;
+  };
   ordering: {
+    reorder: (
+      params: BridgeParams["ordering.reorder"],
+    ) => Promise<BridgeResults["ordering.reorder"]>;
+    getDeliveryQuote: (
+      params: BridgeParams["ordering.getDeliveryQuote"],
+    ) => Promise<BridgeResults["ordering.getDeliveryQuote"]>;
+    getDeliverySnapshot: (
+      params: BridgeParams["ordering.getDeliverySnapshot"],
+    ) => Promise<BridgeResults["ordering.getDeliverySnapshot"]>;
     getRestaurant: () => Promise<BridgeResults["ordering.getRestaurant"]>;
     getSlots: (
       params: BridgeParams["ordering.getSlots"],
@@ -130,6 +168,32 @@ export interface Vado {
   };
   location: {
     getCurrent: () => Promise<BridgeResults["location.getCurrent"]>;
+    listCountries: () => Promise<BridgeResults["location.listCountries"]>;
+    listProvinces: (
+      params: BridgeParams["location.listProvinces"],
+    ) => Promise<BridgeResults["location.listProvinces"]>;
+    listDistricts: (
+      params: BridgeParams["location.listDistricts"],
+    ) => Promise<BridgeResults["location.listDistricts"]>;
+    listNeighborhoods: (
+      params: BridgeParams["location.listNeighborhoods"],
+    ) => Promise<BridgeResults["location.listNeighborhoods"]>;
+    getNeighborhood: (
+      params: BridgeParams["location.getNeighborhood"],
+    ) => Promise<BridgeResults["location.getNeighborhood"]>;
+    listAddresses: () => Promise<BridgeResults["location.listAddresses"]>;
+    getAddress: (
+      params: BridgeParams["location.getAddress"],
+    ) => Promise<BridgeResults["location.getAddress"]>;
+    createAddress: (
+      params: BridgeParams["location.createAddress"],
+    ) => Promise<BridgeResults["location.createAddress"]>;
+    updateAddress: (
+      params: BridgeParams["location.updateAddress"],
+    ) => Promise<BridgeResults["location.updateAddress"]>;
+    archiveAddress: (
+      params: BridgeParams["location.archiveAddress"],
+    ) => Promise<BridgeResults["location.archiveAddress"]>;
   };
   payment: {
     /** VADO ödeme ekranını açar. Kullanıcı vazgeçerse `user_denied` hatası fırlatır. */
@@ -284,7 +348,27 @@ export function createVado(host: HostWindow | undefined): Vado {
     call(method, params, INTERACTIVE_TIMEOUT_MS);
 
   return {
+    feedback: {
+      listReviews: (params) => quick("feedback.listReviews", params),
+      createReview: (params) => quick("feedback.createReview", params),
+      editReview: (params) => quick("feedback.editReview", params),
+      listFavorites: (params) => quick("feedback.listFavorites", params),
+      saveFavorite: (params) => quick("feedback.saveFavorite", params),
+    },
+    returns: {
+      list: (params) => quick("returns.list", params),
+      create: (params) => quick("returns.create", params),
+      withdraw: (params) => quick("returns.withdraw", params),
+    },
+    incentives: {
+      getAvailable: () => quick("incentives.getAvailable"),
+      getLoyalty: () => quick("incentives.getLoyalty"),
+      applyCart: (params) => interactive("incentives.applyCart", params),
+    },
     ordering: {
+      reorder: (params) => quick("ordering.reorder", params),
+      getDeliveryQuote: (params) => interactive("ordering.getDeliveryQuote", params),
+      getDeliverySnapshot: (params) => interactive("ordering.getDeliverySnapshot", params),
       getRestaurant: () => quick("ordering.getRestaurant"),
       getSlots: (params) => quick("ordering.getSlots", params),
       joinTable: () => quick("ordering.joinTable"),
@@ -335,6 +419,16 @@ export function createVado(host: HostWindow | undefined): Vado {
     },
     location: {
       getCurrent: () => interactive("location.getCurrent"),
+      listCountries: () => interactive("location.listCountries"),
+      listProvinces: (params) => interactive("location.listProvinces", params),
+      listDistricts: (params) => interactive("location.listDistricts", params),
+      listNeighborhoods: (params) => interactive("location.listNeighborhoods", params),
+      getNeighborhood: (params) => interactive("location.getNeighborhood", params),
+      listAddresses: () => interactive("location.listAddresses"),
+      getAddress: (params) => interactive("location.getAddress", params),
+      createAddress: (params) => interactive("location.createAddress", params),
+      updateAddress: (params) => interactive("location.updateAddress", params),
+      archiveAddress: (params) => interactive("location.archiveAddress", params),
     },
     payment: {
       request: (params) => interactive("payment.request", params),

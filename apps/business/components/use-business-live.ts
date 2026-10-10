@@ -27,6 +27,7 @@ export function useBusinessLive(
     let syncing = false;
     let again = false;
     let initial = true;
+    let pollOnly = false;
     const isDisposed = () => disposed;
     const needsSync = () => again;
     const isInitial = () => initial;
@@ -70,7 +71,7 @@ export function useBusinessLive(
           await refresh();
           initial = false;
           if (!isDisposed())
-            setStatus(socket?.connected ? "Canlı" : "Soket kesildi · olaylar eşitleniyor");
+            setStatus(pollOnly ? "Güvenli yenileme" : socket?.connected ? "Canlı" : "Soket kesildi · olaylar eşitleniyor");
         } while (needsSync() && !isDisposed());
       } catch (cause) {
         if (!isDisposed() && !denied(cause)) setStatus("Bağlantı kesildi · yeniden deneniyor");
@@ -90,7 +91,7 @@ export function useBusinessLive(
       );
     };
     async function connect() {
-      if (isDisposed()) return;
+      if (isDisposed() || pollOnly) return;
       socket?.removeAllListeners();
       socket?.disconnect();
       try {
@@ -119,6 +120,12 @@ export function useBusinessLive(
         socket.on("disconnect", retry);
         socket.on("connect_error", retry);
       } catch (cause) {
+        // Delegated staff have scoped, polled events but no business-wide socket ticket.
+        if (!device && cause instanceof ClientApiError && cause.status === 403) {
+          pollOnly = true;
+          setStatus("Güvenli yenileme");
+          return;
+        }
         if (!denied(cause)) retry();
       }
     }

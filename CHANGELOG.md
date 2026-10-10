@@ -1,4 +1,243 @@
+## 2.8.0-alpha.3 — İl/ilçe öncelikli yerel keşif (2026-10-10)
+
+- Kullanıcı GPS izni olmadan il ve ilçe seçebilir; seçim cihazda tutulur. Keşfet ve Arama aynı konumu kullanır.
+- Sunucu bölge filtresi işletmenin etkin şube konumuna dayanır; ilçesi belirsiz adreslerden yanlış eşleştirme yapılmaz.
+- `0035_branch_discovery_location.sql` ile şube konumu ve RLS'yi aşmadan yerel keşif için sınırlı okuma izdüşümü kuruldu.
+- Business Şubeler ekranine il/ilçe seçimi eklendi. Arama imleci bölgeye bağlandı; konum değişince eski sayfa geçersiz.
+- Ülke geneli mini uygulamalar ayrı gösterilir. Teslimat uygunluğu **bu aşamada** iddia edilmez.
+- Kaynak sözleşmesi ve entegrasyon test senaryoları eklendi; tam PostgreSQL/mobil cihaz kabulü henüz yapılmadı.
+
+## 2.8.0-alpha.3 — İşletmeden mini uygulamaya güvenli geçiş (2026-10-10)
+
+- İşletme vitrininin mini uygulama bağlantısı, sunucu tarafından doğrulanmış işletme + uygulama örneği eşleşmesini kullanır.
+- Açılış yalnız etkin, doğrulanmış işletme ve yayındaki mini uygulama için yapılır. Birden fazla etkin örnek belirsizse rastgele seçim yapılmaz.
+- Açılış bağlamı URL'deki serbest parametrelerden alınmaz; kabuğun belleğinde saklanır, SDK işlemlerinde tekrar sunucu doğrulamasından geçer.
+- Mini uygulamada "Mağazaya dön" etiketi, hata sayfası dönüşü ve bekleyen açılış göstergesi eklendi; QR açılışı korunur.
+- Mobil açılış hafızası testi ve PostgreSQL API güvenlik/regresyon test kaynakları eklendi.
+- Tam npm/Vitest/PostgreSQL/Docker/gerçek telefon kabulü henüz yapılmadı; final onayı yok.
+
+## 2.8.0-alpha.3 — Restoran için gerçek mobil vitrin görünümleri (2026-10-09)
+
+- Mevcut hızlı, klasik ve premium restoran tasarımları müşterinin gördüğü katalog yerleşiminde gerçekten farklılaştırıldı.
+- Çok şubeli markalar için `food-enterprise` şablonu; `0034_studio_enterprise_template.sql` ile mevcut Studio kısıtına eklendi.
+- VADO Business Studio önizlemesi, telefondaki işletme başvurusu ve müşteri restoran mini uygulaması aynı şablon tanımlarını kullanır.
+- Mevcut ürün/sipariş motoru, fiyatlar, yetkiler ve taslak-yayın ayrımı korunur; yeni şablon yayını için regresyon testi eklendi.
+- Kodu ve ZIP bütünlüğü kontrol edildi; tam derleme, Vitest, PostgreSQL, Docker ve cihaz testleri henüz doğrulanmadı.
+
+## 2.8.0-alpha.3 — Keşfet ana ekranı ve yayımlanmış işletme vitrini
+
+- Keşfet ana ekranı, sunucu taraflı VADO Search üzerinden ayrı işletme ve mini uygulama önizlemeleri alıyor; eski 200 işletme sınırlı listeye dayanmaz.
+- Sektör kısayolları arama ekranına yönlendirilir, iki ekranda ortak sonuç satırı ve güvenli açılış rotaları kullanılır.
+- İşletme profilinde yalnız yayındaki Studio tasarımı (logo, kapak, başlık, slogan, palet) gösterilir; taslak ve iç medya kimlikleri saklanır.
+- Business Studio RLS korunur: müşteri profilinin listelenebilirliği aynı veritabanı işleminde tekrar doğrulanır.
+- Keşfet sayfalama türleri, yayın/taslak ayrımı ve müşteri medya görünürlüğü için test kapsamı genişletildi.
+- Docker/PostgreSQL, tam tip denetimi ve cihaz kabulü henüz tamamlanmadı.
+
+## 2.8.0-alpha.3 — VADO Search sunucu araması (geliştirme adayı, 2026-10-09)
+
+- Yeni `/v1/discovery/search` ile doğrulanmış işletmeler ve yayınlı mini uygulamalar tek sunucu sorgusunda birleştirildi.
+- Global sıralamaya bağlı keyset sayfalama, tür/kategori filtreleri, Türkçe harf normalizasyonu ve sınırlı arama sözleşmesi.
+- PostgreSQL `0033_discovery_search.sql` ile GIN trigram ve ad indeksleri; kayıt başına sorgu oluşturmayan toplu yükleme.
+- Mobil Keşfet araması sunucu sorgusunu, yazma gecikmesini, "Daha fazla göster" ve hata durumlarını kullanıyor.
+- SQL LIKE özel karakterleri güvenli biçimde düz metin olarak ele alınır; başka filtreye ait imleç reddedilir.
+- 200'den fazla işletme ile sayfalama, kategori ve yayın/doğrulama sınırları için entegrasyon test kaynakları eklendi.
+- Statik kontroller ve bağımsız SQL/imleç doğrulamaları yapıldı; gerçek PostgreSQL ve tam npm testleri henüz çalıştırılmadı.
+
+## 2.8.0-alpha.3 — VADO Keşfet ve birleşik mobil arama (geliştirme adayı, 2026-10-09)
+
+- Keşfet ekranı; işletmeler, sektör kısayolları ve mini uygulamaları tek akışta sunacak biçimde düzenlendi.
+- Yeni `/search` ekranı ile mevcut kamuya açık işletmeler ve yayınlanmış mini uygulamalar tek aramada bulunabilir.
+- Türkçe karakterlere duyarsız, çok sözcüklü arama; sektör ve sonuç türü filtreleri; ad eşleşmesine öncelik.
+- Kayıtlar mevcut işletme profiline veya güvenli mini uygulama açılış yoluna yönlendirilir. Yeni güvenilmeyen URL çalıştırma yolu açılmaz.
+- Eksik veri kaynağı, boş sonuç ve yeniden yükleme durumları ele alındı; filtre sıfırlama kullanılabilir kaldı.
+- Birim test kaynakları eklendi ve bağımsız arama mantığı örnek verilerle çalıştırıldı.
+- Bu aşama cihazdaki mevcut iki listenin birleştirilmesidir; ölçekli, sunucu taraflı ve tüm kayıtları kapsayan global arama henüz değildir.
+- Tam mobil derleme, Vitest paket koşumu, Docker/PostgreSQL ve gerçek cihaz kabulü yapılmadı.
+
+## 2.8.0-alpha.3 — Telefonla çalışan daveti ve şube izinleri (geliştirme adayı, 2026-10-09)
+
+- Business Ekibim üzerinden 72 saatlik telefon numarasına bağlı, tek kullanımlık davet oluşturma ve iptal.
+- Giriş yapan alıcının daveti incelemesi/kabulü; yalnız `staff` rolü ve seçili şube izinleri.
+- Önceden mevcut olmayan kullanıcıya üyelik PUT API yolundan izinsiz katılımın engellenmesi.
+- Token özeti, RLS, işlem kilidi, yetki atama, denetim kayıtları ve regresyon test kaynakları.
+- Sipariş izni RLS migrasyonu `0031` kaynak SQL sözdizimi düzeltildi; `0032` davet tabloları eklendi.
+- Tam derleme, PostgreSQL, Docker ve gerçek telefon testleri halen bekliyor.
+
+## 2.8.0-alpha.3 — Mobil performans ve ekip erişimi (geliştirme adayı, 2026-10-09)
+
+- Tek sipariş motorunda 7/30 günlük şube performansı ve `orderAccess` ile aynı veri sınırları.
+- Telefonda Performans ve yalnız işletme sahibine açık Ekibim ekranları.
+- Üyelik adı, aktif/pasif durum kontrolü, yetki kaldırma ve denetim izi; mevcut şubeye özel yetkiler korunuyor.
+- API vekili, sözleşmeler ve izinsiz erişim regresyon test kaynakları güncellendi.
+- Tam tip denetimi, npm testleri, PostgreSQL, Docker ve gerçek cihaz kontrolleri henüz yapılmadı.
+
+## 2.8.0-alpha.3 — Kurumsal sipariş kapsamı (geliştirme adayı, 2026-10-09)
+
+- İşletmeye bağlı şube/bölge sipariş görme ve işleme yetkileri için iki tenant tablosu eklendi.
+- Sipariş listesi, ayrıntı, sayfalama, ödeme ve durum değiştirme işlemlerine ortak yetki filtresi bağlandı.
+- İşletmenin bütün olaylarını yayan soket sınırlı personele kapatıldı; kapsamlı olay sorgulaması kullanılıyor.
+- Telefon arayüzünde yetki atama ve salt görüntüleme desteği eklendi.
+- Yeni güvenlik regresyonları ve değişen soket yetkisi testleri; gerçek PostgreSQL/npx testleri henüz çalıştırılamadı.
+
+## 2.8.0-alpha.3 — Çok şubeli mobil fiyat yönetimi (kaynak geliştirme adayı)
+
+- Ortak katalogdaki şube fiyat motoruna bağlı, telefon odaklı çoklu ürün fiyat düzenleme ekranı.
+- Şube başına en çok 100 fiyat işlemi, önceki değer doğrulaması ve tek işlemli kaydetme.
+- Genel fiyata dönüş, farklı işletme/şube erişim engeli, sahip-yönetici yetkisi ve denetim kaydı.
+- Sözleşme, API, Business proxy ve regresyon test kaynakları birlikte güncellendi.
+- Gerçek PostgreSQL / npm tip ve test koşumları henüz onaylı değil.
+
+## 2.8.0-alpha.3 — Business Studio medya entegrasyonu (2026-10-09)
+
+- Kayıtlı medya sağlayıcısı üzerinden sahip/yönetici yetkili işletme fotoğraf yükleme.
+- İşletme kapsamlı medya kayıtları, logo/kapak taslağı ve yayın anlık görüntüsü.
+- Ürün fotoğrafı, sürüm kontrolü, mobil düzenleyici ve müşteri menüsü entegrasyonu.
+- Yetki, işletme yalıtımı, taslak/yayın ve sürüm regresyon test kaynakları.
+- Tam npm/PostgreSQL testleri henüz çalıştırılamadı; final onayı yok.
+
+## 2026-10-09 — VADO Business Studio katalog önizlemesi ve kontrollü yayın
+
+- Stüdyo önizlemesi işletmenin gerçek aktif kataloğunu ve genel fiyatlarını gösterir.
+- Yayın anlık görüntüsü, sürüm kontrolü, işletme doğrulaması ve denetim kayıtları eklendi.
+- Yayınlanmış tasarım restoran müşteri mini uygulamasının mevcut köprüsüne bağlandı.
+- Personel/yabancı işletme erişimi, sürüm çakışması ve taslağın canlı yayını etkilememesi için testler eklendi.
+- Docker, PostgreSQL ve tam npm testleri henüz çalıştırılmadı.
+
+## 2026-10-09 — Business Studio mobil görünüm düzenleyici (final değil)
+
+İşletme sahibi veya yöneticisi artık telefon uyumlu `/studio` sayfasında sektöre uygun
+şablon, mağaza başlığı, kısa tanıtım ve renk paleti seçebilir; düzenlemeler aynı ekranda
+canlı **taslak** önizlemesine yansır. `PUT /v1/business/:businessId/studio` ve `0025_studio_design.sql`
+ile yetkili, sürümlü kalıcılık eklendi. Aynı taslağın farklı cihazlarda eski sürümle
+ezilmesi 409 ile önlenir. İşletme başvurusu, mevcut mini uygulama ve sipariş motorları
+korundu. Bu aşamada gerçek müşteriye yayın yapılmaz; ayrıntılar
+`STUDIO_TASARIM_DUZENLEYICI.md` içinde.
+
+Kod kuralları 577 dosyada başarılı; global TypeScript parser 545 TS/TSX dosyasında
+sözdizimi hatası bulmadı. Tam tip denetimi (eksik `zod` bağımlılığı), npm testleri,
+derleme, PostgreSQL ve Docker son kabulde doğrulanacaktır. Sürüm hâlâ `2.8.0-alpha.3`.
+
+## 2026-10-09 — Business Studio: ilk kodlama dilimi (final değil)
+
+Mobil işletme başvurusu sektör → şablon → bilgiler akışına taşındı. İlk altı mağaza
+başlangıç taslağı ortak sözleşmede tutulur; food/beauty kategorisi eşleşmesi API'de
+doğrulanır. Seçim, işletmeyle aynı transaction'da ayrı RLS korumalı `business_studio`
+tablosuna kaydedilir; mini uygulamayı otomatik yayınlamaz. İşletme üyesi kendi taslağını
+Business Ayarlar ekranında görebilir. Yetkisiz okuma ve kategori sınırları için test
+kaynakları eklendi. Tam detay `STUDIO_ILK_KODLAMA.md` içinde. Docker, npm test,
+PostgreSQL migrasyonu ve uçtan uca doğrulama yapılmadı.
+
+## Geliştirme kontrol noktası — 2026-10-09 (müşteri deneyimi)
+
+- Restoran mini uygulamasına sipariş sonrası değerlendirme, favori ve iade işlemleri eklendi.
+- Yeni işlemler mevcut miniapp SDK üzerinden yürütülüyor; yan servis veya geçici yama eklenmedi.
+- Gerçek servis/DB kabul testleri henüz çalıştırılmadı.
+
 # Değişiklikler
+
+## 2.8.0-alpha.3 — 9 Ekim 2026 satış sonrası Business ekranları (final değil)
+
+Business panelinde iade/iptal yönetimi ve sipariş değerlendirmeleri mevcut Fastify servislerine
+bağlandı. Görünümler yetenek manifestinden ve ortak sözleşmeden beslenir; SSR ilk sayfa,
+imleçli devam sayfaları, filtre, boş/yükleniyor/hata durumları ve sürümlü güncelleme içerir.
+İadede gerekçeli karar ile gerekli fiziksel ödeme referansı; değerlendirmede sürümlü işletme
+yanıtı kullanılır. Başka işletme/müşteri/uygulama kimliği ile vekil yönlendirmesi yapılamaz.
+Personel değerlendirmeyi görebilir ancak yanıt yazamaz; iade listesi ve karar yetkisi yalnız
+sahip/yöneticidedir. Finansal onayda kullanıcıdan gerçek iadeyi doğrulaması istenir.
+
+Gerekli idempotency anahtarı yalnız iki yeni yetkili mutasyon uçunda Business API vekilinden
+servise taşınır. Yeni işlevler mevcut modüllere işlendi; ayrı yama/alternatif servis yazılmadı.
+Mobil çoklu modül menüsü dar ekranda yatay kaydırılır. Kapsam, rol ve görünüm regresyon
+testleri kaynağa eklendi.
+
+Bu ortamda `node scripts/check-conventions.mjs` 569 dosyada başarılı; global TypeScript parser
+540 TS/TSX/MTS dosyasında 0 sözdizimi hatası buldu. Npm bağımlılıkları kurulamadığı için yeni
+birim/entegrasyon testleri, tam typecheck, lint ve build çalıştırılamadı. Docker/PostgreSQL
+testleri kullanıcı tarafından son kabul aşamasında yapılacak. Sürüm final değildir.
+
+## 2.8.0-alpha.3 — 9 Ekim 2026 kabuk/SDK müşteri akışı (final değil)
+
+Platformdaki değerlendirme, favori, iade talebi ve tekrar sipariş uçları, mini uygulama köprüsünün
+contracts → kabuk → SDK zincirine bağlandı. Her çağrı önce mini uygulama kaydının işletme bağlamını
+doğrular; URL, müşteri ve işletme kimliği mini uygulama parametrelerinden alınmaz. Yanıtların
+sahiplik/sipariş/uygulama kimliği de kabukta kontrol edilir. Ortak kimlikli taşıyıcı tekleştirildi.
+
+Değerlendirme düzenleme yetkisine, aynı işletmedeki farklı uygulama kaydından çapraz erişimi
+engelleyen sipariş-uygulama kontrolü eklendi. Sayfalama imleci PostgreSQL pozitif `bigint` üst
+sınırına kadar sayı yuvarlaması olmadan doğrulanır. Köprü şemaları, SDK iletimleri, kabuk yetki
+sınırı, yanıt sahipliği ve farklı uygulama kaydı için regresyon testleri eklendi.
+
+564 kaynak dosyasının proje kuralları geçti; 535 TS/TSX/MTS dosyasının sözdizimi ayrıştırması
+hatasızdır. Npm bağımlılıkları ve veritabanı erişimi olmadığından yeni testler, ESLint, tip kontrolü
+ve üretim derlemesi **henüz çalıştırılamadı**. Bu çalışma doğrulanmış/final sürüm değildir.
+
+## 2.8.0-alpha.3 — 9 Ekim 2026 kaynak doğrulama düzeltmeleri (final değil)
+
+İade listeleme ve geri çekme işlemlerinde müşteri oturumunun mini uygulama kaydıyla
+ayrıştırılması sağlandı. İşletme iade listesi imleci PostgreSQL mikrosaniye
+hassasiyetini koruyor. Yeni uygulama yalıtımı regresyon testi ve imleç hassasiyet
+kontrolü eklendi. 561 dosya kod kuralı denetimi ve 532 TS/TSX sözdizimi taraması
+geçti; bağımlılık erişimi ve PostgreSQL yokluğu nedeniyle tam testler / derleme
+geçmiş olarak raporlanmaz. Ayrıntılar `KONTROL_VE_TESLIM.md` içinde.
+
+## 2.8.0-alpha.3 (2026-10-07)
+
+Teşvik platformu: sürümlü kampanya/kupon, şube ve ürün kapsamı, tarih ve
+eşzamanlı toplam/müşteri limitleri; varsayılan birleşimsiz kampanya–kupon ayarı.
+Tamsayı kuruş tahsisi ve indirim sonrası KDV, değişmez sipariş görüntüsüyle SQL
+tarafından da korunur. Sadakat harcaması checkout ile, kazanç tamamlanmış/ödenmiş
+siparişle aynı işlemde yapılır. Ret/iptal ve kümülatif fiziksel iadeler harcanan
+puanı geri verir, kazanılanı geri alır; negatif bakiye harcamaya dönüşmez.
+
+Genel platform tekrar koruması, defter/RLS ve ödeme iade kanıtı 0021 ile eklendi.
+0001–0020 değişmedi. SDK ve kabuk yetki/kapsam denetimleri tamamlandı; restoran
+paketleri kapalı mağazanın kuponlu eve teslimi gerçek HTTP/SQL ile sınandı.
+Müşteri iade talebi, sosyal servisler ve tamamlanmış deneyim ekranları sonraki
+iki ara sürümdedir. Kurallar ve geçiş: docs/TESVIK.md.
+
+## 2.8.0-alpha.2 (2026-10-07)
+
+Eve teslim paketi ve restoran dışındaki mağazanın aynı sipariş/konum servislerini
+kullandığı gerçek HTTP/SQL örneği eklendi. Ücret, asgari tutar, şube saatleri ve
+değişmez teslimat görüntüsü sunucuda doğrulanır. Gel-al ve teslimat akışları aynı
+uygulama kaydında ayrı korunur; paket hazırlık/mutfak bağımlılığını ilan eder.
+
+Kendi kurye sağlayıcısında üyelik, sürümlü atama, yola çıkma, teslim ve kapıda
+nakit/POS kaydı vardır. Alıcı adresi/telefonu yalnız etkin atanmış kurye tarafından
+teslim öncesinde okunabilir; iptal, ret, yeniden atama, üyelik iptali ve sahibin
+askıya alınması erişimi kapatır. Ham SQL/RLS ve gerçek Socket.IO senaryoları
+yetkiyi sınar. Teslim tekrarında kişisel veri dönmez. Aynı işlemde çalışan
+sipariş yaşam döngüsü kancaları sonraki teşvik/iade servisine hazırdır.
+
+Geçişler 0019–0020; 0001–0018 değişmedi. Ayrıntılar docs/TESLIMAT.md.
+Kullanıcı ekranları beşinci ara sürümde tamamlanacaktır; online ödeme ve GPS
+yoktur. Docker/Compose denemesi bu ortamda yapılamaz, Claude denetleyecektir.
+
+## 2.8.0-alpha.1 (2026-10-07)
+
+Konum platform servisi eklendi: oturum sahibinin sürümlü ve tekrar güvenli adresleri,
+salt okunur Türkiye ülke/il/ilçe/mahalle kataloğu, sahip/yönetici için şube hizmet
+bölgeleri ve teslimat tüketicisinin işlem içi bölge eşleştirmesi. 0018, kullanıcı ve
+işletme kapsamı için FORCE RLS, bileşik bağlar, denetim ve kişisel veri içermeyen
+işlemsel olayları ekler. Yayımlanmış 0001–0017 dosyaları değişmedi.
+
+MIT lisanslı `onurusluca/turkey-geo-api` kataloğu sabit kaynak sürümünden paketlenir;
+81 il, 973 ilçe ve 73.496 mahalle/köy/yerleşim tam olarak aktarılır. Üretim komutu,
+lisans ve kaynak izi [docs/KONUM.md](docs/KONUM.md) içindedir. LocationAPI sözleşmesi,
+SDK ve kullanıcı izinli kabuk köprüsü hazırdır. Adres ve hizmet bölgesi deneyim
+ekranları Görev 5 kapsamındadır; bu ara sürüm eve teslim ürününün tamamı değildir.
+
+Masa QR düğmesi yalnız sahip/yöneticiye görünür; personelin API erişimi de reddedilir.
+İleri saat ve tahmini hazır olma tarihi cihazın yerine açık şube saat dilimiyle
+gösterilir; geçmişteki etkin olmayan şube de desteklenir. Eski checkout tekrar
+kayıtlarına yalnız şube saat dilimi eklenir; yerleştirildiği andaki mali/durum
+görüntüsü ve saklanmış tekrar yanıtı değişmez.
+
+Geçiş: yedek alın, üç veritabanı rolünü koruyun, `vado_owner` bağlantısıyla 0018'i
+uygulayın ve `npm run db:location` çalıştırın. API, kabuk ve SDK'yı birlikte
+uyumlu sürüme yükseltin. Geri dönüş yükseltme öncesi yedekten ayrı ortamda yapılır.
+Online ödeme, canlı GPS/arka plan konumu ve tamamlanmış iki haftalık pilot yoktur;
+Restoran PRO hazır olarak sunulmaz.
 
 ## 2.7.0 (2026-10-06)
 
@@ -653,3 +892,35 @@ Ayrıntılar: [docs/YOL_HARITASI.md](docs/YOL_HARITASI.md).
 sonra geç kalan isteğin müşteri bağını yeniden kurabildiğini gösterdi. Koruma 0009'a eklendi;
 0008 değiştirilmedi. Bağ kurma ve silme aynı kullanıcı kilidini aynı sırayla alır. Silinmiş
 kullanıcıya doğrudan SQL ile bağ kurma da reddedilir.
+
+### Business Studio medya optimizasyonu, kota ve temizlik (geliştirme)
+- İşletme resimlerinde Sharp yeniden kodlama, EXIF/GPS temizliği, tek kare WebP ve 1600px / 20MP sınırı.
+- `0028_business_media_quota.sql`: tenant başına saklama sınırı ve yeniden denenebilir fiziksel silme kuyruğu.
+- Medya yüklemesinde eşzamanlı kota kilidi, 409 kota hatası; kullanım ve manuel temizlik uç noktaları.
+- Studio mobil panelinde kullanılan alan/limit ve eski, kullanılmayan resimleri temizleme bölümü.
+- Görsel işleme ve medya yaşam döngüsü regresyon test kaynakları.
+- **Nihai derleme, PostgreSQL ve cihaz testleri bekliyor.**
+
+### Business Studio — başlangıç kataloğu ve telefondan kurulum
+- Sektöre göre ürün/hizmet önerileri, KDV ve fiyatı işletmecinin belirlediği mobil kurulum rehberi.
+- Sunucu tarafında boş kataloğa yetki/kategori kontrollü atomik ilk aktarım, denetim kaydı, normal katalog ekleme ile eşzamanlılık koordinasyonu.
+- Kayıt sonrası katalog ve önizleme yenileme, katalog tekrarlama koruması, regresyon test kaynakları.
+- Ayrıntı: STUDIO_KOLAY_KURULUM.md.
+
+### 2.8 geliştirme — Çok şubeli ürün bulunurluğu ve sınırlı personel delegasyonu
+
+- Tekil ürün bulunurluğu servisine bağlı en fazla 100 ürünlük atomik toplu şube güncellemesi eklendi. Sürüm çakışmasında tüm işlem geri alınır.
+- Şubeye özel personel bulunurluk yetkisi, işletme ve şube dışına taşmayan FK/RLS tablosuyla tanımlandı; mevcut genel rol modeli değiştirilmedi.
+- İşletme sahibi telefondan görevli atar; atanmış personel yalnız seçili şubenin ürününü satışa açar veya kapatır.
+- Üyelik pasifleştirme/rol değişimi eski delegasyonları temizler, denetim kayıtları kullanılır.
+- Kaynak sözleşmeleri, Business API vekili, mobil uyumlu ekranlar ve regresyon senaryoları aynı tam kaynak pakete eklendi.
+- Son kabul için npm/TypeScript, PostgreSQL, çoklu cihaz ve Docker testleri hâlâ gereklidir.
+
+## 2.8 — Business Studio bölge hiyerarşisi (geliştirme adayı)
+
+- İşletmeler için merkezi bölge kayıtları, şube-bölge eşlemesi ve personel görevlendirmeleri eklendi.
+- Bölgelerin tenant kapsamı, bileşik FK ve zorunlu RLS politikaları tanımlandı.
+- Şube personel erişimi doğrudan + bölge yetkilerini tek ortak kontrol altında birleştirdi.
+- İşletme sahipleri için telefon uyumlu bölgeler ekranı, şube ataması ve bölge personel görevlendirmesi eklendi.
+- Deaktivasyon/rol değişiminde bölge yetkisi temizliği ve regresyon test kaynakları eklendi.
+- Tam genel müdür/bölge müdürü/şube müdürü organizasyon yetkileri henüz açılmadı.

@@ -52,6 +52,21 @@ describe("mini uygulama SDK'sı", () => {
     });
     await expect(pending).resolves.toEqual({ type: "cart_changed", cart: { version: 3 } });
   });
+  it("iade ve favori işlemlerini kabuk köprüsüne tipli iletir", async () => {
+    const shell = fakeShell();
+    const vado = createVado(shell.host);
+    const params = { id: "b2cd9772-164f-4300-b8c6-61a26a846790", key: "try-1", expectedVersion: 1 };
+    const withdrawal = vado.returns.withdraw(params);
+    expect(shell.last()).toMatchObject({ method: "returns.withdraw", params });
+    shell.reply({ id: shell.last().id, ok: true, result: { id: params.id, status: "withdrawn" } });
+    await expect(withdrawal).resolves.toMatchObject({ status: "withdrawn" });
+
+    const favorite = vado.feedback.saveFavorite({ key: "save-1", itemId: null, value: true, expectedVersion: 0 });
+    expect(shell.last()).toMatchObject({ method: "feedback.saveFavorite", params: { itemId: null } });
+    shell.reply({ id: shell.last().id, ok: true, result: { value: true } });
+    await expect(favorite).resolves.toMatchObject({ value: true });
+  });
+
   it("isteği sürüm numaralı zarfla gönderir ve yanıtı döndürür", async () => {
     const shell = fakeShell();
     const vado = createVado(shell.host);
@@ -268,4 +283,72 @@ it("sipariş aboneliği yalnız kabuk bildirimini alır ve kaldırılabilir", ()
   remove();
   shell.deliver(JSON.stringify({ vado: 1, type: "event", name: "ordering.changed" }));
   expect(listener).toHaveBeenCalledTimes(1);
+});
+it("adres güncellemesinin sürümü ve tekrar anahtarı yalnız kabuğa taşınır", async () => {
+  const shell = fakeShell(),
+    vado = createVado(shell.host);
+  const params = {
+    id: "adres",
+    key: "adres-1",
+    expectedVersion: 2,
+    countryId: "ülke",
+    provinceId: "il",
+    districtId: "ilçe",
+    neighborhoodId: "mahalle",
+    label: "Ev",
+    recipientName: "Ayşe Yılmaz",
+    phone: "+905551112233",
+    addressLine: "Örnek sokak",
+    door: "3",
+    note: "",
+  };
+  const pending = vado.location.updateAddress(params);
+  expect(shell.last()).toMatchObject({ method: "location.updateAddress", params });
+  shell.reply({ id: shell.last().id, ok: true, result: { ...params, version: 3 } });
+  await expect(pending).resolves.toMatchObject({ version: 3 });
+});
+
+it("SDK teslimat teklifi ve değişmez görüntüyü kabuk köprüsünden ister", async () => {
+  const shell = fakeShell(),
+    vado = createVado(shell.host);
+  const params = { branchId: "şube", addressId: "adres" };
+  const quote = vado.ordering.getDeliveryQuote(params);
+  expect(shell.last()).toMatchObject({ method: "ordering.getDeliveryQuote", params });
+  shell.reply({ id: shell.last().id, ok: true, result: { feeMinor: 2000 } });
+  await expect(quote).resolves.toEqual({ feeMinor: 2000 });
+  const snapshot = vado.ordering.getDeliverySnapshot({ id: "sipariş" });
+  expect(shell.last()).toMatchObject({
+    method: "ordering.getDeliverySnapshot",
+    params: { id: "sipariş" },
+  });
+  shell.reply({ id: shell.last().id, ok: true, result: { feeMinor: 2000 } });
+  await expect(snapshot).resolves.toEqual({ feeMinor: 2000 });
+});
+
+it("teşvik servisi sabit köprü yöntemiyle kupon, puan ve mali sepeti taşır", async () => {
+  const shell = fakeShell(),
+    vado = createVado(shell.host);
+  const wallet = vado.incentives.getLoyalty();
+  expect(shell.last().method).toBe("incentives.getLoyalty");
+  shell.reply({
+    id: shell.last().id,
+    ok: true,
+    result: { balance: 100, available: 100, version: 1 },
+  });
+  await expect(wallet).resolves.toMatchObject({ available: 100 });
+  const available = vado.incentives.getAvailable();
+  expect(shell.last().method).toBe("incentives.getAvailable");
+  shell.reply({ id: shell.last().id, ok: true, result: { campaigns: [] } });
+  await available;
+  const body = {
+    id: "sepet",
+    key: "aynı-anahtar",
+    expectedVersion: 2,
+    couponCode: "VADO10",
+    pointsToSpend: 20,
+  };
+  const pending = vado.incentives.applyCart(body);
+  expect(shell.last()).toMatchObject({ method: "incentives.applyCart", params: body });
+  shell.reply({ id: shell.last().id, ok: true, result: { type: "cart", cart: { version: 3 } } });
+  await expect(pending).resolves.toMatchObject({ type: "cart" });
 });

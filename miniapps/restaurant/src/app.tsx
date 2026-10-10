@@ -7,12 +7,15 @@ import {
   mergeOrderSnapshot,
   type Order,
   type RestaurantContext,
+  studioPaletteById,
+  studioTemplateById,
   type TableSession,
 } from "@vado/contracts";
 import { vado } from "@vado/miniapp-sdk";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 import { z } from "zod";
 
+import { Aftercare } from "./aftercare";
 import { dateTime, money, states } from "./model";
 import { ProductOptions } from "./product-options";
 
@@ -449,6 +452,14 @@ export function App() {
       await refresh();
     });
   }
+  const storefront = context?.storefront;
+  const storefrontPalette = storefront ? studioPaletteById(storefront.palette) : null;
+  const presentation = storefront ? studioTemplateById(storefront.templateId) : null;
+  const storefrontLayout = presentation?.layout ?? "classic";
+  const storefrontStyle = storefrontPalette === null ? undefined : {
+    "--green": storefrontPalette.accent,
+    "--store-surface": storefrontPalette.surface,
+  } as CSSProperties;
   const selectedBranch = context?.branches.find((b) => b.id === branch);
   const canOrder =
     ready &&
@@ -456,7 +467,7 @@ export function App() {
     (table === null || table.status === "open") &&
     selectedBranch?.openNow === true;
   return (
-    <main className="page">
+    <main className="page" data-storefront-layout={storefrontLayout} style={storefrontStyle}>
       <header>
         <span className="brand">
           VADO <span>Restoran</span>
@@ -465,10 +476,19 @@ export function App() {
           {connected ? "Canlı durum" : "Bağlantı kesildi · yeniden deneniyor"}
         </small>
       </header>
-      <section className="intro">
-        <span className="eyebrow">Masana gelen lezzet</span>
-        <h1>{context?.businessName ?? "Restoran"}</h1>
-        <p>Menüyü keşfet, dilediğin gibi özelleştir.</p>
+      <section className="intro storefront-intro" data-layout={storefrontLayout}>
+        {storefront?.coverUrl && <img className="storefront-cover" src={storefront.coverUrl} alt="Restoran kapak fotoğrafı" />}
+        {storefront?.logoUrl && <img className="storefront-logo" src={storefront.logoUrl} alt="Restoran logosu" />}
+        <span className="eyebrow">
+          {presentation?.eyebrow ?? "Masana gelen lezzet"}
+        </span>
+        <h1>{storefront?.title || context?.businessName || "Restoran"}</h1>
+        <p>{storefront?.tagline || "Menüyü keşfet, dilediğin gibi özelleştir."}</p>
+        {storefrontLayout === "enterprise" && (context?.branches.length ?? 0) > 1 && (
+          <div className="storefront-branch-count">
+            {context?.branches.length} şube · Sipariş vereceğin şubeyi aşağıdan seçebilirsin.
+          </div>
+        )}
       </section>
       {error && (
         <p role="alert" className="error">
@@ -535,7 +555,7 @@ export function App() {
                   </select>
                 </label>
                 <label>
-                  Teslim zamanı
+                  Teslim zamanı · {selectedBranch?.timezone}
                   <select
                     value={scheduled}
                     disabled={cart !== null || busy}
@@ -550,7 +570,7 @@ export function App() {
                     </option>
                     {slots.map((at) => (
                       <option key={at} value={at}>
-                        {dateTime(at)}
+                        {selectedBranch && dateTime(at, selectedBranch.timezone)}
                       </option>
                     ))}
                   </select>
@@ -568,7 +588,7 @@ export function App() {
           <div className="restaurant-layout">
             <section>
               <div className="menu-heading">
-                <h2>Menü</h2>
+                <h2>{presentation?.menuHeading ?? "Menü"}</h2>
                 <input
                   aria-label="Menüde ara"
                   type="search"
@@ -619,7 +639,9 @@ export function App() {
                         setProduct(i);
                       }}
                     >
-                      <span className="item-symbol">✦</span>
+                      {i.imageUrl
+                        ? <img className="menu-image" src={i.imageUrl} alt={`${i.name} fotoğrafı`} />
+                        : <span className="item-symbol">✦</span>}
                       <strong>{i.name}</strong>
                       <span>{i.description}</span>
                       <b>
@@ -712,7 +734,7 @@ export function App() {
                   <span className="eyebrow">Sipariş #{order.id.slice(0, 8).toUpperCase()}</span>
                   <h2>{states[order.status] ?? order.status}</h2>
                   {order.estimatedReadyAt && (
-                    <p>Tahmini hazır: {dateTime(order.estimatedReadyAt)}</p>
+                    <p>Tahmini hazır: {dateTime(order.estimatedReadyAt, order.branchTimezone)}</p>
                   )}
                   {order.rejectionReason && (
                     <p role="alert">Ret gerekçesi: {order.rejectionReason}</p>
@@ -751,6 +773,7 @@ export function App() {
                   )}
                 </section>
               )}
+              {order && <Aftercare key={order.id} order={order} busy={busy} onNotice={setNotice} />}
             </aside>
           </div>
         </>

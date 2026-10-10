@@ -72,6 +72,7 @@ test("sipariş köprüsü tekrar anahtarını doğrular ve işletme kapsamı kab
 
 test("geciken sipariş yanıtı durumu veya ödenmiş bilgisini geri alamaz", () => {
   const current = orderSummarySchema.parse({
+    branchTimezone: "Europe/Istanbul",
     id: "7b1c9a52-3f0e-4d8a-9a51-2b7f7e6c1d40",
     cartId: "7b1c9a52-3f0e-4d8a-9a51-2b7f7e6c1d40",
     businessId: "7b1c9a52-3f0e-4d8a-9a51-2b7f7e6c1d40",

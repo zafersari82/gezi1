@@ -771,3 +771,47 @@ kullanır. Kapsam cihaz kaydından gelir; istemci başka şube/örnek seçemez. 
 uygulanır. [RESTORAN_2.7.md](RESTORAN_2.7.md) ve gerçek rota/şema kaynağı kurulumu
 tamamlar. `GET /v1/capabilities` yeni dört paketin tipli manifestinden üretilen
 ayar şeması, uçlar, olaylar ve arayüz bloklarını yayımlar.
+
+## Konum platformu (2.8.0-alpha.1)
+
+Bütün uçlar VADO oturumu ister. Adres sahibi oturumdan alınır; iş uçlarında
+üyelik ve şube/işletme bağı her istekte doğrulanır. Katalog yüklenmemişse
+`location_catalog_not_ready` (503) döner. Kurulum ve lisans: [KONUM.md](KONUM.md).
+
+| Yöntem | Yol                                                                     | Sonuç / girdi                                |
+| ------ | ----------------------------------------------------------------------- | -------------------------------------------- |
+| GET    | `/v1/location/countries`                                                | Ülkeler: `{ items }`                         |
+| GET    | `/v1/location/countries/:id/provinces`                                  | Ülkenin illeri: `{ items }`                  |
+| GET    | `/v1/location/provinces/:id/districts`                                  | İlin ilçeleri: `{ items }`                   |
+| GET    | `/v1/location/districts/:id/neighborhoods`                              | İlçenin mahalleleri: `{ items }`             |
+| GET    | `/v1/location/neighborhoods/:id`                                        | Ülke/il/ilçe/mahalle tam zinciri             |
+| GET    | `/v1/location/addresses`                                                | Sahibin arşivlenmemiş adresleri: `{ items }` |
+| GET    | `/v1/location/addresses/:id`                                            | Sahibin adresi; arşivli kayıt okunabilir     |
+| POST   | `/v1/location/addresses`                                                | Adres oluşturur                              |
+| PUT    | `/v1/location/addresses/:id`                                            | Adres gövdesi ve `expectedVersion`           |
+| POST   | `/v1/location/addresses/:id/archive`                                    | `{ expectedVersion }`                        |
+| GET    | `/v1/business/:businessId/branches/:branchId/service-areas`             | Üyenin bölgeleri: `{ items }`                |
+| POST   | `/v1/business/:businessId/branches/:branchId/service-areas`             | Sahip/yönetici: `{ name, neighborhoodIds }`  |
+| PUT    | `/v1/business/:businessId/branches/:branchId/service-areas/:id`         | Bölge gövdesi ve `expectedVersion`           |
+| POST   | `/v1/business/:businessId/branches/:branchId/service-areas/:id/disable` | Sahip/yönetici: `{ expectedVersion }`        |
+
+Bütün POST/PUT uçları `idempotency-key` başlığını ister (1–128 karakter,
+harf/rakam/nokta/alt çizgi/iki nokta/tire). Aynı anahtar ve girdi eski yanıtı
+getirir; değişmiş girdi `idempotency_conflict` (409), eski sürüm
+`location_version_conflict` (409), arşivli/devre dışı kayıt değişikliği
+`location_inactive` (409) verir. Geçersiz ülke/il/ilçe/mahalle bağı
+`location_parent_invalid` (400) verir. Yabancı adres `not_found` (404), yetkisiz
+bölge yazması `forbidden` (403) olur.
+
+Adres gövdesi: `label` (1–60), `recipientName` (2–120), uluslararası `phone`,
+`countryId`, `provinceId`, `districtId`, `neighborhoodId`, `addressLine` (5–500),
+`door` (1–80), `note` (en çok 500; boş olabilir). Yanıt bunlara `id`, `version`,
+`archived`, `geography`, `createdAt`, `updatedAt` ekler. Bölge adı 1–100 karakter,
+mahalle listesi 1–1000 benzersiz UUID'dir; yanıt işletme/şube kimliği, sürüm,
+`active` ve zamanları ekler. Şemaların kaynağı `packages/contracts/src/location.ts`.
+
+SDK LocationAPI katalog için `location.catalog` yetkisini ister. Adres için
+`location.addresses` yetkisi ve ayrıca kullanıcı izni gerekir. Yeni deneyim ekranları Görev 5 kapsamındadır.
+Sipariş yanıtındaki `branchTimezone` açık IANA saat dilimidir; planlı saat ve
+`estimatedReadyAt` bu dilimde biçimlendirilir. Eski checkout tekrarında yalnız
+bu sunum alanı tamamlanır; saklanmış mali/durum yanıtı değiştirilmez.

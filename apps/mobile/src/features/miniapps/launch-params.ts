@@ -3,22 +3,32 @@ import type { QrParams } from "@vado/contracts";
 /** Bellekte tutulan en fazla açılış sayısı; eskileri silinir. */
 const MAX_LAUNCHES = 8;
 
-const launches = new Map<string, { miniAppId: string; params: QrParams; qr: string | null }>();
+/** Kaynağı yalnız kabuk belirler; mini uygulamanın köprüsüne aktarılmaz. */
+export type LaunchOrigin = { type: "business"; businessId: string };
+
+interface RememberedLaunch {
+  miniAppId: string;
+  params: QrParams;
+  qr: string | null;
+  origin: LaunchOrigin | null;
+}
+const launches = new Map<string, RememberedLaunch>();
 let counter = 0;
 
 /**
- * Okutulan koddan gelen imzalı parametreleri saklar ve açılışın anahtarını döndürür. Anahtar
- * mini uygulama ekranının adresine yazılır; parametrelerin kendisi yazılmaz. Böylece bir bağlantı,
- * imzalı bir kod okutulmadan mini uygulamaya parametre veremez.
+ * Doğrulanmış QR parametrelerini veya VADO'nun sunucudan aldığı mağaza bağlamını bellekte
+ * tutar. URL'ye yalnız açılış anahtarı yazılır; bağlam bilgisi mini uygulamanın kendisinin
+ * belirleyebileceği serbest URL parametrelerinden okunmaz.
  */
 export function rememberLaunch(
   miniAppId: string,
   params: QrParams,
   qr: string | null = null,
+  origin: LaunchOrigin | null = null,
 ): string {
   counter += 1;
   const key = `${String(Date.now())}-${String(counter)}`;
-  launches.set(key, { miniAppId, params, qr });
+  launches.set(key, { miniAppId, params, qr, origin });
   for (const old of launches.keys()) {
     if (launches.size <= MAX_LAUNCHES) break;
     launches.delete(old);
@@ -36,4 +46,10 @@ export function launchParams(miniAppId: string, key: string | undefined): QrPara
 export function launchQr(miniAppId: string, key: string | undefined): string | null {
   const launch = key === undefined ? undefined : launches.get(key);
   return launch?.miniAppId === miniAppId ? launch.qr : null;
+}
+
+/** Dönüş bağlantısı yalnız aynı uygulamanın hatırlanan açılışında bulunur. */
+export function launchOrigin(miniAppId: string, key: string | undefined): LaunchOrigin | null {
+  const launch = key === undefined ? undefined : launches.get(key);
+  return launch?.miniAppId === miniAppId ? launch.origin : null;
 }

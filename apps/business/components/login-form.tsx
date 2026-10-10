@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
 
-export function LoginForm() {
+export function LoginForm({ redirectTo = "/businesses" }: { redirectTo?: string } = {}) {
   const [phone, setPhone] = useState("");
   const [requested, setRequested] = useState(false);
   const [code, setCode] = useState("");
@@ -26,8 +26,11 @@ export function LoginForm() {
         setRequested(true);
       } else {
         await call(z.object({ ok: z.boolean() }), "/api/auth/verify", "POST", { phone, code });
-        router.replace("/businesses");
-        router.refresh();
+        if (redirectTo === "/join") window.location.assign("/join");
+        else {
+          router.replace(redirectTo);
+          router.refresh();
+        }
       }
     } catch (cause) {
       setError(errorMessage(cause));

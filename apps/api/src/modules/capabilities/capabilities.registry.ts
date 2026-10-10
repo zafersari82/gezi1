@@ -23,7 +23,10 @@ const preparationConfig = z
   })
   .strict();
 const namedRules: Readonly<Record<string, () => boolean>> = { always: () => true };
-const allowedInsertionPoints = [{ from: "accepted", to: "completed" }] as const;
+const allowedInsertionPoints = [
+  { from: "accepted", to: "completed" },
+  { from: "ready", to: "completed" },
+] as const;
 
 const CORE_MANIFEST = engineCapabilityManifestSchema.parse({
   id: "ordering",
@@ -35,6 +38,10 @@ const CORE_MANIFEST = engineCapabilityManifestSchema.parse({
   permissions: [
     "orders.read",
     "orders.update",
+    "returns.read",
+    "returns.decide",
+    "reviews.read",
+    "reviews.reply",
     "catalog.read",
     "catalog.write",
     "branches.read",
@@ -58,6 +65,30 @@ const CORE_MANIFEST = engineCapabilityManifestSchema.parse({
       permission: "orders.update",
     },
     {
+      id: "returns.list",
+      method: "GET",
+      path: "/v1/business/:businessId/returns",
+      permission: "returns.read",
+    },
+    {
+      id: "returns.decision",
+      method: "PUT",
+      path: "/v1/business/:businessId/returns/:id/decision",
+      permission: "returns.decide",
+    },
+    {
+      id: "reviews.list",
+      method: "GET",
+      path: "/v1/business/:businessId/reviews",
+      permission: "reviews.read",
+    },
+    {
+      id: "reviews.reply",
+      method: "PUT",
+      path: "/v1/business/:businessId/reviews/:id/reply",
+      permission: "reviews.reply",
+    },
+    {
       id: "catalog.read",
       method: "GET",
       path: "/v1/business/:businessId/catalog",
@@ -67,6 +98,8 @@ const CORE_MANIFEST = engineCapabilityManifestSchema.parse({
   customerBlocks: [],
   businessBlocks: [
     { id: "orders", title: "Siparişler", view: "orders", path: "/orders" },
+    { id: "returns", title: "İadeler", view: "returns", path: "/returns" },
+    { id: "reviews", title: "Değerlendirmeler", view: "reviews", path: "/reviews" },
     { id: "catalog", title: "Ürünler", view: "catalog", path: "/catalog" },
     { id: "branches", title: "Şubeler", view: "branches", path: "/branches" },
     { id: "settings", title: "Ayarlar", view: "settings", path: "/settings" },
@@ -348,10 +381,115 @@ export const SCHEDULING_MANIFEST = restaurantManifest(
   "ordering.pickup",
 );
 
+export const DELIVERY_MANIFEST = engineCapabilityManifestSchema.parse({
+  id: "ordering.delivery",
+  version: "1.0.0",
+  engine: "ordering",
+  dependsOn: [{ id: "ordering.preparation", version: "1.0.0", alternatives: ["ordering.kitchen"] }],
+  configSchema: z.toJSONSchema(coreConfig),
+  defaults: {},
+  permissions: ["orders.read", "orders.update", "delivery.manage"],
+  events: {
+    publishes: ["delivery.assigned", "delivery.departed", "delivery.completed"],
+    subscribes: ["order.status_changed"],
+  },
+  stateMachine: {
+    insertions: [
+      {
+        from: "ready",
+        to: "completed",
+        entry: "in_transit",
+        fulfilments: ["delivery"],
+        states: [
+          {
+            id: "in_transit",
+            transitions: [
+              { to: "completed", rule: "always" },
+              { to: "cancelled", rule: "always" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  api: [
+    {
+      id: "delivery.regions",
+      method: "PUT",
+      path: "/v1/business/:businessId/branches/:branchId/delivery-regions/:id",
+      permission: "delivery.manage",
+    },
+    {
+      id: "delivery.quote",
+      method: "POST",
+      path: "/v1/shell/:businessId/:appInstanceId/delivery-quote",
+      permission: "orders.read",
+    },
+    {
+      id: "delivery.snapshot",
+      method: "GET",
+      path: "/v1/shell/:businessId/:appInstanceId/orders/:id/delivery-snapshot",
+      permission: "orders.read",
+    },
+    {
+      id: "delivery.assignment",
+      method: "PUT",
+      path: "/v1/business/:businessId/orders/:id/delivery-assignment",
+      permission: "delivery.manage",
+    },
+  ],
+  customerBlocks: [],
+  businessBlocks: [],
+  validation: [
+    "tenant_scope",
+    "immutable_snapshot",
+    "expected_version",
+    "active_assignment",
+    "preparation_dependency",
+  ],
+});
 interface CapabilityDefinition {
   manifest: EngineCapabilityManifest;
   config: z.ZodType;
 }
+function dataPackage(
+  id: "ordering.reorder" | "ordering.returns",
+  title: string,
+  permission: string,
+  path: string,
+) {
+  return engineCapabilityManifestSchema.parse({
+    id,
+    version: "1.0.0",
+    engine: "ordering",
+    dependsOn: [{ id: "ordering", version: "1.0.0" }],
+    configSchema: z.toJSONSchema(coreConfig),
+    defaults: {},
+    permissions: [permission],
+    events: {
+      publishes:
+        id === "ordering.returns" ? ["return.created", "return.updated"] : ["cart.changed"],
+      subscribes: [],
+    },
+    stateMachine: { insertions: [] },
+    api: [{ id, method: "POST", path, permission }],
+    customerBlocks: [],
+    businessBlocks: [],
+    validation: ["tenant_scope", "expected_version", "immutable_snapshot", "idempotency"],
+  });
+}
+export const REORDER_MANIFEST = dataPackage(
+  "ordering.reorder",
+  "Tekrar sipariş",
+  "orders.read",
+  "/v1/shell/:businessId/:appInstanceId/orders/:id/reorder",
+);
+export const RETURNS_MANIFEST = dataPackage(
+  "ordering.returns",
+  "İptal ve iade",
+  "orders.update",
+  "/v1/shell/:businessId/:appInstanceId/orders/:id/returns",
+);
 /** İşletme isteği bu listeyi genişletemez; her kayıt sürümle birlikte incelenmiş koddur. */
 export const CAPABILITY_DEFINITIONS: readonly CapabilityDefinition[] = [
   { manifest: CORE_MANIFEST, config: coreConfig },
@@ -360,6 +498,9 @@ export const CAPABILITY_DEFINITIONS: readonly CapabilityDefinition[] = [
   { manifest: PICKUP_MANIFEST, config: coreConfig },
   { manifest: SCHEDULING_MANIFEST, config: coreConfig },
   { manifest: KITCHEN_MANIFEST, config: coreConfig },
+  { manifest: DELIVERY_MANIFEST, config: coreConfig },
+  { manifest: REORDER_MANIFEST, config: coreConfig },
+  { manifest: RETURNS_MANIFEST, config: coreConfig },
 ];
 export function getCapabilityCatalog() {
   return {
@@ -371,7 +512,10 @@ export function getCapabilityCatalog() {
   };
 }
 
-export function compileOrderWorkflow(manifests: readonly EngineCapabilityManifest[]) {
+export function compileOrderWorkflow(
+  manifests: readonly EngineCapabilityManifest[],
+  fulfilment?: "pickup" | "dine_in" | "delivery",
+) {
   const graph: Record<string, string[]> = Object.fromEntries(
     Object.entries(CORE_ORDER_GRAPH).map(([state, next]) => [state, [...next]]),
   );
@@ -382,9 +526,17 @@ export function compileOrderWorkflow(manifests: readonly EngineCapabilityManifes
     ]),
   );
   const occupied = new Set<string>();
-  for (const raw of manifests) {
+  for (const raw of [...manifests].sort(
+    (a, b) => Number(a.id === "ordering.delivery") - Number(b.id === "ordering.delivery"),
+  )) {
     const manifest = engineCapabilityManifestSchema.parse(raw);
     for (const insertion of manifest.stateMachine.insertions) {
+      if (
+        fulfilment !== undefined &&
+        insertion.fulfilments !== undefined &&
+        !insertion.fulfilments.includes(fulfilment)
+      )
+        continue;
       const point = `${insertion.from}:${insertion.to}`;
       if (
         !allowedInsertionPoints.some((p) => p.from === insertion.from && p.to === insertion.to) ||
@@ -482,10 +634,14 @@ export function validateCapabilitySelection(
     ["ordering", CORE_MANIFEST.version],
     ...enabled.map((s) => [s.capabilityId, s.version] as const),
   ]);
+  const dependencyId = (dependency: EngineCapabilityManifest["dependsOn"][number]) =>
+    [dependency.id, ...(dependency.alternatives ?? [])].find(
+      (id) => versions.get(id) === dependency.version,
+    );
   const active = definitions.filter((d) => enabled.some((s) => s.capabilityId === d.manifest.id));
   for (const definition of active)
     for (const dependency of definition.manifest.dependsOn)
-      if (versions.get(dependency.id) !== dependency.version)
+      if (dependencyId(dependency) === undefined)
         throw new CapabilityValidationError("Bağımlılık açık ve uyumlu sürümde olmalıdır");
   const visiting = new Set<string>();
   const visited = new Set<string>();
@@ -494,7 +650,7 @@ export function validateCapabilitySelection(
     if (visited.has(id) || id === "ordering") return;
     visiting.add(id);
     for (const dependency of active.find((d) => d.manifest.id === id)?.manifest.dependsOn ?? [])
-      visit(dependency.id);
+      visit(dependencyId(dependency) ?? dependency.id);
     visiting.delete(id);
     visited.add(id);
   }
@@ -531,6 +687,7 @@ export function permitOrderTransition(
   capabilities: readonly string[],
   from: string,
   to: string,
+  fulfilment?: "pickup" | "dine_in" | "delivery",
 ): boolean {
   const manifests: EngineCapabilityManifest[] = [];
   for (const key of capabilities) {
@@ -540,7 +697,7 @@ export function permitOrderTransition(
     if (definition === undefined) return false;
     manifests.push(definition.manifest);
   }
-  const { rules } = compileOrderWorkflow(manifests);
+  const { rules } = compileOrderWorkflow(manifests, fulfilment);
   const name = rules[from]?.[to];
   return name !== undefined && namedRules[name]?.() === true;
 }

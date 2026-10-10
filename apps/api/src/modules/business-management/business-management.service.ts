@@ -5,8 +5,10 @@ import type {
   BranchHoursBody,
   BusinessMemberBody,
   BusinessMembership,
+  BusinessMiniAppLaunch,
 } from "@vado/contracts";
 
+import { recordAudit } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { isUniqueViolation, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
@@ -18,6 +20,8 @@ import {
   withTenant,
 } from "../../core/tenant-scope";
 import { miniAppLive } from "../miniapps/miniapp-rows";
+import { availableBranchIds, requireBranchOperator } from "./branch-access";
+import { createStaffInvitations } from "./staff-invitations";
 
 const MANAGERS = ["owner", "manager"] as const;
 
@@ -26,6 +30,7 @@ interface MembershipRow {
   business_id: string;
   user_id: string;
   name: string;
+  display_name?: string;
   role: BusinessMembership["role"];
   active: boolean;
 }
@@ -35,6 +40,7 @@ function toMembership(row: MembershipRow): BusinessMembership {
     businessId: row.business_id,
     userId: row.user_id,
     businessName: row.name,
+    ...(row.display_name === undefined ? {} : { displayName: row.display_name }),
     role: row.role,
     active: row.active,
   };
@@ -46,6 +52,8 @@ interface BranchRow {
   timezone: string;
   address: string;
   active: boolean;
+  province_id: string | null;
+  district_id: string | null;
 }
 function toBranch(row: BranchRow): Branch {
   return {
@@ -55,6 +63,8 @@ function toBranch(row: BranchRow): Branch {
     timezone: row.timezone,
     address: row.address,
     active: row.active,
+    provinceId: row.province_id,
+    districtId: row.district_id,
   };
 }
 interface InstanceRow {
@@ -79,6 +89,8 @@ function toInstance(row: InstanceRow) {
 }
 
 export function createBusinessManagementService({ db, platformDb, config }: AppContext) {
+  const staffInvitations = createStaffInvitations({ db, platformDb });
+
   async function memberships(userId: string): Promise<BusinessMembership[]> {
     return platformScope(platformDb, async (tx) => {
       const rows = await tx.many<MembershipRow>(sql`
@@ -100,7 +112,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
       where m.business_id = ${businessId} and m.user_id = ${userId} and m.active and u.status = 'active'
     `),
     );
-    if (member === null) throw new AppError("forbidden");
+    if (member === null || member.role === "courier") throw new AppError("forbidden");
     return authoriseTenant({
       businessId,
       userId,
@@ -114,20 +126,29 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
     requireBusinessRole(scope, MANAGERS);
     return withTenant(db, scope, async (tx) => {
       const rows = await tx.many<MembershipRow>(sql`
-        select m.*, b.name from business_members m join businesses b on b.id = m.business_id
+        select m.*, b.name,
+          coalesce(nullif(u.display_name,''),nullif(u.username,''),'Personel') as display_name
+        from business_members m join businesses b on b.id = m.business_id
+        join users u on u.id=m.user_id
         where m.business_id = ${scope.businessId} order by m.created_at, m.id
       `);
       return rows.map(toMembership);
     });
   }
 
-  async function setMember(scope: TenantScope, body: BusinessMemberBody): Promise<void> {
+  async function setMember(scope: TenantScope, body: BusinessMemberBody, allowCreation = true): Promise<void> {
     requireBusinessRole(scope, ["owner"]);
     await withTenant(db, scope, async (tx) => {
       const user = await tx.maybeOne(
         sql`select 1 from users where id = ${body.userId} and status = 'active' for share`,
       );
       if (user === null) throw new AppError("user_not_found");
+      // Public member updates must never silently enrol a new person.
+      // Invitation acceptance is the only self-service entry point.
+      if (!allowCreation && (await tx.maybeOne(sql`
+        select 1 from business_members where business_id=${scope.businessId}
+          and user_id=${body.userId} for update
+      `)) === null) throw new AppError("not_found");
       const owner = await tx.maybeOne(sql`
         select 1 from business_members where business_id = ${scope.businessId}
           and user_id = ${body.userId} and role = 'owner'
@@ -138,32 +159,61 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
         values (${scope.businessId}, ${body.userId}, ${body.role}, ${body.active})
         on conflict (business_id, user_id) do update set role = excluded.role, active = excluded.active
       `);
+      // An inactive or promoted member must not regain an old branch grant later.
+      if (!body.active || body.role !== "staff") {
+        await tx.execute(sql`
+          delete from branch_availability_grants
+          where business_id=${scope.businessId} and user_id=${body.userId}
+        `);
+        await tx.execute(sql`
+          delete from business_region_operators
+          where business_id=${scope.businessId} and user_id=${body.userId}
+        `);
+        await tx.execute(sql`delete from business_branch_order_grants
+          where business_id=${scope.businessId} and user_id=${body.userId}`);
+        await tx.execute(sql`delete from business_region_order_grants
+          where business_id=${scope.businessId} and user_id=${body.userId}`);
+      }
+      await recordAudit(tx, { actor: scope.userId, action: "business.member_changed",
+        targetType: "business_member", targetId: body.userId,
+        metadata: { businessId: scope.businessId, role: body.role, active: body.active } });
     });
   }
 
   function branches(scope: TenantScope): Promise<Branch[]> {
-    return withTenant(db, scope, async (tx) =>
-      (
-        await tx.many<BranchRow>(sql`
-      select * from branches where business_id = ${scope.businessId} order by name, id
-    `)
-      ).map(toBranch),
-    );
+    return withTenant(db, scope, async (tx) => {
+      const branchIds = scope.role === "staff" ? await availableBranchIds(tx, scope) : null;
+      return (await tx.many<BranchRow>(sql`
+        select * from branches where business_id=${scope.businessId}
+          and (${branchIds === null} or id=any(${branchIds ?? []}::uuid[]))
+        order by name,id
+      `)).map(toBranch);
+    });
   }
 
   async function saveBranch(scope: TenantScope, body: BranchBody, id?: string): Promise<Branch> {
     requireBusinessRole(scope, MANAGERS);
     try {
       return await withTenant(db, scope, async (tx) => {
+        if (body.provinceId !== undefined && body.provinceId !== null) {
+          const location = await tx.maybeOne(sql`
+            select 1 from location_districts where province_id=${body.provinceId}
+              and id=${body.districtId}
+          `);
+          if (location === null) throw new AppError("validation_failed");
+        }
         const row =
           id === undefined
             ? await tx.one<BranchRow>(sql`
-          insert into branches(business_id, name, timezone, address, active)
-          values (${scope.businessId}, ${body.name}, ${body.timezone}, ${body.address}, ${body.active}) returning *
+          insert into branches(business_id, name, timezone, address, active, province_id, district_id)
+          values (${scope.businessId}, ${body.name}, ${body.timezone}, ${body.address}, ${body.active},
+            ${body.provinceId ?? null}, ${body.districtId ?? null}) returning *
         `)
             : await tx.maybeOne<BranchRow>(sql`
           update branches set name = ${body.name}, timezone = ${body.timezone},
-            address = ${body.address}, active = ${body.active}
+            address = ${body.address}, active = ${body.active},
+            province_id = ${body.provinceId === undefined ? sql`province_id` : sql`${body.provinceId}`},
+            district_id = ${body.districtId === undefined ? sql`district_id` : sql`${body.districtId}`}
           where business_id = ${scope.businessId} and id = ${id} returning *
         `);
         if (row === null) throw new AppError("not_found");
@@ -178,6 +228,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
   function hours(scope: TenantScope, branchId: string) {
     return withTenant(db, scope, async (tx) => {
       await requireBranch(tx, scope, branchId);
+      await requireBranchOperator(tx, scope, branchId);
       const rows = await tx.many<{ weekday: number; opens_at: number; closes_at: number }>(sql`
         select weekday, opens_at, closes_at from branch_hours
         where business_id = ${scope.businessId} and branch_id = ${branchId} order by weekday, opens_at
@@ -299,6 +350,32 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
     });
   }
 
+  /**
+   * Kamusal işletme profilinden açılan mini uygulamanın doğru örneğini bulur.
+   * Yetkiyi istemcinin bildirdiği örnek numarasından türetmez. Mağazaya bağlı birden
+   * fazla etkin örnek varsa rastgele seçim yapmaz: belirsiz açılışı reddeder.
+   * Bu işlem müşteri kaydı oluşturmaz; ilk gerçek kabuk çağrısı ayrıca doğrulanır.
+   */
+  async function businessLaunch(businessId: string, miniAppId: string) {
+    const matches = await platformScope(platformDb, (tx) =>
+      tx.many<{ id: string }>(sql`
+        select i.id from app_instances i
+        join businesses b on b.id = i.business_id
+        join users owner on owner.id = b.owner_id
+        join mini_app_merchants mm on mm.business_id = i.business_id
+          and mm.mini_app_id = i.mini_app_id and mm.merchant_id = i.merchant_id
+        join mini_app_runtime a on a.id = i.mini_app_id
+        where i.business_id = ${businessId} and i.mini_app_id = ${miniAppId}
+          and i.active and mm.active and b.status = 'active' and b.verified
+          and owner.status = 'active' and ${miniAppLive(config.miniAppDevMode)}
+        order by i.id limit 2
+      `),
+    );
+    if (matches.length !== 1 || matches[0] === undefined)
+      throw new AppError("business_not_found");
+    return { businessId, appInstanceId: matches[0].id } satisfies BusinessMiniAppLaunch;
+  }
+
   async function resolveCustomerScope(userId: string, miniAppId: string) {
     const instances = await platformScope(platformDb, (tx) =>
       tx.many<{ business_id: string; id: string }>(
@@ -310,7 +387,9 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
     return customerScope(userId, instances[0].business_id, instances[0].id, miniAppId);
   }
   return {
+    businessLaunch,
     resolveCustomerScope,
+    ...staffInvitations,
     memberships,
     authorise,
     members,

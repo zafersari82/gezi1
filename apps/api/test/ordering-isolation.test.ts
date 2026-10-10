@@ -76,7 +76,7 @@ test("altı sipariş tablosu kapsamsız ve yabancı erişimi reddeder; politika 
     qual: string;
     with_check: string;
   }>(sql`select c.relrowsecurity,c.relforcerowsecurity,p.qual,p.with_check from pg_class c
-   join pg_policies p on p.tablename=c.relname and p.schemaname='public' where c.relnamespace='public'::regnamespace and c.relname=any(${tables}::text[])`);
+   join pg_policies p on p.tablename=c.relname and p.schemaname='public' where p.policyname='tenant_scope' and c.relnamespace='public'::regnamespace and c.relname=any(${tables}::text[])`);
   expect(metadata).toHaveLength(6);
   for (const row of metadata) {
     expect(row).toMatchObject({ relrowsecurity: true, relforcerowsecurity: true });
@@ -84,6 +84,20 @@ test("altı sipariş tablosu kapsamsız ve yabancı erişimi reddeder; politika 
       "(business_id = (NULLIF(current_setting('vado.business_id'::text, true), ''::text))::uuid)",
     );
     expect(row.with_check).toBe(row.qual);
+  }
+  const courierPolicies = await app.db.many<{
+    tablename: string;
+    permissive: string;
+    qual: string;
+    with_check: string;
+  }>(
+    sql`select tablename,permissive,qual,with_check from pg_policies where schemaname='public' and policyname='courier_legacy_denied' and tablename=any(${tables}::text[])`,
+  );
+  expect(courierPolicies).toHaveLength(6);
+  for (const policy of courierPolicies) {
+    expect(policy.permissive).toBe("RESTRICTIVE");
+    expect(policy.qual).toContain("courier_actor(business_id)");
+    expect(policy.with_check).toBe(policy.qual);
   }
   await expect(
     scoped(app.db, a.businessId, (tx) =>

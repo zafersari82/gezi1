@@ -1,6 +1,6 @@
 {
   "name": "vado",
-  "version": "2.7.0",
+  "version": "2.8.0-alpha.3",
   "private": true,
   "description": "VADO: Türkiye için mesajlaşma, mini uygulama ve ödeme platformu",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -34,7 +34,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run format:check && npm run lint && npm run conventions && npm run typecheck && npm run test && npm run build"
+    "check": "npm run format:check && npm run lint && npm run conventions && npm run typecheck && npm run test && npm run build",
+    "db:location": "npm run location:import -w @vado/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

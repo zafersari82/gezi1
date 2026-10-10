@@ -417,6 +417,7 @@ label {
 .tabs {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--line);
@@ -917,10 +918,12 @@ label {
     padding: 7px 8px max(10px, env(safe-area-inset-bottom));
     z-index: 10;
     gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: thin;
     box-shadow: 0 -4px 18px rgb(21 37 36 / 4%);
   }
   .bottom-nav .nav-link {
-    flex: 1;
+    flex: 0 0 82px;
     min-width: 0;
     min-height: 56px;
     flex-direction: column;
@@ -1086,5 +1089,225 @@ label {
   .table-qr textarea,
   .table-qr button {
     display: none;
+  }
+}
+
+/* Satış sonrası ve değerlendirme ekranları: aynı iş akışı tasarım sistemi. */
+.record-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+.record-card:hover,
+.record-card.selected {
+  background: var(--teal-soft);
+  border-color: var(--teal);
+}
+.record-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.record-preview {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.record-facts {
+  display: grid;
+  gap: 12px;
+}
+.record-facts > div {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+.record-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.record-facts dd,
+.record-comment {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Business Studio: dokunmatik ekran için kodsuz mağaza düzenleyici. */
+.studio-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 390px); gap: 22px; align-items: start; }
+.studio-controls { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.studio-panel { display: grid; gap: 14px; }
+.studio-step { color: var(--teal); font-weight: 750; font-size: 12px; letter-spacing: .3px; }
+.studio-template-list { display: grid; gap: 10px; }
+.studio-template { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; min-height: 70px; padding: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; color: var(--ink); }
+.studio-template span { color: var(--muted); font-size: 12px; }
+.studio-template.selected { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); background: var(--mist); }
+.studio-palette-label { font-size: 13px; font-weight: 650; }
+.studio-palettes { display: flex; flex-wrap: wrap; gap: 10px; }
+.studio-palette { min-height: 44px; min-width: 44px; width: 44px; padding: 5px; border: 2px solid transparent; background: var(--surface); border-radius: 50%; }
+.studio-palette span { display: block; height: 30px; width: 30px; border-radius: 50%; background: var(--studio-swatch); }
+.studio-palette.selected { border-color: var(--ink); }
+.studio-save-panel { display: grid; gap: 12px; }
+.studio-save-panel .primary { width: 100%; }
+.studio-preview-area { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.studio-preview-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.studio-phone { --studio-accent: var(--teal); --studio-soft: var(--mist); width: 100%; max-width: 390px; margin-inline: auto; border-radius: 27px; overflow: hidden; border: 7px solid var(--ink); box-shadow: var(--shadow); background: var(--surface); color: var(--ink); }
+.studio-phone-top { display: flex; justify-content: space-between; padding: 18px 20px; color: var(--studio-accent); font-size: 12px; font-weight: 800; }
+.studio-hero { background: var(--studio-soft); padding: 29px 22px 32px; display: grid; gap: 10px; overflow-wrap: anywhere; }
+.studio-category { color: var(--studio-accent); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .7px; }
+.studio-hero h3 { font-size: 29px; line-height: 1.16; letter-spacing: -.6px; }
+.studio-hero p { color: var(--muted); }
+.studio-phone[data-layout="compact"] .studio-hero { padding-block: 19px; }
+.studio-phone[data-layout="compact"] .studio-hero h3 { font-size: 24px; }
+.studio-phone[data-layout="editorial"] .studio-hero { padding-block: 45px; text-align: center; }
+.studio-phone-content { padding: 20px; display: grid; gap: 15px; min-height: 190px; }
+.studio-placeholder { display: grid; justify-items: center; gap: 6px; padding: 24px 12px; border: 1px dashed var(--line); border-radius: 13px; text-align: center; }
+.studio-placeholder-icon { background: var(--studio-soft); color: var(--studio-accent); height: 38px; width: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; }
+.studio-placeholder > span:last-child { color: var(--muted); }
+.studio-phone-footer { background: var(--studio-soft); padding: 12px; text-align: center; font-size: 11px; color: var(--studio-accent); }
+.studio-publish-actions { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 8px; }
+.studio-publish-actions button { min-height: 44px; }
+.studio-preview-products { display: grid; gap: 10px; }
+.studio-preview-product { display: grid; gap: 4px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; overflow-wrap: anywhere; }
+.studio-preview-product span { color: var(--muted); font-size: 12px; }
+.studio-preview-product b { color: var(--studio-accent); font-size: 13px; }
+@media (max-width: 900px) { .studio-workspace { grid-template-columns: 1fr; } .studio-preview-area { order: -1; } .studio-phone { max-width: 340px; } }
+
+/* Şablonların Studio önizlemeleri müşteri vitrinindeki düzen ailelerini izler. */
+.studio-template-thumbnail {
+  position: relative;
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  height: 54px;
+  padding: 10px;
+  align-items: end;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--studio-thumb);
+}
+.studio-template-thumbnail i {
+  display: block;
+  height: 20px;
+  flex: 1;
+  background: #ffffffd9;
+  border-radius: 4px;
+}
+.studio-template-thumbnail[data-layout="compact"] { height: 44px; align-items: center; }
+.studio-template-thumbnail[data-layout="compact"] i { height: 24px; }
+.studio-template-thumbnail[data-layout="classic"] i:nth-child(2) { height: 30px; }
+.studio-template-thumbnail[data-layout="editorial"] { height: 72px; align-items: end; }
+.studio-template-thumbnail[data-layout="editorial"]::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  height: 20px;
+  border-radius: 5px;
+  background: #ffffffab;
+}
+.studio-template-thumbnail[data-layout="editorial"] i { height: 20px; }
+.studio-template-thumbnail[data-layout="enterprise"] { border-radius: 4px; height: 55px; }
+.studio-template-thumbnail[data-layout="enterprise"]::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+  background: #fff;
+}
+.studio-template-thumbnail[data-layout="enterprise"] i { border-radius: 2px; height: 25px; }
+.studio-phone[data-layout="compact"] .studio-preview-products { gap: 6px; }
+.studio-phone[data-layout="compact"] .studio-preview-product { border-radius: 9px; padding: 10px; }
+.studio-phone[data-layout="editorial"] .studio-hero { padding-block: 40px; }
+.studio-phone[data-layout="editorial"] .studio-cover-image { aspect-ratio: 1.8 / 1; }
+.studio-phone[data-layout="editorial"] .studio-logo-image { margin-inline: auto; }
+.studio-phone[data-layout="editorial"] .studio-preview-product { text-align: center; padding: 14px; }
+.studio-phone[data-layout="editorial"] .studio-item-main { flex-direction: column; }
+.studio-phone[data-layout="editorial"] .studio-item-image { height: 140px; width: 100%; }
+.studio-phone[data-layout="enterprise"] { border-radius: 14px; }
+.studio-phone[data-layout="enterprise"] .studio-hero { border-bottom: 3px solid var(--studio-accent); }
+.studio-phone[data-layout="enterprise"] .studio-preview-product { border-radius: 5px; border-left: 3px solid var(--studio-accent); }
+.studio-enterprise-note { font-size: 11px; font-weight: 700; color: var(--studio-accent); }
+
+/* Studio medya düzenleyicisi: dar telefonda da erişilebilir kontroller. */
+.studio-media-fields { display: grid; gap: 10px; margin-top: 16px; }
+.studio-media-fields input[type="file"], .studio-item-actions input[type="file"] { font-size: 12px; padding: 9px; width: 100%; }
+.studio-cover-image { width: 100%; aspect-ratio: 2.6 / 1; object-fit: cover; border-radius: 10px; }
+.studio-logo-image { width: 64px; height: 64px; object-fit: cover; border-radius: 14px; border: 2px solid white; }
+.studio-item-main { display: flex; align-items: center; gap: 10px; }
+.studio-item-image { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.studio-item-actions { display: grid; gap: 5px; }
+.studio-item-actions label { font-weight: 500; font-size: 12px; }
+.studio-item-actions button { justify-self: start; }
+
+/* İlk mağaza kurulumu: tek elde yönetilen, dar telefonda da rahat kullanılan adımlar. */
+.studio-starter {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.studio-setup-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+.studio-setup-steps li {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--mist);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.studio-setup-steps span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.studio-starter-items {
+  display: grid;
+  gap: 14px;
+}
+.studio-starter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.studio-starter-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+.studio-starter-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+}
+.studio-starter-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .studio-starter-grid, .studio-starter-fields, .studio-setup-steps {
+    grid-template-columns: 1fr;
   }
 }

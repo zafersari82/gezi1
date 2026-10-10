@@ -4,14 +4,21 @@ import type {
   CatalogItemBody,
   CatalogOptionGroupBody,
   CatalogPriceBody,
+  BranchPriceBatchBody,
   CatalogSelection,
   PricedLine,
+  StudioItemImageBody,
+  StudioStarterCatalogBody,
 } from "@vado/contracts";
 
-import type { TenantContext } from "../../core/context";
+import { STUDIO_STARTER_ITEMS } from "@vado/contracts";
+
+import type { AppContext } from "../../core/context";
 import { type Database, isUniqueViolation, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
+import { recordAudit } from "../../core/audit";
+import type { StorageProvider } from "../../providers/storage";
 import { includedVat } from "./pricing";
 
 interface CategoryRow {
@@ -31,6 +38,8 @@ interface ItemRow {
   active: boolean;
   available: boolean;
   version: number;
+  image_media_id: string | null;
+  image_storage_key: string | null;
 }
 interface GroupRow {
   id: string;
@@ -60,7 +69,7 @@ interface PriceRow {
 const MANAGERS = ["owner", "manager"] as const;
 const TOTAL_LIMIT_MINOR = 100_000_000;
 
-function toItem(row: ItemRow, groupIds: string[]) {
+function toItem(row: ItemRow, groupIds: string[], storage: StorageProvider) {
   return {
     id: row.id,
     businessId: row.business_id,
@@ -71,6 +80,8 @@ function toItem(row: ItemRow, groupIds: string[]) {
     active: row.active,
     available: row.available,
     version: row.version,
+    imageMediaId: row.image_media_id,
+    imageUrl: row.image_storage_key === null ? null : storage.publicUrl(row.image_storage_key),
     optionGroupIds: groupIds,
   };
 }
@@ -96,13 +107,15 @@ function toGroup(row: GroupRow, options: OptionRow[]) {
   };
 }
 
-async function readCatalog(tx: Database, scope: TenantScope, lock = false): Promise<Catalog> {
+async function readCatalog(tx: Database, scope: TenantScope, storage: StorageProvider, lock = false): Promise<Catalog> {
   const clause = lock ? sql`for share` : sql.empty;
   const categories = await tx.many<CategoryRow>(sql`
     select * from catalog_categories where business_id = ${scope.businessId} order by sort_order, id ${clause}
   `);
   const items = await tx.many<ItemRow>(sql`
-    select * from catalog_items where business_id = ${scope.businessId} order by id ${clause}
+    select i.*, m.storage_key as image_storage_key from catalog_items i
+    left join media m on m.id = i.image_media_id
+    where i.business_id = ${scope.businessId} order by i.id ${lock ? sql`for share of i` : sql.empty}
   `);
   const groups = await tx.many<GroupRow>(sql`
     select * from option_groups where business_id = ${scope.businessId} order by id ${clause}
@@ -128,6 +141,7 @@ async function readCatalog(tx: Database, scope: TenantScope, lock = false): Prom
       toItem(
         row,
         links.filter((link) => link.item_id === row.id).map((link) => link.group_id),
+        storage,
       ),
     ),
     optionGroups: groups.map((row) =>
@@ -183,9 +197,40 @@ async function writePrice(
   }
 }
 
-export function createCatalogService({ db }: TenantContext) {
+export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "storage">) {
   function get(scope: TenantScope): Promise<Catalog> {
-    return withTenant(db, scope, (tx) => readCatalog(tx, scope));
+    return withTenant(db, scope, (tx) => readCatalog(tx, scope, storage));
+  }
+
+  /** Ürün görseli aynı işletmeye ait yüklemelerden seçilir; ürün sürümü CAS ile korunur. */
+  async function setItemImage(scope: TenantScope, itemId: string, body: StudioItemImageBody) {
+    requireBusinessRole(scope, MANAGERS);
+    return withTenant(db, scope, async (tx) => {
+      // Serialize changes with tenant media cleanup, including JSON publication.
+      await tx.one(sql`select id from businesses where id=${scope.businessId} for share`);
+      if (body.mediaId !== null) {
+        const owned = await tx.maybeOne(sql`
+          select 1 from business_media where business_id = ${scope.businessId}
+            and media_id = ${body.mediaId}
+        `);
+        if (owned === null) throw new AppError("media_not_found");
+      }
+      const changed = await tx.maybeOne<{ version: number }>(sql`
+        update catalog_items set image_media_id = ${body.mediaId}
+        where business_id = ${scope.businessId} and id = ${itemId}
+          and version = ${body.expectedVersion}
+        returning version
+      `);
+      if (changed === null) throw new AppError("record_version_conflict");
+      await recordAudit(tx, {
+        actor: scope.userId, action: "catalog.item.image.updated",
+        targetType: "catalog_item", targetId: itemId,
+        metadata: { mediaId: body.mediaId, version: changed.version },
+      });
+      return {
+        imageMediaId: body.mediaId, version: changed.version,
+      };
+    });
   }
 
   async function saveCategory(scope: TenantScope, body: CatalogCategoryBody, id?: string) {
@@ -217,10 +262,59 @@ export function createCatalogService({ db }: TenantContext) {
     }
   }
 
+  /** Sadece boş bir işletme kataloğunda, tüm seçilen önerileri tek işlemde oluşturur. */
+  async function importStarterItems(scope: TenantScope, body: StudioStarterCatalogBody) {
+    requireBusinessRole(scope, MANAGERS);
+    return withTenant(db, scope, async (tx) => {
+      // Aynı işletmenin eşzamanlı kurulumları, diğer tenant'ları bloke etmeden sıralanır.
+      const business = await tx.maybeOne<{ category: string }>(sql`
+        select category from businesses where id = ${scope.businessId} for update
+      `);
+      if (business === null) throw new AppError("business_not_found");
+      if (body.items.some((item) => STUDIO_STARTER_ITEMS.find((preset) => preset.id === item.id)?.category !== business.category))
+        throw new AppError("validation_failed");
+      const existing = await tx.maybeOne(sql`
+        select id from catalog_items where business_id = ${scope.businessId} limit 1
+      `);
+      if (existing !== null) throw new AppError("record_version_conflict");
+      for (const item of body.items) {
+        const preset = STUDIO_STARTER_ITEMS.find((entry) => entry.id === item.id);
+        if (preset === undefined) throw new AppError("validation_failed");
+        const created = await tx.one<{ id: string }>(sql`
+          insert into catalog_items(business_id, category_id, name, description, sku, active, available)
+          values (${scope.businessId}, null, ${preset.name}, ${preset.description}, ${`VADO-${preset.id}`}, true, true)
+          returning id
+        `);
+        await writePrice(tx, scope, created.id, {
+          branchId: null,
+          amountMinor: item.amountMinor,
+          vatBasisPoints: item.vatBasisPoints,
+        });
+      }
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "catalog.starter.imported",
+        targetType: "business",
+        targetId: scope.businessId,
+        metadata: { itemIds: body.items.map((item) => item.id), count: body.items.length },
+      });
+      return { imported: body.items.length };
+    });
+  }
+
   async function saveItem(scope: TenantScope, body: CatalogItemBody, id?: string) {
     requireBusinessRole(scope, MANAGERS);
     try {
       return await withTenant(db, scope, async (tx) => {
+        // İlk kurulum aktarımıyla normal ürün ekleme aynı katalog durumunu görmelidir.
+        await tx.one(sql`select id from businesses where id = ${scope.businessId} for share`);
+        // Şubeye fiyat atanabilen eski ürün kaydetme yolu, toplu fiyat işlemindeki
+        // şube → ürün kilit sırasını aynen izler; karşılıklı bekleme yaratmaz.
+        if (body.price.branchId !== null) {
+          const branch = await tx.maybeOne(sql`select id from branches
+            where business_id=${scope.businessId} and id=${body.price.branchId} for update`);
+          if (branch === null) throw new AppError("not_found");
+        }
         if (body.categoryId !== null) {
           const category = await tx.maybeOne(sql`
             select id from catalog_categories where business_id = ${scope.businessId} and id = ${body.categoryId}
@@ -243,9 +337,13 @@ export function createCatalogService({ db }: TenantContext) {
         const links = await tx.many<{ group_id: string }>(sql`
           select group_id from item_option_groups where business_id = ${scope.businessId} and item_id = ${row.id} order by sort_order, group_id
         `);
+        const image = row.image_media_id === null ? null : await tx.maybeOne<{ storage_key: string }>(sql`
+          select storage_key from media where id = ${row.image_media_id}
+        `);
         return toItem(
-          row,
+          { ...row, image_storage_key: image?.storage_key ?? null },
           links.map((link) => link.group_id),
+          storage,
         );
       });
     } catch (error) {
@@ -261,8 +359,61 @@ export function createCatalogService({ db }: TenantContext) {
   ): Promise<void> {
     requireBusinessRole(scope, MANAGERS);
     await withTenant(db, scope, async (tx) => {
+      // Şube fiyatı aynı şubeye yapılacak toplu güncellemelerle çakışamaz.
+      if (body.branchId !== null) {
+        const branch = await tx.maybeOne(sql`select id from branches
+          where business_id=${scope.businessId} and id=${body.branchId} for update`);
+        if (branch === null) throw new AppError("not_found");
+      }
       await requireItem(tx, scope, itemId);
       await writePrice(tx, scope, itemId, body);
+    });
+  }
+
+  /** Şube fiyatlarını tek transaction'da günceller; aradaki değişikliklerde hiçbirini yazmaz. */
+  async function saveBranchPrices(scope: TenantScope, body: BranchPriceBatchBody) {
+    requireBusinessRole(scope, MANAGERS);
+    return withTenant(db, scope, async (tx) => {
+      // Şube kilidi, tekil ve toplu şube fiyatı mutasyonları için ortak sıradır.
+      const branch = await tx.maybeOne(sql`select id from branches
+        where business_id=${scope.businessId} and id=${body.branchId} for update`);
+      if (branch === null) throw new AppError("not_found");
+      const changes = [...body.changes].sort((a, b) => a.itemId.localeCompare(b.itemId));
+      // Tüm ürünleri doğrula ve ilk olarak değişmiş fiyatları tespit et.
+      for (const change of changes) {
+        await requireItem(tx, scope, change.itemId);
+        const current = await tx.maybeOne<{ amount_minor: number; vat_basis_points: number }>(sql`
+          select amount_minor, vat_basis_points from prices
+          where business_id=${scope.businessId} and branch_id=${body.branchId}
+            and item_id=${change.itemId} for update`);
+        const expected = change.expected;
+        const stale = expected === null
+          ? current !== null
+          : current === null ||
+            current.amount_minor !== expected.amountMinor ||
+            current.vat_basis_points !== expected.vatBasisPoints;
+        if (stale) throw new AppError("record_version_conflict");
+      }
+      for (const change of changes) {
+        if (change.next === null) {
+          await tx.execute(sql`delete from prices where business_id=${scope.businessId}
+            and branch_id=${body.branchId} and item_id=${change.itemId}`);
+        } else {
+          await writePrice(tx, scope, change.itemId, {
+            branchId: body.branchId,
+            amountMinor: change.next.amountMinor,
+            vatBasisPoints: change.next.vatBasisPoints,
+          });
+        }
+      }
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "catalog.branch_prices_updated",
+        targetType: "branch",
+        targetId: body.branchId,
+        metadata: { businessId: scope.businessId, count: changes.length },
+      });
+      return { updated: changes.length };
     });
   }
 
@@ -348,7 +499,7 @@ export function createCatalogService({ db }: TenantContext) {
         select active from branches where business_id = ${scope.businessId} and id = ${branchId} for share
       `);
       if (branch === null) throw new AppError("not_found");
-      const catalog = await readCatalog(connection, scope, true);
+      const catalog = await readCatalog(connection, scope, storage, true);
       const served = await connection.many<{ id: string; available: boolean }>(sql`
         select id,catalog_item_served_at(${scope.businessId},${branchId},id,${at}) as available
         from catalog_items where business_id=${scope.businessId}
@@ -442,7 +593,7 @@ export function createCatalogService({ db }: TenantContext) {
         sql`select 1 from branches where business_id = ${scope.businessId} and id = ${branchId} and active`,
       );
       if (branch === null) throw new AppError("not_found");
-      const catalog = await readCatalog(tx, scope);
+      const catalog = await readCatalog(tx, scope, storage);
       const served = await tx.many<{ id: string; available: boolean }>(sql`
         select id,catalog_item_served_at(${scope.businessId},${branchId},id,${options.at ?? new Date().toISOString()}) as available
         from catalog_items where business_id=${scope.businessId}
@@ -491,8 +642,11 @@ export function createCatalogService({ db }: TenantContext) {
   return {
     get,
     saveCategory,
+    importStarterItems,
     saveItem,
+    setItemImage,
     savePrice,
+    saveBranchPrices,
     saveOptionGroup,
     setOptionGroups,
     quote,

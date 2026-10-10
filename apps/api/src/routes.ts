@@ -7,12 +7,18 @@ import { adminAccountRoutes } from "./modules/admin-accounts/admin-accounts.rout
 import { authRoutes } from "./modules/auth/auth.routes";
 import { branchOperationsRoutes } from "./modules/business-management/branch-operations.routes";
 import { businessManagementRoutes } from "./modules/business-management/business-management.routes";
+import { regionManagementRoutes } from "./modules/business-management/region-management.routes";
 import { kitchenDeviceRoutes } from "./modules/business-management/kitchen-devices.routes";
 import { businessRoutes } from "./modules/businesses/businesses.routes";
 import { capabilityRoutes } from "./modules/capabilities/capabilities.routes";
 import { catalogRoutes } from "./modules/catalog/catalog.routes";
 import { chatRoutes } from "./modules/chat/chat.routes";
 import { contactRoutes } from "./modules/contacts/contacts.routes";
+import { discoveryRoutes } from "./modules/discovery/discovery.routes";
+import { deliveryRoutes } from "./modules/delivery/delivery.routes";
+import { feedbackRoutes } from "./modules/feedback/feedback.routes";
+import { incentiveRoutes } from "./modules/incentives/incentives.routes";
+import { locationRoutes } from "./modules/location/location.routes";
 import { mediaRoutes } from "./modules/media/media.routes";
 import { miniAppAdminRoutes } from "./modules/miniapps/miniapp-admin.routes";
 import { miniAppDeliveryRoutes } from "./modules/miniapps/miniapp-delivery.routes";
@@ -25,6 +31,7 @@ import { paymentRoutes } from "./modules/payments/payments.routes";
 import { qrRoutes } from "./modules/qr/qr.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { restaurantRoutes } from "./modules/restaurant/restaurant.routes";
+import { returnRoutes } from "./modules/returns/returns.routes";
 import { userRoutes } from "./modules/users/users.routes";
 import type { Services } from "./services";
 
@@ -46,6 +53,9 @@ export interface RouteContext {
  * oturumu doğrula, girdiyi sözleşme şemasıyla çözümle, servisi çağır, sonucu döndür.
  */
 export function registerRoutes(server: FastifyInstance, context: RouteContext): void {
+  feedbackRoutes(server, context);
+  locationRoutes(server, context);
+  incentiveRoutes(server, context);
   authRoutes(server, context);
   userRoutes(server, context);
   notificationRoutes(server, context);
@@ -55,11 +65,16 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   mediaRoutes(server, context);
   qrRoutes(server, context);
   businessRoutes(server, context);
+  discoveryRoutes(server, context);
   businessManagementRoutes(server, context);
+  regionManagementRoutes(server, context);
   branchOperationsRoutes(server, context);
   catalogRoutes(server, context);
   capabilityRoutes(server, context);
   orderingRoutes(server, context);
+  returnRoutes(server, context);
+  deliveryRoutes(server, context);
+  courierRoutes(server, context);
   restaurantRoutes(server, context);
   kitchenDeviceRoutes(server, context);
   miniAppRoutes(server, context);
@@ -71,3 +86,4 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   miniAppAdminRoutes(server, context);
   packageRoutes(server, context);
 }
+import { courierRoutes } from "./modules/delivery/courier.routes";

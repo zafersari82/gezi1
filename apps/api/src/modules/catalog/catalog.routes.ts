@@ -1,4 +1,5 @@
 import {
+  branchPriceBatchBodySchema,
   businessParamsSchema,
   businessRecordParamsSchema,
   catalogBranchQuerySchema,
@@ -9,6 +10,8 @@ import {
   catalogQuoteBodySchema,
   itemOptionGroupsBodySchema,
   shellBusinessParamsSchema,
+  studioItemImageBodySchema,
+  studioStarterCatalogBodySchema,
 } from "@vado/contracts";
 import type { FastifyInstance } from "fastify";
 
@@ -42,6 +45,12 @@ export function catalogRoutes(server: FastifyInstance, { services, guard }: Rout
     const { businessId } = parse(businessParamsSchema, request.params);
     return catalog.get(await businessManagement.authorise(userId, businessId));
   });
+  server.post("/v1/business/:businessId/catalog/starter-items", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId } = parse(businessParamsSchema, request.params);
+    const body = parse(studioStarterCatalogBodySchema, request.body);
+    return catalog.importStarterItems(await businessManagement.authorise(userId, businessId), body);
+  });
   server.post("/v1/business/:businessId/catalog/categories", async (request) => {
     const { userId } = await guard(request);
     const { businessId } = parse(businessParamsSchema, request.params);
@@ -74,6 +83,22 @@ export function catalogRoutes(server: FastifyInstance, { services, guard }: Rout
       await businessManagement.authorise(userId, businessId),
       parse(catalogItemBodySchema, request.body),
       id,
+    );
+  });
+  server.put("/v1/business/:businessId/catalog/items/:id/image", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId, id } = parse(businessRecordParamsSchema, request.params);
+    return catalog.setItemImage(
+      await businessManagement.authorise(userId, businessId),
+      id, parse(studioItemImageBodySchema, request.body),
+    );
+  });
+  server.put("/v1/business/:businessId/catalog/branch-prices", async (request) => {
+    const { userId } = await guard(request);
+    const { businessId } = parse(businessParamsSchema, request.params);
+    return catalog.saveBranchPrices(
+      await businessManagement.authorise(userId, businessId),
+      parse(branchPriceBatchBodySchema, request.body),
     );
   });
   server.put("/v1/business/:businessId/catalog/items/:id/prices", async (request, reply) => {

@@ -50,6 +50,7 @@ async function main(): Promise<void> {
         emitBusiness: () => undefined,
         emitBusinessLive: () => undefined,
         emitKitchen: () => undefined,
+        emitCourier: () => undefined,
         disconnectKitchenDevice: () => undefined,
         disconnectSession: () => undefined,
       },

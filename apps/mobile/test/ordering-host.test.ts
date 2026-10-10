@@ -166,6 +166,7 @@ test("restoran bağlamında başka işletme veya uygulama kaydı dönemez", asyn
               businessId: randomUUID(),
               appInstanceId,
               businessName: "Yabancı",
+              storefront: null,
               capabilities: [],
               branches: [],
             }
@@ -173,4 +174,84 @@ test("restoran bağlamında başka işletme veya uygulama kaydı dönemez", asyn
     },
   );
   await expect(host.getRestaurant(undefined)).rejects.toThrow("Sipariş bağlamı uyuşmuyor.");
+});
+
+test("teslimat kabuğu teklif ve görüntü için kendi bağlamındaki sabit uçları kullanır", async () => {
+  const { api, calls } = transport();
+  const original = api.request;
+  const addressId = randomUUID(),
+    orderId = randomUUID();
+  const countryId = randomUUID(),
+    provinceId = randomUUID(),
+    districtId = randomUUID(),
+    neighborhoodId = randomUUID();
+  const delivery = {
+    areaId: randomUUID(),
+    areaVersion: 1,
+    regionVersion: 1,
+    feeMinor: 200,
+    minimumMinor: 1000,
+    deliveryMinutes: 30,
+    preparationMinutes: 20,
+    slotMinutes: 15,
+    scheduledAt: null,
+    address: {
+      id: addressId,
+      version: 1,
+      label: "Ev",
+      recipientName: "Alıcı",
+      phone: "+905551112233",
+      addressLine: "Örnek Sokak 12",
+      door: "2",
+      note: "",
+      countryId,
+      provinceId,
+      districtId,
+      neighborhoodId,
+      archived: false,
+      createdAt: "2026-10-07T00:00:00.000Z",
+      updatedAt: "2026-10-07T00:00:00.000Z",
+      geography: {
+        country: { id: countryId, code: "TR", name: "Türkiye" },
+        province: {
+          id: provinceId,
+          sourceId: 34,
+          parentId: countryId,
+          name: "İstanbul",
+          fullOfficialName: "İSTANBUL",
+        },
+        district: {
+          id: districtId,
+          sourceId: 1,
+          parentId: provinceId,
+          name: "Kadıköy",
+          fullOfficialName: "KADIKÖY",
+        },
+        neighborhood: {
+          id: neighborhoodId,
+          sourceId: 1,
+          parentId: districtId,
+          name: "Moda",
+          fullOfficialName: "MODA MAHALLESİ",
+        },
+      },
+    },
+  };
+  api.request = (method, path, body, key) => {
+    if (path === "/v1/shell/business-context") return original(method, path, body, key);
+    calls.push({ method, path, ...(body === undefined ? {} : { body }) });
+    return Promise.resolve(delivery);
+  };
+  const host = createOrderingHost({ businessId, appInstanceId, miniAppId: "siparis" }, api);
+  expect(await host.getDeliveryQuote({ branchId, addressId })).toEqual(delivery);
+  expect(await host.getDeliverySnapshot({ id: orderId })).toEqual(delivery);
+  expect(calls[1]).toEqual({
+    method: "POST",
+    path: `/v1/shell/${businessId}/${appInstanceId}/delivery-quote`,
+    body: { branchId, addressId },
+  });
+  expect(calls[3]).toEqual({
+    method: "GET",
+    path: `/v1/shell/${businessId}/${appInstanceId}/orders/${orderId}/delivery-snapshot`,
+  });
 });

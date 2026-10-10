@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { idSchema } from "./common";
 import { expectedVersionSchema } from "./ordering";
+import { studioStorefrontSchema } from "./studio";
 
 export const initialVersionSchema = z.number().int().min(0).max(2_147_483_647);
 export const preparationMinutesSchema = z.number().int().min(1).max(240);
@@ -89,6 +90,24 @@ export const itemAvailabilityBodySchema = z
   })
   .strict();
 export type ItemAvailabilityBody = z.infer<typeof itemAvailabilityBodySchema>;
+/** All changes apply in one transaction; zero means inherited "available". */
+export const branchAvailabilityBatchBodySchema = z.object({
+  branchId: idSchema,
+  changes: z.array(z.object({
+    itemId: idSchema,
+    expectedVersion: initialVersionSchema,
+    available: z.boolean(),
+  }).strict()).min(1).max(100),
+}).strict().refine(
+  (body) => new Set(body.changes.map((change) => change.itemId)).size === body.changes.length,
+  "Aynı ürün bir istekte iki kez değiştirilemez.",
+);
+export type BranchAvailabilityBatchBody = z.infer<typeof branchAvailabilityBatchBodySchema>;
+export const branchAvailabilityBatchResultSchema = z.object({ updated: z.number().int().min(1).max(100) });
+export const branchAvailabilityListSchema = z.object({
+  items: z.array(z.object({ itemId: idSchema, available: z.boolean(), version: z.number().int().positive() })),
+});
+
 export const menuWindowsBodySchema = z
   .object({
     branchId: idSchema,
@@ -188,6 +207,7 @@ export const restaurantContextSchema = z.object({
   businessId: idSchema,
   appInstanceId: idSchema,
   businessName: z.string(),
+  storefront: studioStorefrontSchema.nullable(),
   capabilities: z.array(z.string()),
   branches: z.array(
     z.object({

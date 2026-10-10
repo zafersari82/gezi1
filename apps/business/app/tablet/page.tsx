@@ -19,6 +19,8 @@ async function readTablet() {
       address: "",
       timezone: "Europe/Istanbul",
       active: true,
+      provinceId: null,
+      districtId: null,
     });
     return { device, initial, branch };
   } catch (cause) {

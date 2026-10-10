@@ -118,6 +118,11 @@ export const api = {
       headers: { "content-type": "application/json", "idempotency-key": key },
       body: JSON.stringify(body),
     }),
+  putIdempotent: <T>(path: string, key: string, body: unknown) =>
+    send<T>("PUT", buildUrl(path), {
+      headers: { "content-type": "application/json", "idempotency-key": key },
+      body: JSON.stringify(body),
+    }),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),

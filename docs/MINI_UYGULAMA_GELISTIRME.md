@@ -428,6 +428,34 @@ const payment = await vado.payment.request({
 (bkz. [YOL_HARITASI.md](YOL_HARITASI.md)). O zamana kadar köprüden gelen "ödendi" sonucuna dayanarak
 mal ya da hizmet teslim etmeyin.
 
+## 2.8 sipariş sonrası işlemler (SDK)
+
+`ordering.basic` izni olan ve işletmeye bağlanmış mini uygulamalar, 2.8 ile
+sipariş sonrası işlemleri de aynı köprüden çağırabilir. Mini uygulama işletme, uygulama
+kaydı veya müşteri kimliğini URL'de belirleyemez; kabuk bu alanları kendi doğrulanmış
+oturumundan alır.
+
+```ts
+const reviews = await vado.feedback.listReviews({ limit: 30 });
+const favorites = await vado.feedback.listFavorites({ limit: 30 });
+const saved = await vado.feedback.saveFavorite({
+  itemId: null, value: true, expectedVersion: 0, key: "favori-istegi-1",
+});
+const requests = await vado.returns.list({ id: orderId });
+const repeated = await vado.ordering.reorder({
+  id: orderId, branchId, cartId: null, expectedVersion: 0,
+  replace: false, key: "tekrar-siparis-1",
+});
+```
+
+`feedback.createReview` tamamlanmış sipariş, `feedback.editReview` mevcut yorum
+sürümü gerektirir. `returns.create` talep türüne göre iptal tutarını `null`,
+iade tutarını kuruş cinsinden sayı olarak alır; `returns.withdraw` sürümlü geri
+çekme yapar. Değişiklik yapan bütün çağrılar benzersiz `key` taşır. İade ve
+tekrar sipariş yetenek paketleri ayrıca işletmenin uygulama kaydında açık olmalıdır.
+Bir çağrıdan `cart_conflict` veya sürüm hatası alınırsa, ekranda güncel veriler
+yüklenip kullanıcıdan yeniden onay alınmalıdır.
+
 ## Köprü protokolü
 
 Kitaplık kullanmadan da konuşabilirsiniz. Kesin tanımı `packages/contracts/src/bridge.ts`

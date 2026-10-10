@@ -13,6 +13,7 @@ import {
 } from "@vado/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 
+import manifest from "../package.json";
 import type { Config } from "./core/config";
 import type { AppContext, Logger } from "./core/context";
 import { type Database, sql } from "./core/database";
@@ -39,7 +40,7 @@ import { createRealtime } from "./realtime/realtime";
 import { registerRoutes } from "./routes";
 import { createServices, type Services } from "./services";
 
-export const API_VERSION = "2.7.0";
+export const API_VERSION = manifest.version;
 
 const JSON_BODY_LIMIT_BYTES = 100_000;
 
@@ -210,6 +211,7 @@ export async function buildApp({
   await server.ready();
   await realtime.start(server.server, {
     authenticate: services.auth.authenticate,
+    authenticateCourierTicket: services.courier.consumeTicket,
     authenticateKitchenTicket: (ticket) => services.kitchenDevices.consumeTicket(ticket),
     isKitchenDeviceActive: (id) => services.kitchenDevices.isActive(id),
     authenticateBusinessTicket: services.businessSockets.consume,

@@ -9,6 +9,7 @@ import {
   CAPABILITIES,
   CAPABILITY_LABELS,
   isBridgeMethod,
+  pageQuerySchema,
   requiresConsent,
 } from "../src";
 
@@ -29,6 +30,13 @@ describe("köprü protokolü", () => {
     expect(isBridgeMethod("storage.get")).toBe(true);
     expect(isBridgeMethod("storage.clear")).toBe(false);
     expect(isBridgeMethod("constructor")).toBe(false);
+  });
+
+  it("sayfalama imleci PostgreSQL bigint sınırına kadar tam korunur", () => {
+    expect(pageQuerySchema.safeParse({ cursor: "9223372036854775807" }).success).toBe(true);
+    expect(pageQuerySchema.safeParse({ cursor: "9223372036854775808" }).success).toBe(false);
+    expect(pageQuerySchema.safeParse({ cursor: "18446744073709551615" }).success).toBe(false);
+    expect(pageQuerySchema.safeParse({ cursor: "1;drop table" }).success).toBe(false);
   });
 
   it("hassas yetkiler kullanıcı onayı ister", () => {
@@ -62,6 +70,25 @@ describe("köprü protokolü", () => {
     expect(schema.safeParse({ ...base, amountMinor: 65_000 }).success).toBe(true);
     expect(schema.safeParse({ ...base, amountMinor: 0 }).success).toBe(false);
     expect(schema.safeParse({ ...base, amountMinor: 12.5 }).success).toBe(false);
+  });
+
+  it("müşteri etkileşim köprüsü başka işletme alanlarını ve bozuk tekrar anahtarını reddeder", () => {
+    const base = { id: "b2cd9772-164f-4300-b8c6-61a26a846790", key: "req-123" };
+    expect(bridgeParamsSchemas["feedback.createReview"].safeParse({
+      ...base, expectedOrderVersion: 2, rating: 5, comment: "Güzel", businessId: "yabancı",
+    }).success).toBe(false);
+    expect(bridgeParamsSchemas["returns.create"].safeParse({
+      ...base, kind: "cancel", expectedOrderVersion: 2, amountMinor: 300, reason: "Yanlış sipariş",
+    }).success).toBe(false);
+    expect(bridgeParamsSchemas["returns.create"].safeParse({
+      ...base, kind: "cancel", expectedOrderVersion: 2, amountMinor: null, reason: "Yanlış sipariş",
+    }).success).toBe(true);
+    expect(bridgeParamsSchemas["feedback.saveFavorite"].safeParse({
+      key: "wrong key", itemId: null, value: true, expectedVersion: 0,
+    }).success).toBe(false);
+    expect(bridgeParamsSchemas["returns.withdraw"].safeParse({
+      ...base, expectedVersion: 2, appInstanceId: base.id,
+    }).success).toBe(false);
   });
 
   it("depolama anahtarında yol ayırıcıya izin vermez", () => {

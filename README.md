@@ -4,7 +4,7 @@ Türkiye için mesajlaşma, mini uygulama ve ödeme platformu. Telefon numarası
 birebir ve grup sohbetleri, Anlar, QR ile ekleme, uygulama içinde açılan mini uygulamalar, ödeme
 onayı ve işletme hesapları tek bir uygulamada toplanır.
 
-Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu depo 2.7.0) yama olarak değil, o
+Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.3) yama olarak değil, o
 temelin üzerine aynı standartla eklenir. Standart yalnızca belgede durmaz; biçim, lint, proje
 kuralları, tip denetimi ve testler `npm run check` komutuyla makine tarafından denetlenir.
 
@@ -359,3 +359,6 @@ VADO müşteri paketi, imzalı masa QR'ı, gel-al/ileri saat, canlı sipariş, m
 ortak tablet ve fiziksel tahsilat: [Restoran kurulumu](docs/RESTORAN_2.7.md),
 [kabul kanıtları](docs/KABUL_2.7.md),
 [geçiş ve geri dönüş](docs/YAYIN.md#26dan-27ye-geçiş-ve-geri-dönüş).
+
+
+**VADO Business Studio kolay kurulum:** Telefon üzerinden şablon sonrası ilk ürün/hizmet seçimi ve kontrollü katalog aktarımı için `STUDIO_KOLAY_KURULUM.md`. Gerçek veritabanı ve cihaz kabulü yapılmadan üretime hazır sayılmaz.

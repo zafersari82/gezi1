@@ -4,6 +4,14 @@ const UUID = "[0-9a-f-]{36}";
 const patterns: Readonly<Record<string, readonly string[]>> = {
   GET: [
     "orders",
+    "orders/access/me",
+    "orders/performance",
+    "members",
+    "invitations",
+    "studio",
+    "studio/media/usage",
+    "returns",
+    "reviews",
     "kitchen-queue",
     "live-events",
     "tables",
@@ -13,17 +21,27 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
     `table-sessions/${UUID}/bill`,
     `branches/${UUID}/ordering-settings`,
     `branches/${UUID}/hours-exceptions`,
+    `catalog/items/${UUID}/image`,
     `catalog/items/${UUID}/availability`,
     `catalog/items/${UUID}/menu-windows`,
     `catalog/categories/${UUID}/menu-windows`,
     `orders/${UUID}`,
     "catalog",
+    "branches/availability-access/me",
+    "regions",
+    "regions/branches",
+    `regions/${UUID}/operators`,
+    `regions/${UUID}/order-grants`,
+    `branches/${UUID}/order-grants`,
+    `branches/${UUID}/availability-grants`,
     "branches",
     `branches/${UUID}/hours`,
     "app-instances",
     `app-instances/${UUID}/capabilities`,
   ],
   POST: [
+    "studio/publish",
+    "studio/media/prune",
     "socket-ticket",
     "tables",
     "kitchen-devices",
@@ -35,13 +53,30 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
     `orders/${UUID}/reject`,
     `orders/${UUID}/payment`,
     "branches",
+    "regions",
+    "invitations",
+    `invitations/${UUID}/revoke`,
     "app-instances",
     "catalog/categories",
     "catalog/items",
+    "catalog/starter-items",
     "catalog/option-groups",
   ],
   PUT: [
+    "studio",
+    "studio/media/usage",
+    "members",
+    "catalog/branch-prices",
+    "branches/availability-batch",
+    `regions/${UUID}`,
+    `regions/${UUID}/operators`,
+    `regions/${UUID}/order-grants`,
+    `branches/${UUID}/order-grants`,
+    `regions/branches/${UUID}`,
+    `branches/${UUID}/availability-grants`,
     `orders/${UUID}/status`,
+    `returns/${UUID}/decision`,
+    `reviews/${UUID}/reply`,
     `tables/${UUID}`,
     `branches/${UUID}/ordering-settings`,
     `branches/${UUID}/hours-exceptions`,
@@ -74,7 +109,13 @@ export function businessApiPath(
   const query = new URLSearchParams(search);
   const allowed = ["orders", "kitchen-queue"].includes(path)
     ? ["limit", "cursor", "status", "statuses", "active", "branchId", "appInstanceId"]
-    : path === "live-events"
+    : path === "orders/performance"
+      ? ["days"]
+    : path === "returns"
+      ? ["limit", "cursor", "status"]
+      : path === "reviews"
+        ? ["limit", "cursor"]
+        : path === "live-events"
       ? ["cursor"]
       : path.endsWith("/menu-windows")
         ? ["branchId"]

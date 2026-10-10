@@ -24,7 +24,6 @@ test("vekil yalnız seçili işletmenin izinli yollarına ve yöntemlerine açı
     ["..", "admin"],
     ["%2e%2e", "admin"],
     ["catalog/items", itemId],
-    ["members"],
     ["http:", "example.com"],
   ])
     expect(businessApiPath(businessId, segments, "GET", "")).toBeNull();
@@ -88,4 +87,119 @@ test("restoran yolları açık, cihaz vekili dar ve müşteri kapsamı seçileme
   );
   expect(kitchenApiPath(["orders", itemId, "payment"], "POST", "")).toBeNull();
   expect(kitchenApiPath(["orders"], "GET", "?businessId=foreign")).toBeNull();
+});
+
+test("iade ve değerlendirme yolları yalnız listeler ve gerekçeli karar uçlarını açar", () => {
+  expect(businessApiPath(businessId, ["returns"], "GET", "?status=pending&limit=30")).toBe(
+    `/v1/business/${businessId}/returns?status=pending&limit=30`,
+  );
+  expect(businessApiPath(businessId, ["returns"], "GET", "?cursor=2026-10-09T10%3A00%3A00.000001Z%7C${itemId}")).toBe(
+    `/v1/business/${businessId}/returns?cursor=2026-10-09T10%3A00%3A00.000001Z%7C${itemId}`,
+  );
+  expect(businessApiPath(businessId, ["reviews"], "GET", "?cursor=9007199254740993")).toBe(
+    `/v1/business/${businessId}/reviews?cursor=9007199254740993`,
+  );
+  expect(businessApiPath(businessId, ["returns", itemId, "decision"], "PUT", "")).toBe(
+    `/v1/business/${businessId}/returns/${itemId}/decision`,
+  );
+  expect(businessApiPath(businessId, ["reviews", itemId, "reply"], "PUT", "")).toBe(
+    `/v1/business/${businessId}/reviews/${itemId}/reply`,
+  );
+  for (const paths of [
+    ["returns", itemId],
+    ["returns", itemId, "withdraw"],
+    ["reviews", itemId, "delete"],
+  ]) expect(businessApiPath(businessId, paths, "PUT", "")).toBeNull();
+  expect(businessApiPath(businessId, ["returns", itemId, "decision"], "GET", "")).toBeNull();
+  expect(businessApiPath(businessId, ["reviews", itemId, "reply"], "POST", "")).toBeNull();
+  expect(businessApiPath(businessId, ["returns"], "GET", "?customerId=foreign")).toBeNull();
+  expect(businessApiPath(businessId, ["reviews"], "GET", "?appInstanceId=foreign")).toBeNull();
+});
+
+test("Studio vekili yalnız GET ve PUT yöntemlerini kabul eder", () => {
+  expect(businessApiPath(businessId, ["studio"], "GET", "")).toBe(
+    `/v1/business/${businessId}/studio`,
+  );
+  expect(businessApiPath(businessId, ["studio"], "PUT", "")).toBe(
+    `/v1/business/${businessId}/studio`,
+  );
+  for (const method of ["POST", "DELETE", "PATCH"]) {
+    expect(businessApiPath(businessId, ["studio"], method, "")).toBeNull();
+  }
+  expect(businessApiPath(businessId, ["studio"], "PUT", "?businessId=other")).toBeNull();
+});
+
+
+test("Ürün görseli yalnız seçili işletmenin ürününe ve PUT yöntemine bağlıdır", () => {
+  expect(businessApiPath(businessId, ["catalog", "items", itemId, "image"], "PUT", ""))
+    .toBe(`/v1/business/${businessId}/catalog/items/${itemId}/image`);
+  expect(businessApiPath(businessId, ["catalog", "items", itemId, "image"], "GET", ""))
+    .toBeNull();
+  expect(businessApiPath(businessId, ["catalog", "items", itemId, "image"], "PUT", "?businessId=other"))
+    .toBeNull();
+});
+
+test("Studio ilk ürün aktarımı yalnız POST yöntemi ve seçili işletmeyle çalışır", () => {
+  expect(businessApiPath(businessId, ["catalog", "starter-items"], "POST", ""))
+    .toBe(`/v1/business/${businessId}/catalog/starter-items`);
+  expect(businessApiPath(businessId, ["catalog", "starter-items"], "GET", ""))
+    .toBeNull();
+  expect(businessApiPath(businessId, ["catalog", "starter-items"], "POST", "?businessId=other"))
+    .toBeNull();
+});
+
+test("Şube fiyatı toplu güncelleme vekili yalnız doğru işletme ve PUT yolunu açar", () => {
+  expect(businessApiPath(businessId, ["catalog", "branch-prices"], "PUT", "")).toBe(
+    `/v1/business/${businessId}/catalog/branch-prices`,
+  );
+  expect(businessApiPath(businessId, ["catalog", "branch-prices"], "GET", "")).toBeNull();
+  expect(businessApiPath(businessId, ["catalog", "branch-prices"], "PUT", "?businessId=other")).toBeNull();
+});
+
+test("şube bulunurluğu ve sınırlı personel yetki yolları yalnız izinli yöntemle açılır", () => {
+  const routes: Array<[string[], string]> = [
+    [["branches", "availability-access", "me"], "GET"],
+    [["branches", itemId, "availability-grants"], "GET"],
+    [["branches", itemId, "availability-grants"], "PUT"],
+    [["branches", "availability-batch"], "PUT"],
+  ];
+  for (const [segments, method] of routes) {
+    expect(businessApiPath(businessId, segments, method, ""))
+      .toBe(`/v1/business/${businessId}/${segments.join("/")}`);
+    expect(businessApiPath(businessId, segments, "POST", "")).toBeNull();
+    expect(businessApiPath(businessId, segments, method, "?businessId=another")).toBeNull();
+  }
+  expect(businessApiPath(businessId, ["branches", itemId, "availability-grants"], "DELETE", "")).toBeNull();
+});
+
+test("performans ve ekip vekili yalnız seçili işletmeye izinli yollardan geçer", () => {
+  expect(businessApiPath(businessId, ["orders", "performance"], "GET", "?days=7")).toBe(
+    `/v1/business/${businessId}/orders/performance?days=7`,
+  );
+  expect(businessApiPath(businessId, ["orders", "performance"], "GET", "?branchId=foreign")).toBeNull();
+  expect(businessApiPath(businessId, ["orders", "performance"], "PUT", "")).toBeNull();
+  expect(businessApiPath(businessId, ["members"], "GET", "")).toBe(
+    `/v1/business/${businessId}/members`,
+  );
+  expect(businessApiPath(businessId, ["members"], "PUT", "")).toBe(
+    `/v1/business/${businessId}/members`,
+  );
+  expect(businessApiPath(businessId, ["members"], "POST", "")).toBeNull();
+  expect(businessApiPath(businessId, ["members"], "GET", "?userId=foreign")).toBeNull();
+});
+
+test("çalışan daveti API vekili yalnızca oluşturma, listeleme ve iptale açıktır", () => {
+  const path = ["invitations"];
+  expect(businessApiPath(businessId, path, "GET", ""))
+    .toBe(`/v1/business/${businessId}/invitations`);
+  expect(businessApiPath(businessId, path, "POST", ""))
+    .toBe(`/v1/business/${businessId}/invitations`);
+  expect(businessApiPath(businessId, path, "PUT", "")).toBeNull();
+  expect(businessApiPath(businessId, path, "POST", "?phone=foreign")).toBeNull();
+  expect(businessApiPath(businessId, ["invitations", itemId, "revoke"], "POST", ""))
+    .toBe(`/v1/business/${businessId}/invitations/${itemId}/revoke`);
+  expect(businessApiPath(businessId, ["invitations", itemId, "revoke"], "GET", ""))
+    .toBeNull();
+  expect(businessApiPath(businessId, ["invitations", itemId], "GET", ""))
+    .toBeNull();
 });

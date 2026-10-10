@@ -49,3 +49,28 @@ test("manifest ve JSON Schema alanı çalıştırılabilir kod içeremez", () =>
     engineCapabilityManifestSchema.safeParse({ ...manifest, validation: [() => true] }).success,
   ).toBe(false);
 });
+
+test("işletme manifesti iade ve değerlendirme görünümlerini tanır; bilinmeyeni reddeder", () => {
+  const manifest = {
+    id: "ordering",
+    version: "1.0.0",
+    engine: "ordering",
+    dependsOn: [],
+    configSchema: {},
+    defaults: {},
+    permissions: ["returns.read", "reviews.read"],
+    events: { publishes: [], subscribes: [] },
+    stateMachine: { insertions: [] },
+    api: [],
+    customerBlocks: [],
+    businessBlocks: [
+      { id: "returns", title: "İadeler", view: "returns", path: "/returns" },
+      { id: "reviews", title: "Değerlendirmeler", view: "reviews", path: "/reviews" },
+    ],
+    validation: [],
+  };
+  expect(engineCapabilityManifestSchema.safeParse(manifest).success).toBe(true);
+  expect(engineCapabilityManifestSchema.safeParse({ ...manifest, businessBlocks: [
+    { id: "unknown", title: "Bilinmeyen", view: "admin", path: "/admin" },
+  ] }).success).toBe(false);
+});

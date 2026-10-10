@@ -18,6 +18,7 @@ import type { AppContext } from "../../core/context";
 import { sql } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { createOutboxAdmin } from "../../core/outbox-admin";
+import { platformScope } from "../../core/platform-scope";
 import type { AuthService } from "../auth/auth.service";
 import { BUSINESS_COLUMNS, type BusinessRow, toBusiness } from "../businesses/business-rows";
 import { miniAppLive } from "../miniapps/miniapp-rows";
@@ -277,8 +278,28 @@ export function createAdminService(context: AppContext, auth: AuthService) {
     actor: string,
     reportId: string,
     status: ReportStatus,
+    reviewVisibility?: "published" | "hidden",
   ): Promise<void> {
-    const updated = await db.transaction(async (tx) => {
+    const updated = await platformScope(context.platformDb, async (tx) => {
+      if (reviewVisibility !== undefined) {
+        const report = await tx.maybeOne<{ target_type: string; target_id: string }>(
+          sql`select target_type,target_id from reports where id=${reportId} for update`,
+        );
+        if (report === null) throw new AppError("report_not_found");
+        if (report.target_type !== "review" || status !== "resolved")
+          throw new AppError("validation_failed");
+        const count = await tx.execute(
+          sql`update reviews set visibility=${reviewVisibility},version=version+1 where id=${report.target_id}::uuid`,
+        );
+        if (count === 0) throw new AppError("not_found");
+        await recordAudit(tx, {
+          actor,
+          action: "review.moderated",
+          targetType: "review",
+          targetId: report.target_id,
+          metadata: { visibility: reviewVisibility, reportId },
+        });
+      }
       const count = await tx.execute(sql`
         update reports
         set status = ${status}, resolved_at = ${status === "resolved" ? sql`now()` : sql`null`}

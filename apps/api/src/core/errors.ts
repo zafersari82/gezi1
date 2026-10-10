@@ -2,6 +2,18 @@ import { ERROR_MESSAGES, type ErrorCode } from "@vado/contracts";
 
 /** Her hata kodunun HTTP durum kodu. Yeni kod eklendiğinde derleyici bu tablonun güncellenmesini ister. */
 const STATUS_CODES: Record<ErrorCode, number> = {
+  incentive_code_taken: 409,
+  incentive_unavailable: 409,
+  incentive_stack_forbidden: 409,
+  loyalty_insufficient: 409,
+  courier_busy: 409,
+  location_catalog_not_ready: 503,
+  location_parent_invalid: 400,
+  location_version_conflict: 409,
+  record_version_conflict: 409,
+  review_exists: 409,
+  review_order_invalid: 409,
+  location_inactive: 409,
   validation_failed: 400,
   unauthorized: 401,
   forbidden: 403,
@@ -51,6 +63,7 @@ const STATUS_CODES: Record<ErrorCode, number> = {
 
   media_invalid: 400,
   media_too_large: 413,
+  media_quota_exceeded: 409,
   media_not_found: 404,
 
   moment_not_found: 404,

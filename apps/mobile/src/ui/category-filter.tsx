@@ -15,8 +15,8 @@ interface CategoryFilterProps {
 
 /** İşletme ve mini uygulama listelerinin üstündeki yatay kategori süzgeci. */
 export function CategoryFilter({ available, selected, onChange }: CategoryFilterProps) {
-  const categories = [...new Set(available)];
-  if (categories.length < 2) return null;
+  const categories = [...new Set(selected === null ? available : [...available, selected])];
+  if (categories.length < 2 && selected === null) return null;
 
   return (
     <ScrollView

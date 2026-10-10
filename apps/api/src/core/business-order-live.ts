@@ -24,7 +24,7 @@ export function createBusinessOrderConsumer(
       const members = await platformScope(platformDb, (tx) =>
         tx.many<{ user_id: string }>(sql`
         select m.user_id from business_members m join users u on u.id=m.user_id
-        where m.business_id=${payload.businessId} and m.active and u.status='active'`),
+        where m.business_id=${payload.businessId} and m.role in ('owner','manager','staff') and m.active and u.status='active'`),
       );
       realtime.emitBusiness(
         payload.businessId,

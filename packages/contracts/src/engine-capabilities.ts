@@ -20,6 +20,11 @@ export const workflowInsertionSchema = z
     from: orderStateSchema,
     to: orderStateSchema,
     entry: orderStateSchema,
+    fulfilments: z
+      .array(z.enum(["pickup", "dine_in", "delivery"]))
+      .min(1)
+      .max(3)
+      .optional(),
     states: z
       .array(
         z
@@ -37,7 +42,7 @@ export const businessBlockSchema = z
   .object({
     id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
     title: z.string().min(1).max(80),
-    view: z.enum(["orders", "catalog", "branches", "settings", "kitchen", "tables", "devices"]),
+    view: z.enum(["orders", "catalog", "branches", "settings", "kitchen", "tables", "devices", "reviews", "returns"]),
     path: z.string().regex(/^\/[a-z][a-z0-9/-]*(?:\?[a-z][a-z0-9_=.-]*)?$/),
     states: z.array(orderStateSchema).default([]),
     titleConfigKey: z.string().optional(),
@@ -50,7 +55,13 @@ export const engineCapabilityManifestSchema = z
     version: engineCapabilityVersionSchema,
     engine: z.literal("ordering"),
     dependsOn: z.array(
-      z.object({ id: engineCapabilityIdSchema, version: engineCapabilityVersionSchema }).strict(),
+      z
+        .object({
+          id: engineCapabilityIdSchema,
+          version: engineCapabilityVersionSchema,
+          alternatives: z.array(engineCapabilityIdSchema).min(1).max(10).optional(),
+        })
+        .strict(),
     ),
     configSchema: engineCapabilityConfigSchema,
     defaults: engineCapabilityConfigSchema,

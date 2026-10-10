@@ -5,25 +5,22 @@ import {
   type Cart,
   cartSchema,
   catalogSchema,
+  deliveryQuoteSchema,
   fulfilmentSlotsSchema,
   liveReplaySchema,
   type Order,
   orderSchema,
   orderSummarySchema,
   restaurantContextSchema,
+  reorderResultSchema,
   tableBillSchema,
   tableSessionSchema,
 } from "@vado/contracts";
 import { z } from "zod";
 
-export interface OrderingTransport {
-  request: (
-    method: "GET" | "POST" | "PUT",
-    path: string,
-    body?: unknown,
-    key?: string,
-  ) => Promise<unknown>;
-}
+import type { MiniAppTransport } from "./host-transport";
+
+export type OrderingTransport = MiniAppTransport;
 export type OrderingHost = {
   [
     Method in Extract<
@@ -96,6 +93,18 @@ export function createOrderingHost(
     return owned(cartSchema.parse(error.details.cart), customerId);
   }
   return {
+    async getDeliveryQuote(params) {
+      await confirm();
+      return deliveryQuoteSchema.parse(
+        await transport.request("POST", `${base()}/delivery-quote`, params),
+      );
+    },
+    async getDeliverySnapshot({ id }) {
+      await confirm();
+      return deliveryQuoteSchema.parse(
+        await transport.request("GET", `${base()}/orders/${id}/delivery-snapshot`),
+      );
+    },
     async getRestaurant() {
       const context = await confirm();
       const value = restaurantContextSchema.parse(
@@ -272,6 +281,13 @@ export function createOrderingHost(
         orderSchema.parse(await transport.request("GET", `${base()}/orders/${id}`)),
         businessCustomerId,
       );
+    },
+    async reorder({ id, key, ...body }) {
+      const { businessCustomerId } = await confirm();
+      const result = reorderResultSchema.parse(
+        await transport.request("POST", `${base()}/orders/${id}/reorder`, body, key),
+      );
+      return { ...result, cart: owned(result.cart, businessCustomerId) };
     },
   };
 }

@@ -1,4 +1,5 @@
 "use client";
+import { formatBranchDateTime } from "@vado/contracts";
 import { type Order, orderSchema } from "@vado/contracts";
 import { useRef, useState } from "react";
 
@@ -151,7 +152,7 @@ export function OrderActions({
         )}
       {order.paymentStatus === "paid" && <p className="success">Ödendi</p>}
       {order.estimatedReadyAt && (
-        <p>Tahmini hazır: {new Date(order.estimatedReadyAt).toLocaleString("tr-TR")}</p>
+        <p>Tahmini hazır: {formatBranchDateTime(order.estimatedReadyAt, order.branchTimezone)}</p>
       )}
       {order.rejectionReason && <p>Ret gerekçesi: {order.rejectionReason}</p>}
       {error && (

@@ -1,4 +1,4 @@
-import { readFile, rm } from "node:fs/promises";
+import { cp, readFile, rm } from "node:fs/promises";
 
 import { build } from "esbuild";
 
@@ -16,6 +16,7 @@ await build({
   entryPoints: [
     "src/main.ts",
     "src/cli/migrate.ts",
+    "src/cli/import-location.ts",
     "src/cli/database-roles.ts",
     "src/cli/keys.ts",
     "src/cli/packages.ts",
@@ -30,4 +31,8 @@ await build({
   sourcemap: true,
   external,
   logLevel: "info",
+});
+
+await cp(new URL("./data", import.meta.url), new URL("./dist/data", import.meta.url), {
+  recursive: true,
 });

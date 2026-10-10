@@ -2,6 +2,7 @@ import { apiErrorBodySchema, ERROR_CODES, ERROR_MESSAGES } from "@vado/contracts
 import Fastify from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import manifest from "../package.json";
 import { AppError } from "../src/core/errors";
 import { loggerOptions } from "../src/core/http";
 import { anonymous, as, createUser, startTestApp, type TestApp } from "./support/harness";
@@ -16,7 +17,7 @@ describe("HTTP katmanı", () => {
 
   it("sağlık uç noktası veritabanını da yoklar", async () => {
     const response = await anonymous(app).request("GET", "/health");
-    expect(response).toEqual({ status: 200, body: { status: "ok", version: "2.7.0" } });
+    expect(response).toEqual({ status: 200, body: { status: "ok", version: manifest.version } });
   });
 
   it("bilinmeyen adres için sözleşmedeki hata biçimini döndürür", async () => {

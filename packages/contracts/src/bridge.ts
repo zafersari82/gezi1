@@ -4,7 +4,31 @@ import type { Platform } from "./auth";
 import type { LiveReplay } from "./business-live";
 import type { Capability } from "./capabilities";
 import type { Catalog } from "./catalog";
-import { amountMinorSchema, idSchema } from "./common";
+import { amountMinorSchema, idSchema, pageQuerySchema } from "./common";
+import { type DeliveryQuote, deliveryQuoteBodySchema } from "./delivery";
+import {
+  favoriteBodySchema,
+  type Favorite,
+  reviewBodySchema,
+  reviewEditBodySchema,
+  type Review,
+} from "./feedback";
+import {
+  applyCartIncentivesBodySchema,
+  type availableIncentivesSchema,
+  idempotencyKeySchema,
+  type LoyaltyWallet,
+} from "./incentives";
+import {
+  type LocationAddress,
+  locationAddressBodySchema,
+  locationAddressUpdateBodySchema,
+  type LocationCountry,
+  locationKeySchema,
+  type LocationPath,
+  type LocationPlace,
+  locationVersionBodySchema,
+} from "./location";
 import type { MiniAppIdentity, MiniAppIdentityToken } from "./miniapps";
 import {
   type Cart,
@@ -18,8 +42,14 @@ import {
 } from "./ordering";
 import type { ConfigValues } from "./packages";
 import { merchantIdSchema, orderIdSchema, paymentDescriptionSchema } from "./payments";
-import type { RestaurantContext, TableSession } from "./restaurant";
-import { tableRequestBodySchema } from "./restaurant";
+import { type RestaurantContext, tableRequestBodySchema, type TableSession } from "./restaurant";
+import {
+  reorderBodySchema,
+  type ReorderResult,
+  returnRequestBodySchema,
+  type ReturnRequest,
+  returnWithdrawBodySchema,
+} from "./returns";
 
 /**
  * Mini uygulama ile VADO kabuğu arasındaki köprü protokolü.
@@ -32,6 +62,9 @@ export const BRIDGE_PROTOCOL_VERSION = 1;
 
 /** Her köprü metodunun gerektirdiği yetki. `null` yetki gerektirmez. */
 export const BRIDGE_METHODS = {
+  "incentives.getAvailable": "incentives.basic",
+  "incentives.getLoyalty": "incentives.basic",
+  "incentives.applyCart": "incentives.basic",
   "container.getInfo": null,
   "container.close": null,
   "app.getContext": null,
@@ -39,11 +72,24 @@ export const BRIDGE_METHODS = {
   "identity.getToken": "identity.basic",
   "scanner.scanQr": "camera.qr",
   "location.getCurrent": "location.coarse",
+  "location.listCountries": "location.catalog",
+  "location.listProvinces": "location.catalog",
+  "location.listDistricts": "location.catalog",
+  "location.listNeighborhoods": "location.catalog",
+  "location.getNeighborhood": "location.catalog",
+  "location.listAddresses": "location.addresses",
+  "location.getAddress": "location.addresses",
+  "location.createAddress": "location.addresses",
+  "location.updateAddress": "location.addresses",
+  "location.archiveAddress": "location.addresses",
+
   "payment.request": "payment.request",
   "storage.get": "storage.local",
   "storage.set": "storage.local",
   "storage.remove": "storage.local",
   "share.open": "share.native",
+  "ordering.getDeliveryQuote": "location.addresses",
+  "ordering.getDeliverySnapshot": "location.addresses",
   "ordering.getCatalog": "ordering.basic",
   "ordering.openCart": "ordering.basic",
   "ordering.getCart": "ordering.basic",
@@ -59,6 +105,15 @@ export const BRIDGE_METHODS = {
   "ordering.requestService": "ordering.basic",
   "ordering.getEvents": "ordering.basic",
   "ordering.listOrders": "ordering.basic",
+  "ordering.reorder": "ordering.basic",
+  "feedback.listReviews": "ordering.basic",
+  "feedback.createReview": "ordering.basic",
+  "feedback.editReview": "ordering.basic",
+  "feedback.listFavorites": "ordering.basic",
+  "feedback.saveFavorite": "ordering.basic",
+  "returns.list": "ordering.basic",
+  "returns.create": "ordering.basic",
+  "returns.withdraw": "ordering.basic",
 } as const satisfies Record<string, Capability | null>;
 
 export type BridgeMethod = keyof typeof BRIDGE_METHODS;
@@ -89,6 +144,11 @@ export type ShareParams = z.infer<typeof shareParamsSchema>;
 
 /** Kabuk, her isteğin parametrelerini bu şemalarla doğrular. */
 export const bridgeParamsSchemas = {
+  "incentives.getAvailable": noParamsSchema,
+  "incentives.getLoyalty": noParamsSchema,
+  "incentives.applyCart": applyCartIncentivesBodySchema
+    .extend({ id: idSchema, key: idempotencyKeySchema })
+    .strict(),
   "container.getInfo": noParamsSchema,
   "container.close": noParamsSchema,
   "app.getContext": noParamsSchema,
@@ -96,6 +156,21 @@ export const bridgeParamsSchemas = {
   "identity.getToken": noParamsSchema,
   "scanner.scanQr": noParamsSchema,
   "location.getCurrent": noParamsSchema,
+  "location.listCountries": noParamsSchema,
+  "location.listProvinces": z.object({ countryId: idSchema }).strict(),
+  "location.listDistricts": z.object({ provinceId: idSchema }).strict(),
+  "location.listNeighborhoods": z.object({ districtId: idSchema }).strict(),
+  "location.getNeighborhood": z.object({ id: idSchema }).strict(),
+  "location.listAddresses": noParamsSchema,
+  "location.getAddress": z.object({ id: idSchema }).strict(),
+  "location.createAddress": locationAddressBodySchema.extend({ key: locationKeySchema }).strict(),
+  "location.updateAddress": locationAddressUpdateBodySchema
+    .extend({ id: idSchema, key: locationKeySchema })
+    .strict(),
+  "location.archiveAddress": locationVersionBodySchema
+    .extend({ id: idSchema, key: locationKeySchema })
+    .strict(),
+
   "payment.request": paymentRequestParamsSchema,
   "storage.get": z.object({ key: storageKeySchema }),
   "storage.set": z.object({ key: storageKeySchema, value: z.string().max(STORAGE_VALUE_MAX) }),
@@ -108,6 +183,8 @@ export const bridgeParamsSchemas = {
       at: z.iso.datetime({ offset: true }).optional(),
     })
     .strict(),
+  "ordering.getDeliveryQuote": deliveryQuoteBodySchema,
+  "ordering.getDeliverySnapshot": z.object({ id: idSchema }).strict(),
   "ordering.openCart": openCartBodySchema.strict(),
   "ordering.getCart": z.object({ id: idSchema }).strict(),
   "ordering.replaceCart": replaceCartBodySchema.extend({ id: idSchema }).strict(),
@@ -126,6 +203,25 @@ export const bridgeParamsSchemas = {
     .strict(),
   "ordering.getEvents": z
     .object({ cursor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) })
+    .strict(),
+  "ordering.reorder": reorderBodySchema
+    .extend({ id: idSchema, key: idempotencyKeySchema })
+    .strict(),
+  "feedback.listReviews": pageQuerySchema.strict(),
+  "feedback.createReview": reviewBodySchema
+    .extend({ id: idSchema, key: idempotencyKeySchema })
+    .strict(),
+  "feedback.editReview": reviewEditBodySchema
+    .extend({ id: idSchema, key: idempotencyKeySchema })
+    .strict(),
+  "feedback.listFavorites": pageQuerySchema.strict(),
+  "feedback.saveFavorite": favoriteBodySchema.extend({ key: idempotencyKeySchema }).strict(),
+  "returns.list": z.object({ id: idSchema }).strict(),
+  "returns.create": returnRequestBodySchema
+    .safeExtend({ id: idSchema, key: idempotencyKeySchema })
+    .strict(),
+  "returns.withdraw": returnWithdrawBodySchema
+    .extend({ id: idSchema, key: idempotencyKeySchema })
     .strict(),
   "ordering.listOrders": z
     .object({
@@ -163,6 +259,11 @@ export interface MiniAppContext {
 }
 
 export interface BridgeResults {
+  "incentives.getAvailable": z.infer<typeof availableIncentivesSchema>;
+  "incentives.getLoyalty": LoyaltyWallet;
+  "incentives.applyCart": { type: "cart" | "cart_conflict"; cart: Cart };
+  "ordering.getDeliveryQuote": DeliveryQuote;
+  "ordering.getDeliverySnapshot": DeliveryQuote;
   "container.getInfo": ContainerInfo;
   "container.close": null;
   "app.getContext": MiniAppContext;
@@ -171,6 +272,16 @@ export interface BridgeResults {
   "identity.getToken": MiniAppIdentityToken;
   "scanner.scanQr": { value: string };
   "location.getCurrent": { latitude: number; longitude: number; accuracyMeters: number | null };
+  "location.listCountries": { items: LocationCountry[] };
+  "location.listProvinces": { items: LocationPlace[] };
+  "location.listDistricts": { items: LocationPlace[] };
+  "location.listNeighborhoods": { items: LocationPlace[] };
+  "location.getNeighborhood": LocationPath;
+  "location.listAddresses": { items: LocationAddress[] };
+  "location.getAddress": LocationAddress;
+  "location.createAddress": LocationAddress;
+  "location.updateAddress": LocationAddress;
+  "location.archiveAddress": LocationAddress;
   "payment.request": { paymentId: string; status: "paid" };
   "storage.get": { value: string | null };
   "storage.set": null;
@@ -196,6 +307,15 @@ export interface BridgeResults {
   };
   "ordering.getEvents": LiveReplay;
   "ordering.listOrders": { items: OrderSummary[]; nextCursor: string | null };
+  "ordering.reorder": ReorderResult;
+  "feedback.listReviews": { items: Review[]; nextCursor: string | null };
+  "feedback.createReview": Review;
+  "feedback.editReview": Review;
+  "feedback.listFavorites": { items: Favorite[]; nextCursor: string | null };
+  "feedback.saveFavorite": Favorite;
+  "returns.list": { items: ReturnRequest[] };
+  "returns.create": ReturnRequest;
+  "returns.withdraw": ReturnRequest;
 }
 
 export const bridgeRequestSchema = z.object({

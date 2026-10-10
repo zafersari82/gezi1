@@ -13,6 +13,8 @@ const paths: Readonly<Record<BusinessBlock["view"], string>> = {
   tables: "M3 8h18 M5 8v13 M19 8v13 M6 4h12v4",
   devices: "M5 2h14v20H5z M10 18h4",
   orders: "M4 4h16v16H4z M8 9h8 M8 13h8 M8 17h5",
+  returns: "M4 7h16 M4 7l4-4 M4 7l4 4 M7 13h14v8H7z",
+  reviews: "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z",
   catalog: "M3 7l9-4 9 4v11l-9 4-9-4z M3 7l9 4 9-4 M12 11v11",
   branches: "M3 10l2-6h14l2 6 M5 10v10h14V10 M9 20v-6h6v6 M3 10h18",
   settings: "M5 6h14 M5 12h14 M5 18h14 M9 3v6 M15 9v6 M10 15v6",
@@ -32,6 +34,28 @@ export function AppShell({
   const query = useSearchParams().toString();
   const nav = (
     <>
+      <Link
+        href="/studio"
+        className={pathname === "/studio" ? "nav-link active" : "nav-link"}
+        aria-current={pathname === "/studio" ? "page" : undefined}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true">
+          <path d="M4 4h16v16H4z M4 11h16 M11 11v9 M8 7h3 M14 7h3" />
+        </svg>
+        <span>Mağaza tasarımı</span>
+      </Link>
+      <Link href="/performance" className={pathname === "/performance" ? "nav-link active" : "nav-link"}
+        aria-current={pathname === "/performance" ? "page" : undefined}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true">
+          <path d="M3 20V4 M3 20h18 M7 17v-5h3v5 M12 17V9h3v8 M17 17V5h3v12" />
+        </svg><span>Performans</span>
+      </Link>
+      {role === "owner" && <Link href="/team" className={pathname === "/team" ? "nav-link active" : "nav-link"}
+        aria-current={pathname === "/team" ? "page" : undefined}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true">
+          <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M2 21v-2a7 7 0 0 1 14 0v2 M18 8a3 3 0 0 1 0 6 M19 16a5 5 0 0 1 3 5" />
+        </svg><span>Ekibim</span>
+      </Link>}
       {blocks.map((block) => {
         const active = block.path === `${pathname}${query === "" ? "" : `?${query}`}`;
         return (

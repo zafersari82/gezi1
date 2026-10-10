@@ -1,4 +1,4 @@
-import { businessMembershipSchema } from "@vado/contracts";
+import { businessMembershipSchema, idempotencyKeySchema } from "@vado/contracts";
 import { z } from "zod";
 
 import { apiGet, apiRequest, BusinessApiError } from "../../../../lib/api";
@@ -30,10 +30,17 @@ async function handle(
       new URL(request.url).search,
     );
     if (path === null) throw new BusinessApiError(400, "validation_failed", "İstek yolu geçersiz.");
+    const needsKey = /\/(?:returns\/[0-9a-f-]{36}\/decision|reviews\/[0-9a-f-]{36}\/reply)$/.test(path);
+    const key = needsKey ? idempotencyKeySchema.safeParse(request.headers.get("idempotency-key")) : null;
+    if (key !== null && !key.success)
+      throw new BusinessApiError(400, "validation_failed", "İşlem anahtarı geçersiz.");
     const response = await apiRequest(
       request.method,
       path,
       request.method === "GET" ? undefined : await readLimitedJson(request),
+      true,
+      undefined,
+      key?.data,
     );
     return new Response(response.status === 204 ? null : await response.text(), {
       status: response.status,

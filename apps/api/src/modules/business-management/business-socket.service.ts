@@ -10,7 +10,8 @@ import type { BusinessSocketAuth } from "../../realtime/realtime";
 
 export function createBusinessSocketService({ db, platformDb, config }: AppContext) {
   function issue(scope: TenantScope, sessionId: string): Promise<BusinessSocketTicket> {
-    requireBusinessRole(scope, ["owner", "manager", "staff"]);
+    // Whole-business broadcasts cannot be sent to branch- or region-limited staff.
+    requireBusinessRole(scope, ["owner", "manager"]);
     return withTenant(db, scope, async (tx) => {
       const session = await tx.maybeOne(sql`select id from sessions
         where id=${sessionId} and user_id=${scope.userId} and revoked_at is null and expires_at>now() for share`);
@@ -40,7 +41,7 @@ export function createBusinessSocketService({ db, platformDb, config }: AppConte
       if (user === null) throw new AppError("unauthorized");
       const member =
         await tx.maybeOne(sql`select id from business_members where business_id=${row.business_id}
-        and user_id=${row.user_id} and active for share`);
+        and user_id=${row.user_id} and role in ('owner','manager') and active for share`);
       if (member === null) throw new AppError("unauthorized");
       const session = await tx.maybeOne<{ expires_at: Date }>(sql`select expires_at from sessions
         where id=${row.session_id} and user_id=${row.user_id} and revoked_at is null and expires_at>now() for share`);

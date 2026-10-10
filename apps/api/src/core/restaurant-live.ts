@@ -18,7 +18,7 @@ export function createRestaurantLiveConsumer({ platformDb, realtime }: AppContex
         const row = await readLive(tx, event.businessId ?? "", event.id);
         if (row === null) return null;
         const members = await tx.many<{ user_id: string }>(
-          sql`select m.user_id from business_members m join users u on u.id=m.user_id where m.business_id=${row.business_id} and m.active and u.status='active'`,
+          sql`select m.user_id from business_members m join users u on u.id=m.user_id where m.business_id=${row.business_id} and m.role in ('owner','manager','staff') and m.active and u.status='active'`,
         );
         const customer = await tx.maybeOne<{ user_id: string }>(
           sql`select c.user_id from business_customers c join users u on u.id=c.user_id where c.business_id=${row.business_id} and c.id=${row.business_customer_id} and u.status='active'`,
@@ -62,9 +62,11 @@ export function createOrderPushConsumer({ platformDb, push }: AppContext): Outbo
               ? "Siparişin hazırlanıyor."
               : status === "ready"
                 ? "Siparişin hazır."
-                : status === "completed"
-                  ? "Siparişin tamamlandı."
-                  : "Siparişin iptal edildi.";
+                : status === "in_transit"
+                  ? "Siparişin yola çıktı."
+                  : status === "completed"
+                    ? "Siparişin tamamlandı."
+                    : "Siparişin iptal edildi.";
       const data = await platformScope(platformDb, async (tx) => {
         const order = await tx.maybeOne<{
           app_instance_id: string;

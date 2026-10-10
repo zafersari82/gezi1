@@ -19,6 +19,13 @@ function canonical(value: Json): string {
   return JSON.stringify(value);
 }
 
+/** JSON nesne anahtar sırasından bağımsız tekrar parmak izi. */
+export function idempotencyBodyHash(body: unknown): string {
+  const parsed = z.json().safeParse(body);
+  if (!parsed.success) throw new AppError("validation_failed");
+  return createHash("sha256").update(canonical(parsed.data)).digest("hex");
+}
+
 export interface IdempotencyResponse<T extends Record<string, unknown>> {
   status: number;
   body: T;
@@ -41,9 +48,7 @@ export function withIdempotency<T extends Record<string, unknown>>(
     throw new AppError("forbidden");
   }
   if (!/^[A-Za-z0-9._:-]{1,128}$/.test(key)) throw new AppError("validation_failed");
-  const parsed = z.json().safeParse(body);
-  if (!parsed.success) throw new AppError("validation_failed");
-  const hash = createHash("sha256").update(canonical(parsed.data)).digest("hex");
+  const hash = idempotencyBodyHash(body);
   return withTenant(tx, scope, async (db) => {
     await db.execute(sql`delete from idempotency_keys where business_id = ${scope.businessId}
       and app_instance_id = ${scope.appInstanceId} and business_customer_id = ${scope.businessCustomerId}
