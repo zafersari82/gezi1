@@ -6,12 +6,12 @@
 
 ## Görünüm seçenekleri
 
-| Kimlik | Sunum | Mobil müşteri mağazası |
-| --- | --- | --- |
-| `food-fast` | Kompakt | Tek sütunda kısa ürün satırları, fiyat ve hızlı seçim |
-| `food-classic` | Klasik | Dengeli kartlar ve kategoriler |
-| `food-premium` | Fotoğraf odaklı | Geniş kapak, geniş ürün fotoğrafları, ferah düzen |
-| `food-enterprise` | Kurumsal | Marka hiyerarşisi, şube sayısı/şube seçimi, düzenli katalog |
+| Kimlik            | Sunum           | Mobil müşteri mağazası                                      |
+| ----------------- | --------------- | ----------------------------------------------------------- |
+| `food-fast`       | Kompakt         | Tek sütunda kısa ürün satırları, fiyat ve hızlı seçim       |
+| `food-classic`    | Klasik          | Dengeli kartlar ve kategoriler                              |
+| `food-premium`    | Fotoğraf odaklı | Geniş kapak, geniş ürün fotoğrafları, ferah düzen           |
+| `food-enterprise` | Kurumsal        | Marka hiyerarşisi, şube sayısı/şube seçimi, düzenli katalog |
 
 Mevcut üç berber/salon başlangıç taslağı korunur. Bu aşamada **dört restoran görünümü** vardır, 30 ayrı tamamlanmış şablon iddiası yoktur. Yeni seçenekler aynı kodsuz Studio panelinden seçilir; mobil kayıt ekranında da görülür.
 

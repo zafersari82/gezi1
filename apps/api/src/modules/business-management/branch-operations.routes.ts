@@ -20,8 +20,13 @@ export function branchOperationsRoutes(
   const operations = services.branchOperations;
   server.get("/v1/business/:businessId/branches/availability-access/me", async (request) => {
     const { userId } = await guard(request);
-    const { businessId } = parse(businessRecordParamsSchema.pick({ businessId: true }), request.params);
-    return operations.accessibleBranches(await services.businessManagement.authorise(userId, businessId));
+    const { businessId } = parse(
+      businessRecordParamsSchema.pick({ businessId: true }),
+      request.params,
+    );
+    return operations.accessibleBranches(
+      await services.businessManagement.authorise(userId, businessId),
+    );
   });
   server.get("/v1/business/:businessId/branches/:id/availability-grants", async (request) => {
     const { userId } = await guard(request);
@@ -31,14 +36,22 @@ export function branchOperationsRoutes(
   server.put("/v1/business/:businessId/branches/:id/availability-grants", async (request) => {
     const { userId } = await guard(request);
     const { businessId, id } = parse(businessRecordParamsSchema, request.params);
-    return operations.saveGrant(await services.businessManagement.authorise(userId, businessId), id,
-      parse(branchAvailabilityGrantBodySchema, request.body));
+    return operations.saveGrant(
+      await services.businessManagement.authorise(userId, businessId),
+      id,
+      parse(branchAvailabilityGrantBodySchema, request.body),
+    );
   });
   server.put("/v1/business/:businessId/branches/availability-batch", async (request) => {
     const { userId } = await guard(request);
-    const { businessId } = parse(businessRecordParamsSchema.pick({ businessId: true }), request.params);
-    return operations.saveAvailabilityBatch(await services.businessManagement.authorise(userId, businessId),
-      parse(branchAvailabilityBatchBodySchema, request.body));
+    const { businessId } = parse(
+      businessRecordParamsSchema.pick({ businessId: true }),
+      request.params,
+    );
+    return operations.saveAvailabilityBatch(
+      await services.businessManagement.authorise(userId, businessId),
+      parse(branchAvailabilityBatchBodySchema, request.body),
+    );
   });
   for (const resource of ["ordering-settings", "hours-exceptions", "availability"] as const) {
     server.get(`/v1/business/:businessId/branches/:id/${resource}`, async (request) => {

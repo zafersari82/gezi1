@@ -360,5 +360,4 @@ ortak tablet ve fiziksel tahsilat: [Restoran kurulumu](docs/RESTORAN_2.7.md),
 [kabul kanıtları](docs/KABUL_2.7.md),
 [geçiş ve geri dönüş](docs/YAYIN.md#26dan-27ye-geçiş-ve-geri-dönüş).
 
-
 **VADO Business Studio kolay kurulum:** Telefon üzerinden şablon sonrası ilk ürün/hizmet seçimi ve kontrollü katalog aktarımı için `STUDIO_KOLAY_KURULUM.md`. Gerçek veritabanı ve cihaz kabulü yapılmadan üretime hazır sayılmaz.

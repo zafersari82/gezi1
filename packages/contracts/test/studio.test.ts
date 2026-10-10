@@ -7,8 +7,8 @@ import {
   STUDIO_PALETTES,
   STUDIO_TEMPLATES,
   studioInitialPalette,
-  studioTemplateById,
   studioItemImageBodySchema,
+  studioTemplateById,
 } from "../src/studio";
 
 describe("VADO Business Studio başlangıç şablonları", () => {
@@ -31,7 +31,10 @@ describe("VADO Business Studio başlangıç şablonları", () => {
   it("dört restoran görünümü aynı motor üzerinde ayrı düzen ve metin kullanır", () => {
     const food = STUDIO_TEMPLATES.filter((template) => template.category === "food");
     expect(food.map((template) => template.id)).toEqual([
-      "food-fast", "food-classic", "food-premium", "food-enterprise",
+      "food-fast",
+      "food-classic",
+      "food-premium",
+      "food-enterprise",
     ]);
     expect(new Set(food.map((template) => template.layout)).size).toBe(4);
     for (const template of food) {
@@ -42,8 +45,16 @@ describe("VADO Business Studio başlangıç şablonları", () => {
   });
 
   it("yeni kurumsal şablon yalnızca yemek işletmesine atanır", () => {
-    expect(createBusinessBodySchema.safeParse({ ...business, templateId: "food-enterprise" }).success).toBe(true);
-    expect(createBusinessBodySchema.safeParse({ ...business, category: "beauty", templateId: "food-enterprise" }).success).toBe(false);
+    expect(
+      createBusinessBodySchema.safeParse({ ...business, templateId: "food-enterprise" }).success,
+    ).toBe(true);
+    expect(
+      createBusinessBodySchema.safeParse({
+        ...business,
+        category: "beauty",
+        templateId: "food-enterprise",
+      }).success,
+    ).toBe(false);
   });
 
   it("renk paletleri benzersizdir; serbest CSS ve geçersiz sürüm reddedilir", () => {
@@ -59,23 +70,48 @@ describe("VADO Business Studio başlangıç şablonları", () => {
     expect(saveStudioBodySchema.safeParse({ ...valid, palette: "url(evil)" }).success).toBe(false);
     expect(saveStudioBodySchema.safeParse({ ...valid, expectedVersion: -1 }).success).toBe(false);
     expect(saveStudioBodySchema.safeParse({ ...valid, title: "X".repeat(81) }).success).toBe(false);
-    expect(saveStudioBodySchema.safeParse({ ...valid, tagline: "X".repeat(181) }).success).toBe(false);
+    expect(saveStudioBodySchema.safeParse({ ...valid, tagline: "X".repeat(181) }).success).toBe(
+      false,
+    );
   });
 
   it("işletme görsellerinde yalnız UUID, null ve geçerli ürün sürümü kabul edilir", () => {
-    const basic = { templateId: "food-fast", title: "Pilav", tagline: "Taze", palette: "teal", expectedVersion: 1 };
-    expect(saveStudioBodySchema.parse(basic)).toMatchObject({ logoMediaId: null, coverMediaId: null });
-    expect(saveStudioBodySchema.safeParse({ ...basic, logoMediaId: "https://example.com/a.svg" }).success).toBe(false);
-    expect(saveStudioBodySchema.safeParse({ ...basic, coverMediaId: "javascript:alert(1)" }).success).toBe(false);
-    expect(studioItemImageBodySchema.safeParse({ mediaId: null, expectedVersion: 1 }).success).toBe(true);
-    expect(studioItemImageBodySchema.safeParse({ mediaId: null, expectedVersion: 0 }).success).toBe(false);
-    expect(studioItemImageBodySchema.safeParse({ mediaId: null, expectedVersion: 1, businessId: "else" }).success).toBe(false);
+    const basic = {
+      templateId: "food-fast",
+      title: "Pilav",
+      tagline: "Taze",
+      palette: "teal",
+      expectedVersion: 1,
+    };
+    expect(saveStudioBodySchema.parse(basic)).toMatchObject({
+      logoMediaId: null,
+      coverMediaId: null,
+    });
+    expect(
+      saveStudioBodySchema.safeParse({ ...basic, logoMediaId: "https://example.com/a.svg" })
+        .success,
+    ).toBe(false);
+    expect(
+      saveStudioBodySchema.safeParse({ ...basic, coverMediaId: "javascript:alert(1)" }).success,
+    ).toBe(false);
+    expect(studioItemImageBodySchema.safeParse({ mediaId: null, expectedVersion: 1 }).success).toBe(
+      true,
+    );
+    expect(studioItemImageBodySchema.safeParse({ mediaId: null, expectedVersion: 0 }).success).toBe(
+      false,
+    );
+    expect(
+      studioItemImageBodySchema.safeParse({ mediaId: null, expectedVersion: 1, businessId: "else" })
+        .success,
+    ).toBe(false);
   });
 
   it("yayın istekleri pozitif sürüm ister, fazladan yetki parametresi kabul etmez", () => {
     expect(publishStudioBodySchema.safeParse({ expectedVersion: 2 }).success).toBe(true);
     expect(publishStudioBodySchema.safeParse({ expectedVersion: 0 }).success).toBe(false);
-    expect(publishStudioBodySchema.safeParse({ expectedVersion: 2, businessId: "başka" }).success).toBe(false);
+    expect(
+      publishStudioBodySchema.safeParse({ expectedVersion: 2, businessId: "başka" }).success,
+    ).toBe(false);
   });
 
   it("uygun restoran şablonu işletme başvurusuna eklenebilir", () => {

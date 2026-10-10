@@ -9,12 +9,12 @@ import { createBusinessHostBinding } from "./business-host-binding";
 import type { MiniAppTransport } from "./host-transport";
 
 export type ReturnsHost = {
-  [Method in Extract<
-    keyof BridgeParams,
-    `returns.${string}`
-  > as Method extends `returns.${infer Name}` ? Name : never]: (
-    params: BridgeParams[Method],
-  ) => Promise<BridgeResults[Method]>;
+  [
+    Method in Extract<
+      keyof BridgeParams,
+      `returns.${string}`
+    > as Method extends `returns.${infer Name}` ? Name : never
+  ]: (params: BridgeParams[Method]) => Promise<BridgeResults[Method]>;
 };
 
 /** Müşterinin iade taleplerini yalnızca kabuğun doğruladığı işletmeye ve uygulamaya bağlar. */

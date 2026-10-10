@@ -51,8 +51,10 @@ export function businessRoutes(server: FastifyInstance, { services, guard }: Rou
     const { businessId } = parse(businessParamsSchema, request.params);
     const scope = await services.businessManagement.authorise(userId, businessId);
     const data = await readUpload(request, {
-      field: MEDIA_UPLOAD_FIELD, maxBytes: MEDIA_MAX_BYTES,
-      invalid: "media_invalid", tooLarge: "media_too_large",
+      field: MEDIA_UPLOAD_FIELD,
+      maxBytes: MEDIA_MAX_BYTES,
+      invalid: "media_invalid",
+      tooLarge: "media_too_large",
     });
     return services.media.uploadBusiness(scope, data);
   });

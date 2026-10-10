@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  launchOrigin, launchParams, launchQr, rememberLaunch,
+  launchOrigin,
+  launchParams,
+  launchQr,
+  rememberLaunch,
 } from "@/features/miniapps/launch-params";
 
 describe("QR açılış parametreleri", () => {
@@ -36,11 +39,18 @@ it("masa katılımı için ham QR yalnız aynı açılıştan alınır; parametr
 
 it("mağazadan açılış yalnız aynı mini uygulamaya bağlı kalır; QR kaydı etkilenmez", () => {
   const origin = { type: "business" as const, businessId: "isletme-1" };
-  const key = rememberLaunch("restoran", {
-    businessId: origin.businessId, appInstanceId: "ornek-1",
-  }, null, origin);
+  const key = rememberLaunch(
+    "restoran",
+    {
+      businessId: origin.businessId,
+      appInstanceId: "ornek-1",
+    },
+    null,
+    origin,
+  );
   expect(launchParams("restoran", key)).toEqual({
-    businessId: "isletme-1", appInstanceId: "ornek-1",
+    businessId: "isletme-1",
+    appInstanceId: "ornek-1",
   });
   expect(launchOrigin("restoran", key)).toEqual(origin);
   expect(launchOrigin("baska", key)).toBeNull();

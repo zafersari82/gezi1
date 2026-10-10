@@ -250,28 +250,18 @@ it("işletme iade listesi tarih + kimlik imleciyle ikinci sayfaya geçer", async
     reason: "Siparişi değiştirmek istiyorum",
     amountMinor: null,
   };
-  const firstRequest = await f.client.ok(
-    row,
-    "POST",
-    `${f.root}/orders/${f.order.id}/returns`,
-    {
-      headers: { "idempotency-key": randomUUID() },
-      body: requestBody,
-    },
-  );
+  const firstRequest = await f.client.ok(row, "POST", `${f.root}/orders/${f.order.id}/returns`, {
+    headers: { "idempotency-key": randomUUID() },
+    body: requestBody,
+  });
   await f.client.ok(row, "POST", `${f.root}/returns/${firstRequest.id}/withdraw`, {
     headers: { "idempotency-key": randomUUID() },
     body: { expectedVersion: firstRequest.version },
   });
-  const secondRequest = await f.client.ok(
-    row,
-    "POST",
-    `${f.root}/orders/${f.order.id}/returns`,
-    {
-      headers: { "idempotency-key": randomUUID() },
-      body: requestBody,
-    },
-  );
+  const secondRequest = await f.client.ok(row, "POST", `${f.root}/orders/${f.order.id}/returns`, {
+    headers: { "idempotency-key": randomUUID() },
+    body: requestBody,
+  });
 
   const pageSchema = z.looseObject({
     items: z.array(row),

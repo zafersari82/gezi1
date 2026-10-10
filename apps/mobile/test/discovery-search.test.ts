@@ -4,23 +4,45 @@ import { describe, expect, it } from "vitest";
 import { searchDiscovery } from "@/features/discovery/search";
 
 const business: Business = {
-  id: "01", name: "İstanbul Pilavcısı", slug: "istanbul-pilavci", category: "food",
-  description: "Tavuklu pilav ve ayran", city: "İstanbul", verified: true, status: "active",
+  id: "01",
+  name: "İstanbul Pilavcısı",
+  slug: "istanbul-pilavci",
+  category: "food",
+  description: "Tavuklu pilav ve ayran",
+  city: "İstanbul",
+  verified: true,
+  status: "active",
 };
 const secondBusiness: Business = {
-  ...business, id: "02", name: "Ankara Berber", slug: "ankara-berber", category: "beauty",
-  description: "Saç ve sakal", city: "Ankara",
+  ...business,
+  id: "02",
+  name: "Ankara Berber",
+  slug: "ankara-berber",
+  category: "beauty",
+  description: "Saç ve sakal",
+  city: "Ankara",
 };
 const miniApp: MiniApp = {
-  id: "siparis-uygulamasi", name: "Pilav Sipariş", description: "Restoran siparişleri",
-  iconUrl: null, category: "food", developerName: "VADO", verified: true,
-  source: "package", version: "1.0.0", capabilities: [], entryUrl: "https://example.test/app",
-  scope: ["https://example.test"], consentKey: "test",
+  id: "siparis-uygulamasi",
+  name: "Pilav Sipariş",
+  description: "Restoran siparişleri",
+  iconUrl: null,
+  category: "food",
+  developerName: "VADO",
+  verified: true,
+  source: "package",
+  version: "1.0.0",
+  capabilities: [],
+  entryUrl: "https://example.test/app",
+  scope: ["https://example.test"],
+  consentKey: "test",
 };
 const items = { businesses: [business, secondBusiness], miniApps: [miniApp] };
-const find = (query: string, category: Business["category"] | null = null,
-  kind: "all" | "business" | "miniapp" = "all") =>
-  searchDiscovery({ ...items, query, category, kind });
+const find = (
+  query: string,
+  category: Business["category"] | null = null,
+  kind: "all" | "business" | "miniapp" = "all",
+) => searchDiscovery({ ...items, query, category, kind });
 
 describe("VADO keşif araması", () => {
   it("işletmeleri ve mini uygulamaları aynı sorguda döndürür", () => {

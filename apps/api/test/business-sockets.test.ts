@@ -127,7 +127,11 @@ test("üyelik ve oturum iptali önceden verilmiş bileti geçersiz kılar", asyn
     active: true,
   });
   await as(app, staff).fail("forbidden", "POST", `/v1/business/${f.businessId}/socket-ticket`);
-  await app.services.businessManagement.setMember(f.scope, { userId: staff.id, role: "manager", active: true });
+  await app.services.businessManagement.setMember(f.scope, {
+    userId: staff.id,
+    role: "manager",
+    active: true,
+  });
   const ticket = await as(app, staff).ok(
     ticketSchema,
     "POST",

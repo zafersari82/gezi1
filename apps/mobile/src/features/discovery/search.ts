@@ -5,8 +5,7 @@ import { compareTr, foldText } from "@/lib/text";
 /** Keşif aynı işletmeyi ve mini uygulamayı farklı türler olarak sunar. */
 export type DiscoveryKind = "all" | "business" | "miniapp";
 export type DiscoveryResult =
-  | { kind: "business"; business: Business }
-  | { kind: "miniapp"; miniApp: MiniApp };
+  { kind: "business"; business: Business } | { kind: "miniapp"; miniApp: MiniApp };
 
 interface SearchDiscoveryOptions {
   businesses: Business[];
@@ -45,7 +44,9 @@ export function searchDiscovery({
   }
   if (kind !== "business") {
     for (const miniApp of miniApps) {
-      if (matches(miniApp.name, `${miniApp.description} ${miniApp.developerName}`, miniApp.category)) {
+      if (
+        matches(miniApp.name, `${miniApp.description} ${miniApp.developerName}`, miniApp.category)
+      ) {
         results.push({ kind: "miniapp", miniApp });
       }
     }

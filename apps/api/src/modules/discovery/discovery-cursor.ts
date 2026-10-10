@@ -14,13 +14,23 @@ export interface DiscoveryPosition {
 
 function fingerprint(query: DiscoveryQuery): string {
   return createHash("sha256")
-    .update(JSON.stringify([query.q.trim().replace(/\s+/g, " "), query.category ?? "", query.kind, query.provinceId ?? "", query.districtId ?? ""]))
+    .update(
+      JSON.stringify([
+        query.q.trim().replace(/\s+/g, " "),
+        query.category ?? "",
+        query.kind,
+        query.provinceId ?? "",
+        query.districtId ?? "",
+      ]),
+    )
     .digest("hex")
     .slice(0, 24);
 }
 
 export function encodeDiscoveryCursor(query: DiscoveryQuery, position: DiscoveryPosition): string {
-  return Buffer.from(JSON.stringify({ v: 1, f: fingerprint(query), ...position })).toString("base64url");
+  return Buffer.from(JSON.stringify({ v: 1, f: fingerprint(query), ...position })).toString(
+    "base64url",
+  );
 }
 
 export function decodeDiscoveryCursor(query: DiscoveryQuery): DiscoveryPosition | null {
@@ -31,13 +41,19 @@ export function decodeDiscoveryCursor(query: DiscoveryQuery): DiscoveryPosition 
     if (typeof data !== "object" || data === null) throw new Error("invalid_cursor");
     const cursor = data as Record<string, unknown>;
     if (
-      cursor.v !== 1 || cursor.f !== fingerprint(query) ||
-      !Number.isInteger(cursor.score) || (cursor.score as number) < 0 || (cursor.score as number) > 3 ||
-      typeof cursor.nameKey !== "string" || cursor.nameKey.length > 256 ||
+      cursor.v !== 1 ||
+      cursor.f !== fingerprint(query) ||
+      !Number.isInteger(cursor.score) ||
+      (cursor.score as number) < 0 ||
+      (cursor.score as number) > 3 ||
+      typeof cursor.nameKey !== "string" ||
+      cursor.nameKey.length > 256 ||
       (cursor.kind !== "business" && cursor.kind !== "miniapp") ||
-      typeof cursor.recordId !== "string" || cursor.recordId.length > 60 ||
+      typeof cursor.recordId !== "string" ||
+      cursor.recordId.length > 60 ||
       !/^[a-z0-9-]+$/.test(cursor.recordId)
-    ) throw new Error("invalid_cursor");
+    )
+      throw new Error("invalid_cursor");
     return {
       score: cursor.score as number,
       nameKey: cursor.nameKey,

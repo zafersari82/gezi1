@@ -11,8 +11,8 @@ import {
   type Order,
   orderSchema,
   orderSummarySchema,
-  restaurantContextSchema,
   reorderResultSchema,
+  restaurantContextSchema,
   tableBillSchema,
   tableSessionSchema,
 } from "@vado/contracts";

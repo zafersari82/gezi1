@@ -1,4 +1,4 @@
-import { MEDIA_MAX_BYTES, MEDIA_UPLOAD_FIELD, businessMembershipSchema } from "@vado/contracts";
+import { businessMembershipSchema,MEDIA_MAX_BYTES, MEDIA_UPLOAD_FIELD } from "@vado/contracts";
 import { z } from "zod";
 
 import { apiGet, apiUpload, BusinessApiError } from "../../../../lib/api";
@@ -11,13 +11,17 @@ export async function POST(request: Request): Promise<Response> {
   try {
     if (!sameOrigin(request, process.env.VADO_BUSINESS_PUBLIC_URL))
       throw new BusinessApiError(403, "forbidden", "İstek bu uygulamadan gelmelidir.");
-    const memberships = (await apiGet(
-      z.object({ items: z.array(businessMembershipSchema) }),
-      "/v1/business/memberships",
-    )).items;
+    const memberships = (
+      await apiGet(
+        z.object({ items: z.array(businessMembershipSchema) }),
+        "/v1/business/memberships",
+      )
+    ).items;
     const selected = await readSelection(BUSINESS_COOKIE);
-    const membership = selected === null ? memberships[0] :
-      memberships.find((member) => member.businessId === selected);
+    const membership =
+      selected === null
+        ? memberships[0]
+        : memberships.find((member) => member.businessId === selected);
     if (membership === undefined || membership.role === "staff")
       throw new BusinessApiError(403, "forbidden", "Görsel yükleme yetkin bulunmuyor.");
     const length = Number(request.headers.get("content-length") ?? "0");
@@ -44,7 +48,10 @@ export async function POST(request: Request): Promise<Response> {
     }
     const data = new Uint8Array(bytes);
     let offset = 0;
-    for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.byteLength; }
+    for (const chunk of chunks) {
+      data.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
     const form = await new Response(data, {
       headers: { "content-type": request.headers.get("content-type") ?? "" },
     }).formData();
@@ -54,7 +61,8 @@ export async function POST(request: Request): Promise<Response> {
     const outgoing = new FormData();
     outgoing.set(MEDIA_UPLOAD_FIELD, file, file.name);
     const response = await apiUpload(
-      `/v1/business/${membership.businessId}/studio/media`, outgoing,
+      `/v1/business/${membership.businessId}/studio/media`,
+      outgoing,
     );
     return new Response(await response.text(), {
       status: response.status,

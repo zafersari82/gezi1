@@ -73,7 +73,8 @@ export const ERROR_MESSAGES = {
   // Medya
   media_invalid: "Yalnızca JPEG, PNG veya WebP görsel yüklenebilir.",
   media_too_large: "Görsel boyutu çok büyük.",
-  media_quota_exceeded: "İşletmenin görsel depolama alanı doldu. Kullanılmayan fotoğrafları temizleyin.",
+  media_quota_exceeded:
+    "İşletmenin görsel depolama alanı doldu. Kullanılmayan fotoğrafları temizleyin.",
   media_not_found: "Görsel bulunamadı.",
 
   // Anlar

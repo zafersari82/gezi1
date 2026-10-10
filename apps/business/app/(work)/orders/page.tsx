@@ -19,7 +19,10 @@ export default async function OrdersPage({
       new URL(b.path, "https://vado.invalid").searchParams.get("queue") === queue,
   );
   const permissions = await apiGet(
-    z.object({ viewBranchIds: z.array(z.string().uuid()), manageBranchIds: z.array(z.string().uuid()) }),
+    z.object({
+      viewBranchIds: z.array(z.string().uuid()),
+      manageBranchIds: z.array(z.string().uuid()),
+    }),
     `/v1/business/${context.membership.businessId}/orders/access/me`,
   );
   const initial = await apiGet(

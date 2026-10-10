@@ -7,11 +7,11 @@ import type { Catalog } from "./catalog";
 import { amountMinorSchema, idSchema, pageQuerySchema } from "./common";
 import { type DeliveryQuote, deliveryQuoteBodySchema } from "./delivery";
 import {
-  favoriteBodySchema,
   type Favorite,
+  favoriteBodySchema,
+  type Review,
   reviewBodySchema,
   reviewEditBodySchema,
-  type Review,
 } from "./feedback";
 import {
   applyCartIncentivesBodySchema,
@@ -46,8 +46,8 @@ import { type RestaurantContext, tableRequestBodySchema, type TableSession } fro
 import {
   reorderBodySchema,
   type ReorderResult,
-  returnRequestBodySchema,
   type ReturnRequest,
+  returnRequestBodySchema,
   returnWithdrawBodySchema,
 } from "./returns";
 

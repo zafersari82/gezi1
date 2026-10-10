@@ -70,7 +70,10 @@ test("işletme manifesti iade ve değerlendirme görünümlerini tanır; bilinme
     validation: [],
   };
   expect(engineCapabilityManifestSchema.safeParse(manifest).success).toBe(true);
-  expect(engineCapabilityManifestSchema.safeParse({ ...manifest, businessBlocks: [
-    { id: "unknown", title: "Bilinmeyen", view: "admin", path: "/admin" },
-  ] }).success).toBe(false);
+  expect(
+    engineCapabilityManifestSchema.safeParse({
+      ...manifest,
+      businessBlocks: [{ id: "unknown", title: "Bilinmeyen", view: "admin", path: "/admin" }],
+    }).success,
+  ).toBe(false);
 });

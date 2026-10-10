@@ -2,8 +2,18 @@ import type { Category, DiscoveryItem, DiscoveryPage, DiscoveryQuery } from "@va
 
 import type { AppContext } from "../../core/context";
 import { sql, type SqlFragment } from "../../core/database";
-import { BUSINESS_COLUMNS, BUSINESS_LISTED, type BusinessRow, toBusiness } from "../businesses/business-rows";
-import { createMiniAppMapper, MINI_APP_COLUMNS, miniAppLive, type MiniAppRow } from "../miniapps/miniapp-rows";
+import {
+  BUSINESS_COLUMNS,
+  BUSINESS_LISTED,
+  type BusinessRow,
+  toBusiness,
+} from "../businesses/business-rows";
+import {
+  createMiniAppMapper,
+  MINI_APP_COLUMNS,
+  miniAppLive,
+  type MiniAppRow,
+} from "../miniapps/miniapp-rows";
 import { decodeDiscoveryCursor, encodeDiscoveryCursor } from "./discovery-cursor";
 
 interface RankedRow {
@@ -32,24 +42,38 @@ export function createDiscoveryService({ config, db }: AppContext) {
     const contains = (haystack: SqlFragment, term: string): SqlFragment =>
       sql`${haystack} like '%' || ${literal(term)} || '%' escape '!'`;
     const predicate = (haystack: SqlFragment): SqlFragment =>
-      terms.length === 0 ? sql.empty : sql`and ${sql.join(terms.map((term) =>
-        contains(haystack, term)), " and ")}`;
+      terms.length === 0
+        ? sql.empty
+        : sql`and ${sql.join(
+            terms.map((term) => contains(haystack, term)),
+            " and ",
+          )}`;
     const relevance = (name: SqlFragment): SqlFragment => sql`(
       case when ${cleaned}::text = '' then 0
         when vado_discovery_fold(${name}) = vado_discovery_fold(${cleaned}) then 3
         when vado_discovery_fold(${name}) like ${literal(cleaned)} || '%' escape '!' then 2
-        when ${terms.length === 0 ? sql`false` : sql.join(terms.map((term) =>
-          contains(sql`vado_discovery_fold(${name})`, term)), " and ")}
+        when ${
+          terms.length === 0
+            ? sql`false`
+            : sql.join(
+                terms.map((term) => contains(sql`vado_discovery_fold(${name})`, term)),
+                " and ",
+              )
+        }
           then 1 else 0 end
     )`;
     // Dinamik diziler SQL metnine eklenmez; her değer bağlı parametre olarak gönderilir.
     // İl/ilçe eşleşmesi etkin şubelerden gelir. İl düzeyinde eski işletme kaydındaki
     // şehir adı da kullanılabilir; ilçe düzeyinde serbest adres metni tahmin edilmez.
-    const locationPredicate = query.provinceId === undefined ? sql.empty :
-      query.districtId !== undefined ? sql`and exists (
+    const locationPredicate =
+      query.provinceId === undefined
+        ? sql.empty
+        : query.districtId !== undefined
+          ? sql`and exists (
         select 1 from branch_discovery_locations br where br.business_id=b.id
           and br.province_id=${query.provinceId} and br.district_id=${query.districtId}
-      )` : sql`and (
+      )`
+          : sql`and (
         exists(select 1 from branch_discovery_locations br where br.business_id=b.id
           and br.province_id=${query.provinceId})
         or exists(select 1 from location_provinces p where p.id=${query.provinceId}
@@ -70,9 +94,16 @@ export function createDiscoveryService({ config, db }: AppContext) {
         ${category === undefined ? sql.empty : sql`and a.category = ${category}`}
         ${predicate(miniAppText)}
     `;
-    const union = kind === "business" ? businessSelect :
-      kind === "miniapp" ? miniAppSelect : sql`${businessSelect} union all ${miniAppSelect}`;
-    const seek = position === null ? sql.empty : sql`where (
+    const union =
+      kind === "business"
+        ? businessSelect
+        : kind === "miniapp"
+          ? miniAppSelect
+          : sql`${businessSelect} union all ${miniAppSelect}`;
+    const seek =
+      position === null
+        ? sql.empty
+        : sql`where (
       score < ${position.score} or
       (score = ${position.score} and (name_key, kind, record_id) >
         (${position.nameKey}, ${position.kind}, ${position.recordId}))
@@ -84,14 +115,20 @@ export function createDiscoveryService({ config, db }: AppContext) {
       limit ${query.limit + 1}
     `);
     const current = rows.slice(0, query.limit);
-    const businessIds = current.filter((row) => row.kind === "business").map((row) => row.record_id);
+    const businessIds = current
+      .filter((row) => row.kind === "business")
+      .map((row) => row.record_id);
     const miniAppIds = current.filter((row) => row.kind === "miniapp").map((row) => row.record_id);
     const [businessRows, miniAppRows] = await Promise.all([
-      businessIds.length === 0 ? Promise.resolve([]) : db.many<BusinessRow>(sql`
+      businessIds.length === 0
+        ? Promise.resolve([])
+        : db.many<BusinessRow>(sql`
         select ${BUSINESS_COLUMNS} from businesses b
         where b.id = any(${businessIds}::uuid[]) and ${BUSINESS_LISTED}
       `),
-      miniAppIds.length === 0 ? Promise.resolve([]) : db.many<MiniAppRow>(sql`
+      miniAppIds.length === 0
+        ? Promise.resolve([])
+        : db.many<MiniAppRow>(sql`
         select ${MINI_APP_COLUMNS} from mini_app_runtime a
         where a.id = any(${miniAppIds}::text[]) and ${live}
       `),
@@ -109,9 +146,15 @@ export function createDiscoveryService({ config, db }: AppContext) {
     const last = current.at(-1);
     return {
       items,
-      nextCursor: rows.length > query.limit && last !== undefined ? encodeDiscoveryCursor(query, {
-        score: last.score, nameKey: last.name_key, kind: last.kind, recordId: last.record_id,
-      }) : null,
+      nextCursor:
+        rows.length > query.limit && last !== undefined
+          ? encodeDiscoveryCursor(query, {
+              score: last.score,
+              nameKey: last.name_key,
+              kind: last.kind,
+              recordId: last.record_id,
+            })
+          : null,
     };
   }
 

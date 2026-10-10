@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 
 import {
   type AcceptOrderBody,
-  type BranchPerformance,
   type ApiErrorBody,
   type ApplyCartIncentivesBody,
+  type BranchPerformance,
   type Cart,
   type CheckoutCartBody,
   type IncentiveChoice,
@@ -34,9 +34,9 @@ import { appendEvent } from "../../core/outbox-events";
 import { withPlatformMutation } from "../../core/platform-mutations";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
 import type { CatalogService } from "../catalog/catalog.service";
-import { orderAccess } from "./order-access";
 import { quoteDelivery } from "../delivery/delivery-policy";
 import { type createFulfilmentValidator, type FulfilmentChoice } from "./fulfilment";
+import { orderAccess } from "./order-access";
 
 interface CartRow {
   incentive_choice: IncentiveChoice;
@@ -663,8 +663,10 @@ export function createOrderingService(
       const manageable = await tx.many<{ id: string }>(sql`
         select b.id from branches b where b.business_id=${scope.businessId} and b.active
         ${orderAccess(scope, sql`b.id`, true)} order by b.name,b.id`);
-      return { viewBranchIds: visible.map((row) => row.id),
-        manageBranchIds: manageable.map((row) => row.id) };
+      return {
+        viewBranchIds: visible.map((row) => row.id),
+        manageBranchIds: manageable.map((row) => row.id),
+      };
     });
   }
   async function listQueue(scope: TenantScope, page: OrderListQuery) {

@@ -58,17 +58,21 @@ function TemplateOption({
       style={[styles.template, selected && styles.selectedTemplate]}
       testID={`studio-template-${template.id}`}
     >
-      <View style={[
-        styles.templatePreview,
-        { backgroundColor: template.accent },
-        template.layout === "editorial" && styles.editorialPreview,
-        template.layout === "compact" && styles.compactPreview,
-        template.layout === "enterprise" && styles.enterprisePreview,
-      ]}>
-        <View style={[
-          styles.previewHeading,
-          template.layout === "editorial" && styles.editorialHeading,
-        ]} />
+      <View
+        style={[
+          styles.templatePreview,
+          { backgroundColor: template.accent },
+          template.layout === "editorial" && styles.editorialPreview,
+          template.layout === "compact" && styles.compactPreview,
+          template.layout === "enterprise" && styles.enterprisePreview,
+        ]}
+      >
+        <View
+          style={[
+            styles.previewHeading,
+            template.layout === "editorial" && styles.editorialHeading,
+          ]}
+        />
         <View style={styles.previewRow}>
           <View style={styles.previewProduct} />
           <View style={styles.previewLines}>
@@ -173,7 +177,7 @@ export default function RegisterBusinessScreen() {
                   key={item}
                   label={CATEGORY_LABELS[item]}
                   selected={item === category}
-                  onPress={() => selectCategory(item)}
+                  onPress={() => { selectCategory(item); }}
                 />
               ))}
             </View>
@@ -191,7 +195,7 @@ export default function RegisterBusinessScreen() {
                   key={item.id}
                   template={item}
                   selected={item.id === selected?.id}
-                  onPress={() => setTemplateId(item.id)}
+                  onPress={() => { setTemplateId(item.id); }}
                 />
               ))
             )}
@@ -201,7 +205,7 @@ export default function RegisterBusinessScreen() {
                 kullanıma açılacak.
               </AppText>
             )}
-            <Button label="Devam et" onPress={() => setStep("details")} testID="studio-next" />
+            <Button label="Devam et" onPress={() => { setStep("details"); }} testID="studio-next" />
           </>
         ) : (
           <>
@@ -252,7 +256,7 @@ export default function RegisterBusinessScreen() {
               label="Şablon seçimine dön"
               variant="secondary"
               disabled={createBusiness.isPending}
-              onPress={() => setStep("template")}
+              onPress={() => { setStep("template"); }}
             />
           </>
         )}

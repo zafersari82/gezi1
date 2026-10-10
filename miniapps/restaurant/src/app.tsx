@@ -456,10 +456,13 @@ export function App() {
   const storefrontPalette = storefront ? studioPaletteById(storefront.palette) : null;
   const presentation = storefront ? studioTemplateById(storefront.templateId) : null;
   const storefrontLayout = presentation?.layout ?? "classic";
-  const storefrontStyle = storefrontPalette === null ? undefined : {
-    "--green": storefrontPalette.accent,
-    "--store-surface": storefrontPalette.surface,
-  } as CSSProperties;
+  const storefrontStyle =
+    storefrontPalette === null
+      ? undefined
+      : ({
+          "--green": storefrontPalette.accent,
+          "--store-surface": storefrontPalette.surface,
+        } as CSSProperties);
   const selectedBranch = context?.branches.find((b) => b.id === branch);
   const canOrder =
     ready &&
@@ -477,11 +480,17 @@ export function App() {
         </small>
       </header>
       <section className="intro storefront-intro" data-layout={storefrontLayout}>
-        {storefront?.coverUrl && <img className="storefront-cover" src={storefront.coverUrl} alt="Restoran kapak fotoğrafı" />}
-        {storefront?.logoUrl && <img className="storefront-logo" src={storefront.logoUrl} alt="Restoran logosu" />}
-        <span className="eyebrow">
-          {presentation?.eyebrow ?? "Masana gelen lezzet"}
-        </span>
+        {storefront?.coverUrl && (
+          <img
+            className="storefront-cover"
+            src={storefront.coverUrl}
+            alt="Restoran kapak fotoğrafı"
+          />
+        )}
+        {storefront?.logoUrl && (
+          <img className="storefront-logo" src={storefront.logoUrl} alt="Restoran logosu" />
+        )}
+        <span className="eyebrow">{presentation?.eyebrow ?? "Masana gelen lezzet"}</span>
         <h1>{storefront?.title || context?.businessName || "Restoran"}</h1>
         <p>{storefront?.tagline || "Menüyü keşfet, dilediğin gibi özelleştir."}</p>
         {storefrontLayout === "enterprise" && (context?.branches.length ?? 0) > 1 && (
@@ -639,9 +648,11 @@ export function App() {
                         setProduct(i);
                       }}
                     >
-                      {i.imageUrl
-                        ? <img className="menu-image" src={i.imageUrl} alt={`${i.name} fotoğrafı`} />
-                        : <span className="item-symbol">✦</span>}
+                      {i.imageUrl ? (
+                        <img className="menu-image" src={i.imageUrl} alt={`${i.name} fotoğrafı`} />
+                      ) : (
+                        <span className="item-symbol">✦</span>
+                      )}
                       <strong>{i.name}</strong>
                       <span>{i.description}</span>
                       <b>

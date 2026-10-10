@@ -7,15 +7,15 @@ import { adminAccountRoutes } from "./modules/admin-accounts/admin-accounts.rout
 import { authRoutes } from "./modules/auth/auth.routes";
 import { branchOperationsRoutes } from "./modules/business-management/branch-operations.routes";
 import { businessManagementRoutes } from "./modules/business-management/business-management.routes";
-import { regionManagementRoutes } from "./modules/business-management/region-management.routes";
 import { kitchenDeviceRoutes } from "./modules/business-management/kitchen-devices.routes";
+import { regionManagementRoutes } from "./modules/business-management/region-management.routes";
 import { businessRoutes } from "./modules/businesses/businesses.routes";
 import { capabilityRoutes } from "./modules/capabilities/capabilities.routes";
 import { catalogRoutes } from "./modules/catalog/catalog.routes";
 import { chatRoutes } from "./modules/chat/chat.routes";
 import { contactRoutes } from "./modules/contacts/contacts.routes";
-import { discoveryRoutes } from "./modules/discovery/discovery.routes";
 import { deliveryRoutes } from "./modules/delivery/delivery.routes";
+import { discoveryRoutes } from "./modules/discovery/discovery.routes";
 import { feedbackRoutes } from "./modules/feedback/feedback.routes";
 import { incentiveRoutes } from "./modules/incentives/incentives.routes";
 import { locationRoutes } from "./modules/location/location.routes";

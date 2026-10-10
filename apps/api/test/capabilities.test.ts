@@ -54,7 +54,9 @@ test("açık sözleşme ve işletme ayarı doğrulanır; personel ve yabancı m�
     { body },
   );
   expect(saved.businessBlocks.map((b) => b.title)).toContain("Paketleme");
-  expect(saved.businessBlocks.map((b) => b.view)).toEqual(expect.arrayContaining(["reviews", "returns"]));
+  expect(saved.businessBlocks.map((b) => b.view)).toEqual(
+    expect.arrayContaining(["reviews", "returns"]),
+  );
   expect(saved.stateGraph.accepted).toEqual(["preparing", "cancelled"]);
 });
 

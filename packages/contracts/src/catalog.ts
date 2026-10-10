@@ -26,20 +26,35 @@ export const catalogPriceSchema = catalogPriceBodySchema.extend({
   currency: z.literal("TRY"),
 });
 /** A branch override is distinct from the inherited company-wide price. */
-export const branchPriceValueSchema = z.object({
-  amountMinor: moneyMinorSchema,
-  vatBasisPoints: vatBasisPointsSchema,
-}).strict();
-export const branchPriceBatchBodySchema = z.object({
-  branchId: idSchema,
-  changes: z.array(z.object({
-    itemId: idSchema,
-    expected: branchPriceValueSchema.nullable(),
-    next: branchPriceValueSchema.nullable(),
-  }).strict()).min(1).max(100),
-}).strict().refine((body) => new Set(body.changes.map((change) => change.itemId)).size === body.changes.length, {
-  message: "Aynı ürün tek istekte iki kez değiştirilemez.",
-});
+export const branchPriceValueSchema = z
+  .object({
+    amountMinor: moneyMinorSchema,
+    vatBasisPoints: vatBasisPointsSchema,
+  })
+  .strict();
+export const branchPriceBatchBodySchema = z
+  .object({
+    branchId: idSchema,
+    changes: z
+      .array(
+        z
+          .object({
+            itemId: idSchema,
+            expected: branchPriceValueSchema.nullable(),
+            next: branchPriceValueSchema.nullable(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100),
+  })
+  .strict()
+  .refine(
+    (body) => new Set(body.changes.map((change) => change.itemId)).size === body.changes.length,
+    {
+      message: "Aynı ürün tek istekte iki kez değiştirilemez.",
+    },
+  );
 export type BranchPriceBatchBody = z.infer<typeof branchPriceBatchBodySchema>;
 export const branchPriceBatchResultSchema = z.object({ updated: z.number().int().min(1).max(100) });
 

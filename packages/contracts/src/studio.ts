@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { categorySchema, idSchema, type Category } from "./common";
+import { type Category,categorySchema, idSchema } from "./common";
 
 /** Tek bir mini uygulama motoru, birden çok mağaza görünümüne hizmet eder. */
 export const studioTemplateIdSchema = z.enum([
@@ -159,9 +159,11 @@ export const studioConfigurationSchema = studioStorefrontSchema.extend({
 });
 export type StudioConfiguration = z.infer<typeof studioConfigurationSchema>;
 /** Yayın işlemi yalnızca sahibin son gördüğü taslak sürümünü kabul eder. */
-export const publishStudioBodySchema = z.object({
-  expectedVersion: z.number().int().positive(),
-}).strict();
+export const publishStudioBodySchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 export type PublishStudioBody = z.infer<typeof publishStudioBodySchema>;
 
 export const studioConfigurationResponseSchema = z.object({
@@ -174,8 +176,10 @@ export const studioConfigurationResponseSchema = z.object({
 });
 
 /** Görsel iliştirme isteğinde kimlik ve sürüm sunucuda yeniden doğrulanır. */
-export const studioItemImageBodySchema = z.object({
-  mediaId: idSchema.nullable(),
-  expectedVersion: z.number().int().positive(),
-}).strict();
+export const studioItemImageBodySchema = z
+  .object({
+    mediaId: idSchema.nullable(),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 export type StudioItemImageBody = z.infer<typeof studioItemImageBodySchema>;

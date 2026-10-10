@@ -61,8 +61,16 @@ describe("mini uygulama SDK'sı", () => {
     shell.reply({ id: shell.last().id, ok: true, result: { id: params.id, status: "withdrawn" } });
     await expect(withdrawal).resolves.toMatchObject({ status: "withdrawn" });
 
-    const favorite = vado.feedback.saveFavorite({ key: "save-1", itemId: null, value: true, expectedVersion: 0 });
-    expect(shell.last()).toMatchObject({ method: "feedback.saveFavorite", params: { itemId: null } });
+    const favorite = vado.feedback.saveFavorite({
+      key: "save-1",
+      itemId: null,
+      value: true,
+      expectedVersion: 0,
+    });
+    expect(shell.last()).toMatchObject({
+      method: "feedback.saveFavorite",
+      params: { itemId: null },
+    });
     shell.reply({ id: shell.last().id, ok: true, result: { value: true } });
     await expect(favorite).resolves.toMatchObject({ value: true });
   });

@@ -23,7 +23,10 @@ interface InvitationRow {
   revoked_at: Date | null;
   business_name?: string;
 }
-interface InvitationBranch { id: string; name: string }
+interface InvitationBranch {
+  id: string;
+  name: string;
+}
 
 async function invitationBranches(tx: Database, businessId: string, invitationId: string) {
   return tx.many<InvitationBranch>(sql`
@@ -41,8 +44,14 @@ function invitationView(row: InvitationRow, branches: InvitationBranch[]): Staff
     orderAccess: row.order_access,
     canManageAvailability: row.can_manage_availability,
     expiresAt: row.expires_at.toISOString(),
-    status: row.accepted_at !== null ? "accepted" : row.revoked_at !== null ? "revoked"
-      : row.expires_at.getTime() <= Date.now() ? "expired" : "pending",
+    status:
+      row.accepted_at !== null
+        ? "accepted"
+        : row.revoked_at !== null
+          ? "revoked"
+          : row.expires_at.getTime() <= Date.now()
+            ? "expired"
+            : "pending",
   };
 }
 
@@ -56,9 +65,8 @@ export function createStaffInvitations({ db, platformDb }: Pick<AppContext, "db"
         order by created_at desc,id desc limit 30
       `);
       const items: StaffInvitation[] = [];
-      for (const row of rows) items.push(invitationView(
-        row, await invitationBranches(tx, scope.businessId, row.id),
-      ));
+      for (const row of rows)
+        items.push(invitationView(row, await invitationBranches(tx, scope.businessId, row.id)));
       return { items };
     });
   }
@@ -99,15 +107,22 @@ export function createStaffInvitations({ db, platformDb }: Pick<AppContext, "db"
           now()+make_interval(hours => ${INVITATION_LIFETIME_HOURS}))
         returning *
       `);
-      for (const branch of branches) await tx.execute(sql`
+      for (const branch of branches)
+        await tx.execute(sql`
         insert into business_staff_invitation_branches(business_id,invitation_id,branch_id)
         values(${scope.businessId},${row.id},${branch.id})
       `);
       await recordAudit(tx, {
-        actor: scope.userId, action: "business.staff_invitation_created",
-        targetType: "staff_invitation", targetId: row.id,
-        metadata: { businessId: scope.businessId, branchCount: branches.length,
-          orderAccess: input.orderAccess, canManageAvailability: input.canManageAvailability },
+        actor: scope.userId,
+        action: "business.staff_invitation_created",
+        targetType: "staff_invitation",
+        targetId: row.id,
+        metadata: {
+          businessId: scope.businessId,
+          branchCount: branches.length,
+          orderAccess: input.orderAccess,
+          canManageAvailability: input.canManageAvailability,
+        },
       });
       // Only this creation response includes the plaintext token.
       return { invitation: invitationView(row, branches), token };
@@ -124,9 +139,13 @@ export function createStaffInvitations({ db, platformDb }: Pick<AppContext, "db"
         returning id
       `);
       if (row === null) throw new AppError("not_found");
-      await recordAudit(tx, { actor: scope.userId,
-        action: "business.staff_invitation_revoked", targetType: "staff_invitation",
-        targetId: id, metadata: { businessId: scope.businessId } });
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "business.staff_invitation_revoked",
+        targetType: "staff_invitation",
+        targetId: id,
+        metadata: { businessId: scope.businessId },
+      });
     });
   }
 
@@ -148,9 +167,13 @@ export function createStaffInvitations({ db, platformDb }: Pick<AppContext, "db"
       if (row === null) throw new AppError("not_found");
       const branches = await invitationBranches(tx, row.business_id, row.id);
       if (branches.length === 0) throw new AppError("not_found");
-      return { businessName: row.business_name ?? "İşletme", branches,
-        orderAccess: row.order_access, canManageAvailability: row.can_manage_availability,
-        expiresAt: row.expires_at.toISOString() };
+      return {
+        businessName: row.business_name ?? "İşletme",
+        branches,
+        orderAccess: row.order_access,
+        canManageAvailability: row.can_manage_availability,
+        expiresAt: row.expires_at.toISOString(),
+      };
     });
   }
 
@@ -191,20 +214,26 @@ export function createStaffInvitations({ db, platformDb }: Pick<AppContext, "db"
       await tx.execute(sql`delete from business_region_order_grants
         where business_id=${row.business_id} and user_id=${userId}`);
       for (const branch of branches) {
-        if (row.order_access !== "none") await tx.execute(sql`
+        if (row.order_access !== "none")
+          await tx.execute(sql`
           insert into business_branch_order_grants(business_id,branch_id,user_id,can_manage)
           values(${row.business_id},${branch.id},${userId},${row.order_access === "manage"})
         `);
-        if (row.can_manage_availability) await tx.execute(sql`
+        if (row.can_manage_availability)
+          await tx.execute(sql`
           insert into branch_availability_grants(business_id,branch_id,user_id)
           values(${row.business_id},${branch.id},${userId})
         `);
       }
       await tx.execute(sql`update business_staff_invitations
         set accepted_at=now(), accepted_by=${userId} where id=${row.id}`);
-      await recordAudit(tx, { actor: userId, action: "business.staff_invitation_accepted",
-        targetType: "staff_invitation", targetId: row.id,
-        metadata: { businessId: row.business_id, branchCount: branches.length } });
+      await recordAudit(tx, {
+        actor: userId,
+        action: "business.staff_invitation_accepted",
+        targetType: "staff_invitation",
+        targetId: row.id,
+        metadata: { businessId: row.business_id, branchCount: branches.length },
+      });
       return { businessId: row.business_id };
     });
   }

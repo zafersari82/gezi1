@@ -136,7 +136,11 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
     });
   }
 
-  async function setMember(scope: TenantScope, body: BusinessMemberBody, allowCreation = true): Promise<void> {
+  async function setMember(
+    scope: TenantScope,
+    body: BusinessMemberBody,
+    allowCreation = true,
+  ): Promise<void> {
     requireBusinessRole(scope, ["owner"]);
     await withTenant(db, scope, async (tx) => {
       const user = await tx.maybeOne(
@@ -145,10 +149,14 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
       if (user === null) throw new AppError("user_not_found");
       // Public member updates must never silently enrol a new person.
       // Invitation acceptance is the only self-service entry point.
-      if (!allowCreation && (await tx.maybeOne(sql`
+      if (
+        !allowCreation &&
+        (await tx.maybeOne(sql`
         select 1 from business_members where business_id=${scope.businessId}
           and user_id=${body.userId} for update
-      `)) === null) throw new AppError("not_found");
+      `)) === null
+      )
+        throw new AppError("not_found");
       const owner = await tx.maybeOne(sql`
         select 1 from business_members where business_id = ${scope.businessId}
           and user_id = ${body.userId} and role = 'owner'
@@ -174,20 +182,26 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
         await tx.execute(sql`delete from business_region_order_grants
           where business_id=${scope.businessId} and user_id=${body.userId}`);
       }
-      await recordAudit(tx, { actor: scope.userId, action: "business.member_changed",
-        targetType: "business_member", targetId: body.userId,
-        metadata: { businessId: scope.businessId, role: body.role, active: body.active } });
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "business.member_changed",
+        targetType: "business_member",
+        targetId: body.userId,
+        metadata: { businessId: scope.businessId, role: body.role, active: body.active },
+      });
     });
   }
 
   function branches(scope: TenantScope): Promise<Branch[]> {
     return withTenant(db, scope, async (tx) => {
       const branchIds = scope.role === "staff" ? await availableBranchIds(tx, scope) : null;
-      return (await tx.many<BranchRow>(sql`
+      return (
+        await tx.many<BranchRow>(sql`
         select * from branches where business_id=${scope.businessId}
           and (${branchIds === null} or id=any(${branchIds ?? []}::uuid[]))
         order by name,id
-      `)).map(toBranch);
+      `)
+      ).map(toBranch);
     });
   }
 
@@ -371,8 +385,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
         order by i.id limit 2
       `),
     );
-    if (matches.length !== 1 || matches[0] === undefined)
-      throw new AppError("business_not_found");
+    if (matches.length !== 1 || matches[0] === undefined) throw new AppError("business_not_found");
     return { businessId, appInstanceId: matches[0].id } satisfies BusinessMiniAppLaunch;
   }
 

@@ -30,8 +30,12 @@ async function handle(
       new URL(request.url).search,
     );
     if (path === null) throw new BusinessApiError(400, "validation_failed", "İstek yolu geçersiz.");
-    const needsKey = /\/(?:returns\/[0-9a-f-]{36}\/decision|reviews\/[0-9a-f-]{36}\/reply)$/.test(path);
-    const key = needsKey ? idempotencyKeySchema.safeParse(request.headers.get("idempotency-key")) : null;
+    const needsKey = /\/(?:returns\/[0-9a-f-]{36}\/decision|reviews\/[0-9a-f-]{36}\/reply)$/.test(
+      path,
+    );
+    const key = needsKey
+      ? idempotencyKeySchema.safeParse(request.headers.get("idempotency-key"))
+      : null;
     if (key !== null && !key.success)
       throw new BusinessApiError(400, "validation_failed", "İşlem anahtarı geçersiz.");
     const response = await apiRequest(

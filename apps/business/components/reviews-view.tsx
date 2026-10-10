@@ -32,12 +32,17 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
       const result = await call(listSchema, `/api/business/reviews?${query}`);
       if (request !== requestId.current) return;
       setPage((previous) =>
-        cursor === undefined ? result : {
-          items: [...new Map([...previous.items, ...result.items].map((r) => [r.id, r])).values()],
-          nextCursor: result.nextCursor,
-        },
+        cursor === undefined
+          ? result
+          : {
+              items: [
+                ...new Map([...previous.items, ...result.items].map((r) => [r.id, r])).values(),
+              ],
+              nextCursor: result.nextCursor,
+            },
       );
-      if (cursor === undefined) setSelected((current) => result.items.find((item) => item.id === current?.id) ?? null);
+      if (cursor === undefined)
+        setSelected((current) => result.items.find((item) => item.id === current?.id) ?? null);
     } catch (cause) {
       if (request === requestId.current) setError(errorMessage(cause));
     } finally {
@@ -65,7 +70,10 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
         body,
         crypto.randomUUID(),
       );
-      setPage((previous) => ({ ...previous, items: previous.items.map((item) => item.id === updated.id ? updated : item) }));
+      setPage((previous) => ({
+        ...previous,
+        items: previous.items.map((item) => (item.id === updated.id ? updated : item)),
+      }));
       setSelected(updated);
       setNotice("İşletme yanıtı kaydedildi.");
     } catch (cause) {
@@ -82,52 +90,124 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
         <div>
           <span className="eyebrow">Müşteri deneyimi</span>
           <h1>Değerlendirmeler</h1>
-          <p className="muted">Siparişlerden gelen gerçek değerlendirmeleri gör ve müşterilere yanıt ver.</p>
+          <p className="muted">
+            Siparişlerden gelen gerçek değerlendirmeleri gör ve müşterilere yanıt ver.
+          </p>
         </div>
       </div>
       <div className="toolbar">
         <span className="muted small">En yeni değerlendirmeler önce listelenir.</span>
-        <button className="secondary" disabled={loading || busy} onClick={() => void load()}>Yenile</button>
+        <button className="secondary" disabled={loading || busy} onClick={() => void load()}>
+          Yenile
+        </button>
       </div>
-      {error !== "" && <p className="error" role="alert">{error}</p>}
-      {notice !== "" && <p className="success" role="status">{notice}</p>}
+      {error !== "" && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice !== "" && (
+        <p className="success" role="status">
+          {notice}
+        </p>
+      )}
       <div className="editor-layout">
         <section className="panel">
-          <div className="section-heading"><h2>Müşteri yorumları</h2><span className="muted small">{page.items.length} kayıt</span></div>
+          <div className="section-heading">
+            <h2>Müşteri yorumları</h2>
+            <span className="muted small">{page.items.length} kayıt</span>
+          </div>
           {page.items.map((item) => (
             <button
               key={item.id}
               className={selected?.id === item.id ? "record-card selected" : "record-card"}
               type="button"
               disabled={busy}
-              onClick={() => { setSelected(item); setError(""); setNotice(""); }}
+              onClick={() => {
+                setSelected(item);
+                setError("");
+                setNotice("");
+              }}
             >
-              <span className="record-heading"><strong aria-label={`${item.rating} / 5 yıldız`}>{"★".repeat(item.rating)}{"☆".repeat(5 - item.rating)}</strong><span className="small muted">{new Date(item.createdAt).toLocaleDateString("tr-TR")}</span></span>
+              <span className="record-heading">
+                <strong aria-label={`${item.rating} / 5 yıldız`}>
+                  {"★".repeat(item.rating)}
+                  {"☆".repeat(5 - item.rating)}
+                </strong>
+                <span className="small muted">
+                  {new Date(item.createdAt).toLocaleDateString("tr-TR")}
+                </span>
+              </span>
               <span className="record-preview">{item.comment || "Yazılı yorum bırakılmamış."}</span>
-              <span className="small muted">Sipariş #{item.orderId.slice(0, 8).toUpperCase()} · {item.visibility === "published" ? "Yayında" : "Gizli"}</span>
+              <span className="small muted">
+                Sipariş #{item.orderId.slice(0, 8).toUpperCase()} ·{" "}
+                {item.visibility === "published" ? "Yayında" : "Gizli"}
+              </span>
               {item.reply !== null && <span className="badge">Yanıtlandı</span>}
             </button>
           ))}
-          {loading && <p role="status" className="muted">Değerlendirmeler yükleniyor…</p>}
-          {!loading && page.items.length === 0 && <p className="muted">Henüz değerlendirme bulunmuyor.</p>}
-          {page.nextCursor !== null && <button className="secondary" disabled={loading || busy} onClick={() => void load(page.nextCursor ?? undefined)}>Daha fazla göster</button>}
+          {loading && (
+            <p role="status" className="muted">
+              Değerlendirmeler yükleniyor…
+            </p>
+          )}
+          {!loading && page.items.length === 0 && (
+            <p className="muted">Henüz değerlendirme bulunmuyor.</p>
+          )}
+          {page.nextCursor !== null && (
+            <button
+              className="secondary"
+              disabled={loading || busy}
+              onClick={() => void load(page.nextCursor ?? undefined)}
+            >
+              Daha fazla göster
+            </button>
+          )}
         </section>
         <section className="panel">
           {selected === null ? (
-            <div className="empty"><h2>Bir değerlendirme seç</h2><p>Yorumun tamamını ve işletme yanıtını burada göreceksin.</p></div>
+            <div className="empty">
+              <h2>Bir değerlendirme seç</h2>
+              <p>Yorumun tamamını ve işletme yanıtını burada göreceksin.</p>
+            </div>
           ) : (
             <div className="form-stack">
-              <div className="section-heading"><h2>Sipariş #{selected.orderId.slice(0, 8).toUpperCase()}</h2><span className="badge">{selected.rating} / 5</span></div>
+              <div className="section-heading">
+                <h2>Sipariş #{selected.orderId.slice(0, 8).toUpperCase()}</h2>
+                <span className="badge">{selected.rating} / 5</span>
+              </div>
               <p className="record-comment">{selected.comment || "Yazılı yorum bırakılmamış."}</p>
-              {selected.reply !== null && <p className="small muted">Mevcut işletme yanıtı: {selected.reply}</p>}
+              {selected.reply !== null && (
+                <p className="small muted">Mevcut işletme yanıtı: {selected.reply}</p>
+              )}
               {canReply ? (
-                <form key={`${selected.id}:${selected.version}`} className="form-stack" onSubmit={(event) => void reply(event)}>
+                <form
+                  key={`${selected.id}:${selected.version}`}
+                  className="form-stack"
+                  onSubmit={(event) => void reply(event)}
+                >
                   <fieldset className="editor-fieldset form-stack" disabled={busy}>
-                    <label>İşletme yanıtı<textarea name="reply" minLength={1} maxLength={1000} required defaultValue={selected.reply ?? ""} placeholder="Müşteriye açıklayıcı ve nazik bir yanıt yaz" /></label>
-                    <button type="submit" className="primary">Yanıtı kaydet</button>
+                    <label>
+                      İşletme yanıtı
+                      <textarea
+                        name="reply"
+                        minLength={1}
+                        maxLength={1000}
+                        required
+                        defaultValue={selected.reply ?? ""}
+                        placeholder="Müşteriye açıklayıcı ve nazik bir yanıt yaz"
+                      />
+                    </label>
+                    <button type="submit" className="primary">
+                      Yanıtı kaydet
+                    </button>
                   </fieldset>
                 </form>
-              ) : <p className="muted">Yanıt yazma yetkisi yalnızca işletme sahibi ve yöneticilerde.</p>}
+              ) : (
+                <p className="muted">
+                  Yanıt yazma yetkisi yalnızca işletme sahibi ve yöneticilerde.
+                </p>
+              )}
             </div>
           )}
         </section>

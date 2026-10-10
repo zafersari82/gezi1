@@ -894,6 +894,7 @@ sonra geç kalan isteğin müşteri bağını yeniden kurabildiğini gösterdi. 
 kullanıcıya doğrudan SQL ile bağ kurma da reddedilir.
 
 ### Business Studio medya optimizasyonu, kota ve temizlik (geliştirme)
+
 - İşletme resimlerinde Sharp yeniden kodlama, EXIF/GPS temizliği, tek kare WebP ve 1600px / 20MP sınırı.
 - `0028_business_media_quota.sql`: tenant başına saklama sınırı ve yeniden denenebilir fiziksel silme kuyruğu.
 - Medya yüklemesinde eşzamanlı kota kilidi, 409 kota hatası; kullanım ve manuel temizlik uç noktaları.
@@ -902,6 +903,7 @@ kullanıcıya doğrudan SQL ile bağ kurma da reddedilir.
 - **Nihai derleme, PostgreSQL ve cihaz testleri bekliyor.**
 
 ### Business Studio — başlangıç kataloğu ve telefondan kurulum
+
 - Sektöre göre ürün/hizmet önerileri, KDV ve fiyatı işletmecinin belirlediği mobil kurulum rehberi.
 - Sunucu tarafında boş kataloğa yetki/kategori kontrollü atomik ilk aktarım, denetim kaydı, normal katalog ekleme ile eşzamanlılık koordinasyonu.
 - Kayıt sonrası katalog ve önizleme yenileme, katalog tekrarlama koruması, regresyon test kaynakları.

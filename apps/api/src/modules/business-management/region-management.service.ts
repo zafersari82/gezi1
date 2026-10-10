@@ -35,8 +35,13 @@ export function createRegionManagementService({ db }: TenantContext) {
           insert into business_regions(business_id,name)
           values(${scope.businessId},${name}) returning id,name,version
         `);
-        await recordAudit(tx, { actor: scope.userId, action: "regions.created",
-          targetType: "region", targetId: row.id, metadata: { businessId: scope.businessId } });
+        await recordAudit(tx, {
+          actor: scope.userId,
+          action: "regions.created",
+          targetType: "region",
+          targetId: row.id,
+          metadata: { businessId: scope.businessId },
+        });
         return row;
       });
     } catch (cause) {
@@ -44,7 +49,12 @@ export function createRegionManagementService({ db }: TenantContext) {
       throw cause;
     }
   }
-  async function renameRegion(scope: TenantScope, regionId: string, name: string, expectedVersion: number): Promise<BusinessRegion> {
+  async function renameRegion(
+    scope: TenantScope,
+    regionId: string,
+    name: string,
+    expectedVersion: number,
+  ): Promise<BusinessRegion> {
     requireBusinessRole(scope, ["owner"]);
     try {
       return await withTenant(db, scope, async (tx) => {
@@ -59,8 +69,13 @@ export function createRegionManagementService({ db }: TenantContext) {
           where business_id=${scope.businessId} and id=${regionId}
           returning id,name,version
         `);
-        await recordAudit(tx, { actor: scope.userId, action: "regions.renamed",
-          targetType: "region", targetId: regionId, metadata: { businessId: scope.businessId } });
+        await recordAudit(tx, {
+          actor: scope.userId,
+          action: "regions.renamed",
+          targetType: "region",
+          targetId: regionId,
+          metadata: { businessId: scope.businessId },
+        });
         return result;
       });
     } catch (cause) {
@@ -83,9 +98,12 @@ export function createRegionManagementService({ db }: TenantContext) {
     requireBusinessRole(scope, ["owner"]);
     return withTenant(db, scope, async (tx) => {
       // The branch lock serializes conflicting assignments from separate devices.
-      if ((await tx.maybeOne(sql`
+      if (
+        (await tx.maybeOne(sql`
         select id from branches where business_id=${scope.businessId} and id=${branchId} for update
-      `)) === null) throw new AppError("not_found");
+      `)) === null
+      )
+        throw new AppError("not_found");
       const existing = await tx.maybeOne<{ region_id: string }>(sql`
         select region_id from business_region_branches
         where business_id=${scope.businessId} and branch_id=${branchId}
@@ -93,10 +111,13 @@ export function createRegionManagementService({ db }: TenantContext) {
       const previous = existing?.region_id ?? null;
       if (previous !== body.expectedRegionId) throw new AppError("record_version_conflict");
       if (body.regionId !== null) {
-        if ((await tx.maybeOne(sql`
+        if (
+          (await tx.maybeOne(sql`
           select id from business_regions
           where business_id=${scope.businessId} and id=${body.regionId} for key share
-        `)) === null) throw new AppError("not_found");
+        `)) === null
+        )
+          throw new AppError("not_found");
         await tx.execute(sql`
           insert into business_region_branches(business_id,branch_id,region_id)
           values(${scope.businessId},${branchId},${body.regionId})
@@ -108,19 +129,27 @@ export function createRegionManagementService({ db }: TenantContext) {
           where business_id=${scope.businessId} and branch_id=${branchId}
         `);
       }
-      await recordAudit(tx, { actor: scope.userId, action: "regions.branch_assigned",
-        targetType: "branch", targetId: branchId,
-        metadata: { businessId: scope.businessId, previous, regionId: body.regionId } });
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "regions.branch_assigned",
+        targetType: "branch",
+        targetId: branchId,
+        metadata: { businessId: scope.businessId, previous, regionId: body.regionId },
+      });
       return { branchId, regionId: body.regionId };
     });
   }
   function operators(scope: TenantScope, regionId: string) {
     requireBusinessRole(scope, ["owner"]);
     return withTenant(db, scope, async (tx) => {
-      if ((await tx.maybeOne(sql`
+      if (
+        (await tx.maybeOne(sql`
         select id from business_regions where business_id=${scope.businessId} and id=${regionId}
-      `)) === null) throw new AppError("not_found");
-      return { items: await tx.many<{ userId: string; displayName: string; allowed: boolean }>(sql`
+      `)) === null
+      )
+        throw new AppError("not_found");
+      return {
+        items: await tx.many<{ userId: string; displayName: string; allowed: boolean }>(sql`
         select m.user_id as "userId",
           coalesce(nullif(u.display_name,''),nullif(u.username,''),'Personel') as "displayName",
           (g.user_id is not null) as allowed
@@ -130,31 +159,44 @@ export function createRegionManagementService({ db }: TenantContext) {
         where m.business_id=${scope.businessId} and m.role='staff'
           and m.active and u.status='active'
         order by "displayName",m.user_id
-      `) };
+      `),
+      };
     });
   }
   function saveOperator(scope: TenantScope, regionId: string, body: BusinessRegionOperatorBody) {
     requireBusinessRole(scope, ["owner"]);
     return withTenant(db, scope, async (tx) => {
-      if ((await tx.maybeOne(sql`
+      if (
+        (await tx.maybeOne(sql`
         select id from business_regions where business_id=${scope.businessId} and id=${regionId} for update
-      `)) === null) throw new AppError("not_found");
-      if ((await tx.maybeOne(sql`
+      `)) === null
+      )
+        throw new AppError("not_found");
+      if (
+        (await tx.maybeOne(sql`
         select 1 from business_members m join users u on u.id=m.user_id
         where m.business_id=${scope.businessId} and m.user_id=${body.userId}
           and m.active and m.role='staff' and u.status='active' for share of m,u
-      `)) === null) throw new AppError("not_found");
-      if (body.allowed) await tx.execute(sql`
+      `)) === null
+      )
+        throw new AppError("not_found");
+      if (body.allowed)
+        await tx.execute(sql`
         insert into business_region_operators(business_id,region_id,user_id)
         values(${scope.businessId},${regionId},${body.userId}) on conflict do nothing
       `);
-      else await tx.execute(sql`
+      else
+        await tx.execute(sql`
         delete from business_region_operators where business_id=${scope.businessId}
           and region_id=${regionId} and user_id=${body.userId}
       `);
-      await recordAudit(tx, { actor: scope.userId, action: "regions.operator_changed",
-        targetType: "region", targetId: regionId,
-        metadata: { businessId: scope.businessId, userId: body.userId, allowed: body.allowed } });
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "regions.operator_changed",
+        targetType: "region",
+        targetId: regionId,
+        metadata: { businessId: scope.businessId, userId: body.userId, allowed: body.allowed },
+      });
       return { userId: body.userId, allowed: body.allowed };
     });
   }
@@ -162,12 +204,18 @@ export function createRegionManagementService({ db }: TenantContext) {
   function orderGrants(scope: TenantScope, kind: "branch" | "region", id: string) {
     requireBusinessRole(scope, ["owner"]);
     return withTenant(db, scope, async (tx) => {
-      const target = kind === "branch"
-        ? await tx.maybeOne(sql`select 1 from branches where business_id=${scope.businessId} and id=${id}`)
-        : await tx.maybeOne(sql`select 1 from business_regions where business_id=${scope.businessId} and id=${id}`);
+      const target =
+        kind === "branch"
+          ? await tx.maybeOne(
+              sql`select 1 from branches where business_id=${scope.businessId} and id=${id}`,
+            )
+          : await tx.maybeOne(
+              sql`select 1 from business_regions where business_id=${scope.businessId} and id=${id}`,
+            );
       if (target === null) throw new AppError("not_found");
-      const rows = kind === "branch"
-        ? await tx.many<{ userId: string; displayName: string; access: string }>(sql`
+      const rows =
+        kind === "branch"
+          ? await tx.many<{ userId: string; displayName: string; access: string }>(sql`
           select m.user_id as "userId",coalesce(nullif(u.display_name,''),nullif(u.username,''),'Personel') as "displayName",
             case when g.user_id is null then 'none' when g.can_manage then 'manage' else 'view' end as access
           from business_members m join users u on u.id=m.user_id
@@ -175,7 +223,7 @@ export function createRegionManagementService({ db }: TenantContext) {
             and g.branch_id=${id} and g.user_id=m.user_id
           where m.business_id=${scope.businessId} and m.active and m.role='staff' and u.status='active'
           order by "displayName",m.user_id`)
-        : await tx.many<{ userId: string; displayName: string; access: string }>(sql`
+          : await tx.many<{ userId: string; displayName: string; access: string }>(sql`
           select m.user_id as "userId",coalesce(nullif(u.display_name,''),nullif(u.username,''),'Personel') as "displayName",
             case when g.user_id is null then 'none' when g.can_manage then 'manage' else 'view' end as access
           from business_members m join users u on u.id=m.user_id
@@ -186,13 +234,23 @@ export function createRegionManagementService({ db }: TenantContext) {
       return { items: rows };
     });
   }
-  function saveOrderGrant(scope: TenantScope, kind: "branch" | "region", id: string, body: OrderGrantBody) {
+  function saveOrderGrant(
+    scope: TenantScope,
+    kind: "branch" | "region",
+    id: string,
+    body: OrderGrantBody,
+  ) {
     requireBusinessRole(scope, ["owner"]);
     return withTenant(db, scope, async (tx) => {
       // Lock target first so branch reassignment/deletion cannot race a permission change.
-      const target = kind === "branch"
-        ? await tx.maybeOne(sql`select 1 from branches where business_id=${scope.businessId} and id=${id} for update`)
-        : await tx.maybeOne(sql`select 1 from business_regions where business_id=${scope.businessId} and id=${id} for update`);
+      const target =
+        kind === "branch"
+          ? await tx.maybeOne(
+              sql`select 1 from branches where business_id=${scope.businessId} and id=${id} for update`,
+            )
+          : await tx.maybeOne(
+              sql`select 1 from business_regions where business_id=${scope.businessId} and id=${id} for update`,
+            );
       if (target === null) throw new AppError("not_found");
       const member = await tx.maybeOne(sql`
         select 1 from business_members m join users u on u.id=m.user_id
@@ -200,28 +258,45 @@ export function createRegionManagementService({ db }: TenantContext) {
           and m.active and m.role='staff' and u.status='active' for share of m,u`);
       if (member === null) throw new AppError("not_found");
       if (kind === "branch") {
-        if (body.access === "none") await tx.execute(sql`
+        if (body.access === "none")
+          await tx.execute(sql`
           delete from business_branch_order_grants
           where business_id=${scope.businessId} and branch_id=${id} and user_id=${body.userId}`);
-        else await tx.execute(sql`
+        else
+          await tx.execute(sql`
           insert into business_branch_order_grants(business_id,branch_id,user_id,can_manage)
           values(${scope.businessId},${id},${body.userId},${body.access === "manage"})
           on conflict (business_id,branch_id,user_id) do update set can_manage=excluded.can_manage`);
       } else {
-        if (body.access === "none") await tx.execute(sql`
+        if (body.access === "none")
+          await tx.execute(sql`
           delete from business_region_order_grants
           where business_id=${scope.businessId} and region_id=${id} and user_id=${body.userId}`);
-        else await tx.execute(sql`
+        else
+          await tx.execute(sql`
           insert into business_region_order_grants(business_id,region_id,user_id,can_manage)
           values(${scope.businessId},${id},${body.userId},${body.access === "manage"})
           on conflict (business_id,region_id,user_id) do update set can_manage=excluded.can_manage`);
       }
-      await recordAudit(tx, { actor: scope.userId, action: "orders.permission_changed",
-        targetType: kind, targetId: id, metadata: { businessId: scope.businessId,
-          userId: body.userId, access: body.access } });
+      await recordAudit(tx, {
+        actor: scope.userId,
+        action: "orders.permission_changed",
+        targetType: kind,
+        targetId: id,
+        metadata: { businessId: scope.businessId, userId: body.userId, access: body.access },
+      });
       return { userId: body.userId, access: body.access };
     });
   }
-  return { regions, createRegion, renameRegion, assignments, assignBranch, operators, saveOperator,
-    orderGrants, saveOrderGrant };
+  return {
+    regions,
+    createRegion,
+    renameRegion,
+    assignments,
+    assignBranch,
+    operators,
+    saveOperator,
+    orderGrants,
+    saveOrderGrant,
+  };
 }

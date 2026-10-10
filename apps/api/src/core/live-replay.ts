@@ -1,9 +1,9 @@
 import { type LiveEvent, liveEventSchema, type LiveReplay } from "@vado/contracts";
 
+import { orderAccess } from "../modules/ordering/order-access";
 import type { TenantContext } from "./context";
 import { type Database, sql } from "./database";
 import { type TenantScope, withTenant } from "./tenant-scope";
-import { orderAccess } from "../modules/ordering/order-access";
 
 export const LIVE_EVENT_TYPES = [
   "order.placed",

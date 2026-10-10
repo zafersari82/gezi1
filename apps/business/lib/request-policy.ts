@@ -111,15 +111,15 @@ export function businessApiPath(
     ? ["limit", "cursor", "status", "statuses", "active", "branchId", "appInstanceId"]
     : path === "orders/performance"
       ? ["days"]
-    : path === "returns"
-      ? ["limit", "cursor", "status"]
-      : path === "reviews"
-        ? ["limit", "cursor"]
-        : path === "live-events"
-      ? ["cursor"]
-      : path.endsWith("/menu-windows")
-        ? ["branchId"]
-        : [];
+      : path === "returns"
+        ? ["limit", "cursor", "status"]
+        : path === "reviews"
+          ? ["limit", "cursor"]
+          : path === "live-events"
+            ? ["cursor"]
+            : path.endsWith("/menu-windows")
+              ? ["branchId"]
+              : [];
   if ([...query.keys()].some((key) => method !== "GET" || !allowed.includes(key))) return null;
   const suffix = query.toString();
   return `/v1/business/${businessId}/${path}${suffix === "" ? "" : `?${suffix}`}`;

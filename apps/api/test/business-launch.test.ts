@@ -11,18 +11,28 @@ const launchSchema = z.object({ businessId: z.uuid(), appInstanceId: z.uuid() })
 
 describe("işletmeden mini uygulama açılışı", () => {
   let app: TestApp;
-  beforeAll(async () => { app = await startTestApp(); });
-  afterAll(async () => { await app.stop(); });
+  beforeAll(async () => {
+    app = await startTestApp();
+  });
+  afterAll(async () => {
+    await app.stop();
+  });
 
   it("doğru işletmenin etkin örneğini bulur, başka işletmeyi seçmez", async () => {
     const first = await createTenantFixture(app);
     const second = await createTenantFixture(app);
     const client = as(app, first.customer);
-    const result = await client.ok(launchSchema, "GET",
-      `/v1/businesses/${first.businessId}/miniapps/${first.miniAppId}/launch`);
+    const result = await client.ok(
+      launchSchema,
+      "GET",
+      `/v1/businesses/${first.businessId}/miniapps/${first.miniAppId}/launch`,
+    );
     expect(result).toEqual({ businessId: first.businessId, appInstanceId: first.instanceId });
-    await client.fail("business_not_found", "GET",
-      `/v1/businesses/${second.businessId}/miniapps/${first.miniAppId}/launch`);
+    await client.fail(
+      "business_not_found",
+      "GET",
+      `/v1/businesses/${second.businessId}/miniapps/${first.miniAppId}/launch`,
+    );
   });
 
   it("bağlamı doğrular ama yalnızca mağazaya bakmak müşteri kaydı oluşturmaz", async () => {
@@ -30,9 +40,13 @@ describe("işletmeden mini uygulama açılışı", () => {
     const visitor = await createUser(app, "Vitrin ziyaretçisi");
     const path = `/v1/businesses/${f.businessId}/miniapps/${f.miniAppId}/launch`;
     await as(app, visitor).ok(launchSchema, "GET", path);
-    expect(await scoped(app.db, f.businessId, (tx) => tx.many(sql`
+    expect(
+      await scoped(app.db, f.businessId, (tx) =>
+        tx.many(sql`
       select id from business_customers where business_id=${f.businessId} and user_id=${visitor.id}
-    `))).toEqual([]);
+    `),
+      ),
+    ).toEqual([]);
   });
 
   it("kapalı örnek veya askıdaki işletmeyi açmaz", async () => {
@@ -40,15 +54,21 @@ describe("işletmeden mini uygulama açılışı", () => {
     const client = as(app, fixture.customer);
     const path = `/v1/businesses/${fixture.businessId}/miniapps/${fixture.miniAppId}/launch`;
     await app.services.businessManagement.createInstance(fixture.scope, {
-      miniAppId: fixture.miniAppId, merchantId: fixture.merchantId,
-      engine: "ordering", active: false,
+      miniAppId: fixture.miniAppId,
+      merchantId: fixture.merchantId,
+      engine: "ordering",
+      active: false,
     });
     await client.fail("business_not_found", "GET", path);
     await app.services.businessManagement.createInstance(fixture.scope, {
-      miniAppId: fixture.miniAppId, merchantId: fixture.merchantId,
-      engine: "ordering", active: true,
+      miniAppId: fixture.miniAppId,
+      merchantId: fixture.merchantId,
+      engine: "ordering",
+      active: true,
     });
-    await app.db.execute(sql`update businesses set status='suspended' where id=${fixture.businessId}`);
+    await app.db.execute(
+      sql`update businesses set status='suspended' where id=${fixture.businessId}`,
+    );
     await client.fail("business_not_found", "GET", path);
   });
 
@@ -60,10 +80,15 @@ describe("işletmeden mini uygulama açılışı", () => {
       values (${fixture.miniAppId}, ${anotherMerchant}, ${fixture.businessId}, 'İkinci satıcı')
     `);
     await app.services.businessManagement.createInstance(fixture.scope, {
-      miniAppId: fixture.miniAppId, merchantId: anotherMerchant,
-      engine: "ordering", active: true,
+      miniAppId: fixture.miniAppId,
+      merchantId: anotherMerchant,
+      engine: "ordering",
+      active: true,
     });
-    await as(app, fixture.customer).fail("business_not_found", "GET",
-      `/v1/businesses/${fixture.businessId}/miniapps/${fixture.miniAppId}/launch`);
+    await as(app, fixture.customer).fail(
+      "business_not_found",
+      "GET",
+      `/v1/businesses/${fixture.businessId}/miniapps/${fixture.miniAppId}/launch`,
+    );
   });
 });

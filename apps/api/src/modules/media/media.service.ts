@@ -91,8 +91,7 @@ export function createMediaService({ db, storage }: AppContext) {
     data: Buffer,
     persist: (media: Media, storageKey: string) => Promise<void>,
   ): Promise<Media> {
-    if (data.length === 0 || data.length > MEDIA_MAX_BYTES)
-      throw new AppError("media_too_large");
+    if (data.length === 0 || data.length > MEDIA_MAX_BYTES) throw new AppError("media_too_large");
     const format = IMAGE_FORMATS.find((candidate) => candidate.matches(data));
     if (format === undefined) throw new AppError("media_invalid");
     const id = randomUUID();
@@ -114,10 +113,16 @@ export function createMediaService({ db, storage }: AppContext) {
   }
 
   function upload(userId: string, data: Buffer): Promise<Media> {
-    return store(data, (media, storageKey) => db.execute(sql`
+    return store(data, (media, storageKey) =>
+      db
+        .execute(
+          sql`
       insert into media (id, owner_id, content_type, byte_size, storage_key)
       values (${media.id}, ${userId}, ${media.contentType}, ${media.byteSize}, ${storageKey})
-    `).then(() => undefined));
+    `,
+        )
+        .then(() => undefined),
+    );
   }
 
   /**
@@ -170,7 +175,11 @@ export function createMediaService({ db, storage }: AppContext) {
   function businessUsage(scope: TenantScope) {
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
-      const row = await tx.one<{ quota_bytes: number; used_bytes: number; image_count: number }>(sql`
+      const row = await tx.one<{
+        quota_bytes: number;
+        used_bytes: number;
+        image_count: number;
+      }>(sql`
         select b.media_quota_bytes as quota_bytes,
           coalesce(sum(m.byte_size),0)::bigint as used_bytes,
           count(m.id)::int as image_count
@@ -180,7 +189,11 @@ export function createMediaService({ db, storage }: AppContext) {
         where b.id=${scope.businessId}
         group by b.id
       `);
-      return { quotaBytes: row.quota_bytes, usedBytes: row.used_bytes, imageCount: row.image_count };
+      return {
+        quotaBytes: row.quota_bytes,
+        usedBytes: row.used_bytes,
+        imageCount: row.image_count,
+      };
     });
   }
 
@@ -195,7 +208,11 @@ export function createMediaService({ db, storage }: AppContext) {
     requireBusinessRole(scope, ["owner", "manager"]);
     const removed = await withTenant(db, scope, async (tx) => {
       await tx.one(sql`select id from businesses where id=${scope.businessId} for update`);
-      const candidates = await tx.many<{ media_id: string; storage_key: string; byte_size: number }>(sql`
+      const candidates = await tx.many<{
+        media_id: string;
+        storage_key: string;
+        byte_size: number;
+      }>(sql`
         select bm.media_id, m.storage_key, m.byte_size
         from business_media bm join media m on m.id=bm.media_id
         where bm.business_id=${scope.businessId}
@@ -237,25 +254,31 @@ export function createMediaService({ db, storage }: AppContext) {
     });
     // Remove only keys from the durable deletion queue. Failed deletes remain
     // queued for the next maintenance attempt, without blocking the UI.
-    const pending = await withTenant(db, scope, (tx) => tx.many<{ storage_key: string }>(sql`
+    const pending = await withTenant(db, scope, (tx) =>
+      tx.many<{ storage_key: string }>(sql`
       select storage_key from business_media_deletions
       where business_id=${scope.businessId}
       order by created_at, storage_key limit 100
-    `));
+    `),
+    );
     let pendingRemoval = 0;
     for (const file of pending) {
       try {
         await storage.remove(file.storage_key);
-        await withTenant(db, scope, (tx) => tx.execute(sql`
+        await withTenant(db, scope, (tx) =>
+          tx.execute(sql`
           delete from business_media_deletions
           where business_id=${scope.businessId} and storage_key=${file.storage_key}
-        `));
+        `),
+        );
       } catch {
         pendingRemoval += 1;
-        await withTenant(db, scope, (tx) => tx.execute(sql`
+        await withTenant(db, scope, (tx) =>
+          tx.execute(sql`
           update business_media_deletions set attempts=attempts+1
           where business_id=${scope.businessId} and storage_key=${file.storage_key}
-        `));
+        `),
+        );
       }
     }
     return {

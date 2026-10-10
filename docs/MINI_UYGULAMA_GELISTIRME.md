@@ -439,12 +439,19 @@ oturumundan alır.
 const reviews = await vado.feedback.listReviews({ limit: 30 });
 const favorites = await vado.feedback.listFavorites({ limit: 30 });
 const saved = await vado.feedback.saveFavorite({
-  itemId: null, value: true, expectedVersion: 0, key: "favori-istegi-1",
+  itemId: null,
+  value: true,
+  expectedVersion: 0,
+  key: "favori-istegi-1",
 });
 const requests = await vado.returns.list({ id: orderId });
 const repeated = await vado.ordering.reorder({
-  id: orderId, branchId, cartId: null, expectedVersion: 0,
-  replace: false, key: "tekrar-siparis-1",
+  id: orderId,
+  branchId,
+  cartId: null,
+  expectedVersion: 0,
+  replace: false,
+  key: "tekrar-siparis-1",
 });
 ```
 

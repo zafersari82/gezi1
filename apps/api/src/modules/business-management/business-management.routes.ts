@@ -3,13 +3,13 @@ import {
   branchBodySchema,
   branchHoursBodySchema,
   businessContextBodySchema,
-  businessMiniAppLaunchParamsSchema,
   businessMemberBodySchema,
+  businessMiniAppLaunchParamsSchema,
   businessParamsSchema,
-  staffInvitationCreateSchema,
-  staffInvitationTokenBodySchema,
   businessRecordParamsSchema,
   miniAppIdSchema,
+  staffInvitationCreateSchema,
+  staffInvitationTokenBodySchema,
 } from "@vado/contracts";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -42,7 +42,8 @@ export function businessManagementRoutes(
     const { businessId } = parse(businessParamsSchema, request.params);
     await business.setMember(
       await business.authorise(userId, businessId),
-      parse(businessMemberBodySchema, request.body), false,
+      parse(businessMemberBodySchema, request.body),
+      false,
     );
     return reply.code(204).send();
   });
@@ -54,8 +55,10 @@ export function businessManagementRoutes(
   server.post("/v1/business/:businessId/invitations", async (request) => {
     const { userId } = await guard(request);
     const { businessId } = parse(businessParamsSchema, request.params);
-    return business.createInvitation(await business.authorise(userId, businessId),
-      parse(staffInvitationCreateSchema, request.body));
+    return business.createInvitation(
+      await business.authorise(userId, businessId),
+      parse(staffInvitationCreateSchema, request.body),
+    );
   });
   server.post("/v1/business/:businessId/invitations/:id/revoke", async (request, reply) => {
     const { userId } = await guard(request);

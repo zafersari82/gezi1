@@ -1,23 +1,22 @@
 import type {
+  BranchPriceBatchBody,
   Catalog,
   CatalogCategoryBody,
   CatalogItemBody,
   CatalogOptionGroupBody,
   CatalogPriceBody,
-  BranchPriceBatchBody,
   CatalogSelection,
   PricedLine,
   StudioItemImageBody,
   StudioStarterCatalogBody,
 } from "@vado/contracts";
-
 import { STUDIO_STARTER_ITEMS } from "@vado/contracts";
 
+import { recordAudit } from "../../core/audit";
 import type { AppContext } from "../../core/context";
 import { type Database, isUniqueViolation, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
-import { recordAudit } from "../../core/audit";
 import type { StorageProvider } from "../../providers/storage";
 import { includedVat } from "./pricing";
 
@@ -107,7 +106,12 @@ function toGroup(row: GroupRow, options: OptionRow[]) {
   };
 }
 
-async function readCatalog(tx: Database, scope: TenantScope, storage: StorageProvider, lock = false): Promise<Catalog> {
+async function readCatalog(
+  tx: Database,
+  scope: TenantScope,
+  storage: StorageProvider,
+  lock = false,
+): Promise<Catalog> {
   const clause = lock ? sql`for share` : sql.empty;
   const categories = await tx.many<CategoryRow>(sql`
     select * from catalog_categories where business_id = ${scope.businessId} order by sort_order, id ${clause}
@@ -223,12 +227,15 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
       `);
       if (changed === null) throw new AppError("record_version_conflict");
       await recordAudit(tx, {
-        actor: scope.userId, action: "catalog.item.image.updated",
-        targetType: "catalog_item", targetId: itemId,
+        actor: scope.userId,
+        action: "catalog.item.image.updated",
+        targetType: "catalog_item",
+        targetId: itemId,
         metadata: { mediaId: body.mediaId, version: changed.version },
       });
       return {
-        imageMediaId: body.mediaId, version: changed.version,
+        imageMediaId: body.mediaId,
+        version: changed.version,
       };
     });
   }
@@ -271,7 +278,13 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
         select category from businesses where id = ${scope.businessId} for update
       `);
       if (business === null) throw new AppError("business_not_found");
-      if (body.items.some((item) => STUDIO_STARTER_ITEMS.find((preset) => preset.id === item.id)?.category !== business.category))
+      if (
+        body.items.some(
+          (item) =>
+            STUDIO_STARTER_ITEMS.find((preset) => preset.id === item.id)?.category !==
+            business.category,
+        )
+      )
         throw new AppError("validation_failed");
       const existing = await tx.maybeOne(sql`
         select id from catalog_items where business_id = ${scope.businessId} limit 1
@@ -337,7 +350,10 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
         const links = await tx.many<{ group_id: string }>(sql`
           select group_id from item_option_groups where business_id = ${scope.businessId} and item_id = ${row.id} order by sort_order, group_id
         `);
-        const image = row.image_media_id === null ? null : await tx.maybeOne<{ storage_key: string }>(sql`
+        const image =
+          row.image_media_id === null
+            ? null
+            : await tx.maybeOne<{ storage_key: string }>(sql`
           select storage_key from media where id = ${row.image_media_id}
         `);
         return toItem(
@@ -387,11 +403,12 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
           where business_id=${scope.businessId} and branch_id=${body.branchId}
             and item_id=${change.itemId} for update`);
         const expected = change.expected;
-        const stale = expected === null
-          ? current !== null
-          : current === null ||
-            current.amount_minor !== expected.amountMinor ||
-            current.vat_basis_points !== expected.vatBasisPoints;
+        const stale =
+          expected === null
+            ? current !== null
+            : current === null ||
+              current.amount_minor !== expected.amountMinor ||
+              current.vat_basis_points !== expected.vatBasisPoints;
         if (stale) throw new AppError("record_version_conflict");
       }
       for (const change of changes) {

@@ -76,7 +76,9 @@ export interface Vado {
   returns: {
     list: (params: BridgeParams["returns.list"]) => Promise<BridgeResults["returns.list"]>;
     create: (params: BridgeParams["returns.create"]) => Promise<BridgeResults["returns.create"]>;
-    withdraw: (params: BridgeParams["returns.withdraw"]) => Promise<BridgeResults["returns.withdraw"]>;
+    withdraw: (
+      params: BridgeParams["returns.withdraw"],
+    ) => Promise<BridgeResults["returns.withdraw"]>;
   };
   incentives: {
     getAvailable: () => Promise<BridgeResults["incentives.getAvailable"]>;

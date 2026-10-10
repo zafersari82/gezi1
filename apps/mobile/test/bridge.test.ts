@@ -163,9 +163,14 @@ describe("handleBridgeMessage", () => {
       ["feedback.listReviews", { limit: 10 }],
       ["feedback.saveFavorite", { itemId: null, value: true, expectedVersion: 0, key: "test" }],
       ["returns.list", { id }],
-      ["ordering.reorder", { id, key: "test", branchId: id, cartId: null, expectedVersion: 0, replace: false }],
+      [
+        "ordering.reorder",
+        { id, key: "test", branchId: id, cartId: null, expectedVersion: 0, replace: false },
+      ],
     ] as const) {
-      expect(await handleBridgeMessage(request(method, params), withoutOrdering.host)).toMatchObject({
+      expect(
+        await handleBridgeMessage(request(method, params), withoutOrdering.host),
+      ).toMatchObject({
         ok: false,
         error: { code: "capability_denied" },
       });
@@ -175,7 +180,9 @@ describe("handleBridgeMessage", () => {
       ok: false,
       error: { code: "unavailable" },
     });
-    expect(await handleBridgeMessage(request("returns.list", { id, userId: id }), allowed.host)).toMatchObject({
+    expect(
+      await handleBridgeMessage(request("returns.list", { id, userId: id }), allowed.host),
+    ).toMatchObject({
       ok: false,
       error: { code: "invalid_params" },
     });

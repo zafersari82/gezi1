@@ -2,9 +2,9 @@
 
 import {
   type Branch,
-  type Catalog,
   branchPriceBatchBodySchema,
   branchPriceBatchResultSchema,
+  type Catalog,
   catalogSchema,
 } from "@vado/contracts";
 import { useState } from "react";
@@ -12,7 +12,7 @@ import { useState } from "react";
 import { call, errorMessage } from "../lib/client";
 import { decimalToMinor, money } from "../lib/values";
 
-type Edit = { enabled: boolean; price: string; vat: string };
+interface Edit { enabled: boolean; price: string; vat: string }
 
 /** Şube fiyatları yalnız seçilen işletmenin mevcut kataloğundan hazırlanır. */
 export function BranchPriceMatrix({
@@ -64,14 +64,19 @@ export function BranchPriceMatrix({
           const previous = existing(itemId);
           return {
             itemId,
-            expected: previous === undefined ? null : {
-              amountMinor: previous.amountMinor,
-              vatBasisPoints: previous.vatBasisPoints,
-            },
-            next: value.enabled ? {
-              amountMinor: decimalToMinor(value.price),
-              vatBasisPoints: decimalToMinor(value.vat),
-            } : null,
+            expected:
+              previous === undefined
+                ? null
+                : {
+                    amountMinor: previous.amountMinor,
+                    vatBasisPoints: previous.vatBasisPoints,
+                  },
+            next: value.enabled
+              ? {
+                  amountMinor: decimalToMinor(value.price),
+                  vatBasisPoints: decimalToMinor(value.vat),
+                }
+              : null,
           };
         }),
       });
@@ -89,8 +94,8 @@ export function BranchPriceMatrix({
       <div className="section-heading">
         <h2>Şube fiyatları</h2>
         <p className="muted small">
-          Merkez fiyatını değiştirmeden şubeye özel fiyat tanımla. İşaretini kaldırdığın ürün
-          genel fiyata döner. Değişiklikler tek işlemde kaydedilir ve siparişlerde hemen geçerli olur.
+          Merkez fiyatını değiştirmeden şubeye özel fiyat tanımla. İşaretini kaldırdığın ürün genel
+          fiyata döner. Değişiklikler tek işlemde kaydedilir ve siparişlerde hemen geçerli olur.
         </p>
       </div>
       <div className="form-grid">
@@ -100,79 +105,135 @@ export function BranchPriceMatrix({
             value={branchId}
             disabled={busy}
             onChange={(event) => {
-              if (changes > 0 && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?")) return;
+              if (changes > 0 && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?"))
+                return;
               setBranchId(event.target.value);
               setEdits({});
               setError("");
               setNotice("");
             }}
           >
-            {branches.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
+            {branches.map((item) => (
+              <option value={item.id} key={item.id}>
+                {item.name}
+              </option>
+            ))}
           </select>
         </label>
         <label>
           Ürün ara
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Ürün adı" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); }}
+            placeholder="Ürün adı"
+          />
         </label>
       </div>
       {!branch && <p className="notice">Önce Şubeler bölümünden bir şube ekleyin.</p>}
-      {!canWrite && <p className="notice">Fiyatları görüntüleyebilirsin. Güncellemek için yönetici yetkisi gerekir.</p>}
-      {error && <p className="error" role="alert">{error} Güncel durumu kontrol etmek için "Yenile" seçeneğini kullan.</p>}
-      {notice && <p className="success" role="status">{notice}</p>}
+      {!canWrite && (
+        <p className="notice">
+          Fiyatları görüntüleyebilirsin. Güncellemek için yönetici yetkisi gerekir.
+        </p>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error} Güncel durumu kontrol etmek için "Yenile" seçeneğini kullan.
+        </p>
+      )}
+      {notice && (
+        <p className="success" role="status">
+          {notice}
+        </p>
+      )}
       <div className="toolbar">
-        <span className="muted small">{filtered.length} ürün · {changes} bekleyen değişiklik (en fazla 100)</span>
-        <button className="secondary" type="button" disabled={busy}
+        <span className="muted small">
+          {filtered.length} ürün · {changes} bekleyen değişiklik (en fazla 100)
+        </span>
+        <button
+          className="secondary"
+          type="button"
+          disabled={busy}
           onClick={() => {
             if (changes > 0 && !window.confirm("Kaydedilmemiş değişiklikler silinsin mi?")) return;
-            void refresh().catch((cause: unknown) => setError(errorMessage(cause)));
-          }}>
+            void refresh().catch((cause: unknown) => { setError(errorMessage(cause)); });
+          }}
+        >
           Yenile
         </button>
       </div>
-      {branch && filtered.slice(0, 100).map((item) => {
-        const override = existing(item.id);
-        const general = base(item.id);
-        const value = edits[item.id] ?? {
-          enabled: override !== undefined,
-          price: ((override ?? general)?.amountMinor ?? 0) / 100 + "",
-          vat: ((override ?? general)?.vatBasisPoints ?? 0) / 100 + "",
-        };
-        return (
-          <div className="subpanel" key={item.id}>
-            <div className="section-heading">
-              <strong>{item.name}</strong>
-              <span className="muted small">Genel fiyat: {general ? money(general.amountMinor) : "Belirlenmemiş"}</span>
-            </div>
-            <label className="check-label">
-              <input type="checkbox" checked={value.enabled} disabled={!canWrite || busy}
-                onChange={(e) => edit(item.id, { ...value, enabled: e.target.checked })} />
-              Bu şubeye özel fiyat
-            </label>
-            <div className="form-grid">
-              <label>
-                Şube fiyatı (TL)
-                <input inputMode="decimal" value={value.price} disabled={!canWrite || busy || !value.enabled}
-                  onChange={(e) => edit(item.id, { ...value, price: e.target.value })} />
+      {branch &&
+        filtered.slice(0, 100).map((item) => {
+          const override = existing(item.id);
+          const general = base(item.id);
+          const value = edits[item.id] ?? {
+            enabled: override !== undefined,
+            price: ((override ?? general)?.amountMinor ?? 0) / 100 + "",
+            vat: ((override ?? general)?.vatBasisPoints ?? 0) / 100 + "",
+          };
+          return (
+            <div className="subpanel" key={item.id}>
+              <div className="section-heading">
+                <strong>{item.name}</strong>
+                <span className="muted small">
+                  Genel fiyat: {general ? money(general.amountMinor) : "Belirlenmemiş"}
+                </span>
+              </div>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={value.enabled}
+                  disabled={!canWrite || busy}
+                  onChange={(e) => { edit(item.id, { ...value, enabled: e.target.checked }); }}
+                />
+                Bu şubeye özel fiyat
               </label>
-              <label>
-                KDV (%)
-                <input inputMode="decimal" value={value.vat} disabled={!canWrite || busy || !value.enabled}
-                  onChange={(e) => edit(item.id, { ...value, vat: e.target.value })} />
-              </label>
+              <div className="form-grid">
+                <label>
+                  Şube fiyatı (TL)
+                  <input
+                    inputMode="decimal"
+                    value={value.price}
+                    disabled={!canWrite || busy || !value.enabled}
+                    onChange={(e) => { edit(item.id, { ...value, price: e.target.value }); }}
+                  />
+                </label>
+                <label>
+                  KDV (%)
+                  <input
+                    inputMode="decimal"
+                    value={value.vat}
+                    disabled={!canWrite || busy || !value.enabled}
+                    onChange={(e) => { edit(item.id, { ...value, vat: e.target.value }); }}
+                  />
+                </label>
+              </div>
             </div>
-          </div>
-        );
-      })}
-      {filtered.length > 100 && <p className="muted small">İlk 100 sonuç gösteriliyor. Diğer ürünler için arama yapın.</p>}
+          );
+        })}
+      {filtered.length > 100 && (
+        <p className="muted small">İlk 100 sonuç gösteriliyor. Diğer ürünler için arama yapın.</p>
+      )}
       {branch && canWrite && (
         <div className="form-actions">
-          <button className="primary" type="button" disabled={busy || changes === 0 || changes > 100}
-            onClick={() => { void save(); }}>
+          <button
+            className="primary"
+            type="button"
+            disabled={busy || changes === 0 || changes > 100}
+            onClick={() => {
+              void save();
+            }}
+          >
             {busy ? "Kaydediliyor…" : `${changes} değişikliği kaydet`}
           </button>
-          <button type="button" className="secondary" disabled={busy || changes === 0}
-            onClick={() => setEdits({})}>Vazgeç</button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy || changes === 0}
+            onClick={() => { setEdits({}); }}
+          >
+            Vazgeç
+          </button>
         </div>
       )}
     </section>

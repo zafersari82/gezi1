@@ -39,23 +39,51 @@ export function AppShell({
         className={pathname === "/studio" ? "nav-link active" : "nav-link"}
         aria-current={pathname === "/studio" ? "page" : undefined}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.65"
+          aria-hidden="true"
+        >
           <path d="M4 4h16v16H4z M4 11h16 M11 11v9 M8 7h3 M14 7h3" />
         </svg>
         <span>Mağaza tasarımı</span>
       </Link>
-      <Link href="/performance" className={pathname === "/performance" ? "nav-link active" : "nav-link"}
-        aria-current={pathname === "/performance" ? "page" : undefined}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true">
+      <Link
+        href="/performance"
+        className={pathname === "/performance" ? "nav-link active" : "nav-link"}
+        aria-current={pathname === "/performance" ? "page" : undefined}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.65"
+          aria-hidden="true"
+        >
           <path d="M3 20V4 M3 20h18 M7 17v-5h3v5 M12 17V9h3v8 M17 17V5h3v12" />
-        </svg><span>Performans</span>
+        </svg>
+        <span>Performans</span>
       </Link>
-      {role === "owner" && <Link href="/team" className={pathname === "/team" ? "nav-link active" : "nav-link"}
-        aria-current={pathname === "/team" ? "page" : undefined}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true">
-          <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M2 21v-2a7 7 0 0 1 14 0v2 M18 8a3 3 0 0 1 0 6 M19 16a5 5 0 0 1 3 5" />
-        </svg><span>Ekibim</span>
-      </Link>}
+      {role === "owner" && (
+        <Link
+          href="/team"
+          className={pathname === "/team" ? "nav-link active" : "nav-link"}
+          aria-current={pathname === "/team" ? "page" : undefined}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.65"
+            aria-hidden="true"
+          >
+            <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M2 21v-2a7 7 0 0 1 14 0v2 M18 8a3 3 0 0 1 0 6 M19 16a5 5 0 0 1 3 5" />
+          </svg>
+          <span>Ekibim</span>
+        </Link>
+      )}
       {blocks.map((block) => {
         const active = block.path === `${pathname}${query === "" ? "" : `?${query}`}`;
         return (

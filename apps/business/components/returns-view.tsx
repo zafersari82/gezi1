@@ -2,8 +2,8 @@
 
 import {
   type ReturnDecisionBody,
-  type ReturnRequest,
   returnDecisionBodySchema,
+  type ReturnRequest,
   returnRequestSchema,
 } from "@vado/contracts";
 import { type FormEvent, useRef, useState } from "react";
@@ -58,7 +58,9 @@ export function ReturnsView({ initial }: { initial: Page }) {
         cursor === undefined
           ? result
           : {
-              items: [...new Map([...previous.items, ...result.items].map((r) => [r.id, r])).values()],
+              items: [
+                ...new Map([...previous.items, ...result.items].map((r) => [r.id, r])).values(),
+              ],
               nextCursor: result.nextCursor,
             },
       );
@@ -79,7 +81,8 @@ export function ReturnsView({ initial }: { initial: Page }) {
     setNotice("");
     try {
       const fields = new FormData(event.currentTarget);
-      const needsReceipt = decision === "approve" && (target.kind === "refund" || target.amountMinor > 0);
+      const needsReceipt =
+        decision === "approve" && (target.kind === "refund" || target.amountMinor > 0);
       const body: ReturnDecisionBody = returnDecisionBodySchema.parse({
         expectedVersion: target.version,
         expectedOrderVersion: target.orderVersion,
@@ -122,7 +125,9 @@ export function ReturnsView({ initial }: { initial: Page }) {
         <div>
           <span className="eyebrow">Satış sonrası</span>
           <h1>İade ve iptal talepleri</h1>
-          <p className="muted">Talepleri incele, gerekçeli karar ver ve fiziksel ödeme kaydını sakla.</p>
+          <p className="muted">
+            Talepleri incele, gerekçeli karar ver ve fiziksel ödeme kaydını sakla.
+          </p>
         </div>
       </div>
       <div className="toolbar">
@@ -147,12 +152,25 @@ export function ReturnsView({ initial }: { initial: Page }) {
             </button>
           ))}
         </div>
-        <button className="secondary" type="button" disabled={loading || busy} onClick={() => void load(filter)}>
+        <button
+          className="secondary"
+          type="button"
+          disabled={loading || busy}
+          onClick={() => void load(filter)}
+        >
           Yenile
         </button>
       </div>
-      {error !== "" && <p className="error" role="alert">{error}</p>}
-      {notice !== "" && <p className="success" role="status">{notice}</p>}
+      {error !== "" && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice !== "" && (
+        <p className="success" role="status">
+          {notice}
+        </p>
+      )}
       <div className="editor-layout">
         <section className="panel">
           <div className="section-heading">
@@ -165,67 +183,153 @@ export function ReturnsView({ initial }: { initial: Page }) {
               key={item.id}
               type="button"
               disabled={busy}
-              onClick={() => { setSelected(item); setDecision("reject"); setError(""); setNotice(""); }}
+              onClick={() => {
+                setSelected(item);
+                setDecision("reject");
+                setError("");
+                setNotice("");
+              }}
             >
               <span className="record-heading">
                 <strong>#{item.orderId.slice(0, 8).toUpperCase()}</strong>
                 <span className="badge">{statusLabel[item.status]}</span>
               </span>
-              <span className="small muted">{item.kind === "cancel" ? "Sipariş iptali" : "Tutar iadesi"} · {new Date(item.createdAt).toLocaleDateString("tr-TR")}</span>
+              <span className="small muted">
+                {item.kind === "cancel" ? "Sipariş iptali" : "Tutar iadesi"} ·{" "}
+                {new Date(item.createdAt).toLocaleDateString("tr-TR")}
+              </span>
               <strong>{money(item.amountMinor)}</strong>
             </button>
           ))}
-          {loading && <p role="status" className="muted">Talepler yükleniyor…</p>}
-          {!loading && page.items.length === 0 && <p className="muted">Bu durumda talep bulunmuyor.</p>}
+          {loading && (
+            <p role="status" className="muted">
+              Talepler yükleniyor…
+            </p>
+          )}
+          {!loading && page.items.length === 0 && (
+            <p className="muted">Bu durumda talep bulunmuyor.</p>
+          )}
           {page.nextCursor !== null && (
-            <button className="secondary" disabled={loading || busy} onClick={() => void load(filter, page.nextCursor ?? undefined)}>
+            <button
+              className="secondary"
+              disabled={loading || busy}
+              onClick={() => void load(filter, page.nextCursor ?? undefined)}
+            >
               Daha fazla göster
             </button>
           )}
         </section>
         <section className="panel">
           {selected === null ? (
-            <div className="empty"><h2>Bir talep seç</h2><p>Talebin gerekçesi ve karar alanı burada açılacak.</p></div>
+            <div className="empty">
+              <h2>Bir talep seç</h2>
+              <p>Talebin gerekçesi ve karar alanı burada açılacak.</p>
+            </div>
           ) : (
             <div className="form-stack">
-              <div className="section-heading"><h2>Talep #{selected.id.slice(0, 8).toUpperCase()}</h2><span className="badge">{statusLabel[selected.status]}</span></div>
+              <div className="section-heading">
+                <h2>Talep #{selected.id.slice(0, 8).toUpperCase()}</h2>
+                <span className="badge">{statusLabel[selected.status]}</span>
+              </div>
               <dl className="record-facts">
-                <div><dt>Sipariş</dt><dd>#{selected.orderId.slice(0, 8).toUpperCase()}</dd></div>
-                <div><dt>Tür</dt><dd>{selected.kind === "cancel" ? "İptal" : "Tutar iadesi"}</dd></div>
-                <div><dt>Tutar</dt><dd>{money(selected.amountMinor)}</dd></div>
-                <div><dt>Müşteri gerekçesi</dt><dd>{selected.reason}</dd></div>
-                {selected.decisionReason !== null && <div><dt>İşletme kararı</dt><dd>{selected.decisionReason}</dd></div>}
-                {selected.receipt !== null && <div><dt>Fiziksel ödeme kaydı</dt><dd>{selected.receipt.method === "card" ? "Kart" : "Nakit"} · {selected.receipt.reference}</dd></div>}
+                <div>
+                  <dt>Sipariş</dt>
+                  <dd>#{selected.orderId.slice(0, 8).toUpperCase()}</dd>
+                </div>
+                <div>
+                  <dt>Tür</dt>
+                  <dd>{selected.kind === "cancel" ? "İptal" : "Tutar iadesi"}</dd>
+                </div>
+                <div>
+                  <dt>Tutar</dt>
+                  <dd>{money(selected.amountMinor)}</dd>
+                </div>
+                <div>
+                  <dt>Müşteri gerekçesi</dt>
+                  <dd>{selected.reason}</dd>
+                </div>
+                {selected.decisionReason !== null && (
+                  <div>
+                    <dt>İşletme kararı</dt>
+                    <dd>{selected.decisionReason}</dd>
+                  </div>
+                )}
+                {selected.receipt !== null && (
+                  <div>
+                    <dt>Fiziksel ödeme kaydı</dt>
+                    <dd>
+                      {selected.receipt.method === "card" ? "Kart" : "Nakit"} ·{" "}
+                      {selected.receipt.reference}
+                    </dd>
+                  </div>
+                )}
               </dl>
               {selected.status === "pending" && (
-                <form key={selected.id} className="form-stack" onSubmit={(event) => void decide(event)}>
+                <form
+                  key={selected.id}
+                  className="form-stack"
+                  onSubmit={(event) => void decide(event)}
+                >
                   <fieldset className="editor-fieldset form-stack" disabled={busy}>
                     <label>
                       Karar
-                      <select name="decision" required value={decision} onChange={(event) => setDecision(event.target.value === "approve" ? "approve" : "reject")}>
+                      <select
+                        name="decision"
+                        required
+                        value={decision}
+                        onChange={(event) => { setDecision(event.target.value === "approve" ? "approve" : "reject"); }
+                        }
+                      >
                         <option value="reject">Talebi reddet</option>
                         <option value="approve">Talebi onayla</option>
                       </select>
                     </label>
-                    <label>Gerekçe<textarea name="reason" minLength={3} maxLength={500} required placeholder="Kararın gerekçesini yaz" /></label>
-                    {decision === "approve" && (selected.kind === "refund" || selected.amountMinor > 0) && (
-                      <>
-                        <label>
-                          Gerçekleştirilen fiziksel iade yöntemi
-                          <select name="method" defaultValue="cash" required><option value="cash">Nakit</option><option value="card">Kart</option></select>
-                        </label>
-                        <label>
-                          İşlem referansı
-                          <input name="reference" minLength={1} maxLength={120} required placeholder="Dekont veya banka işlem referansı" />
-                        </label>
-                        <label className="check-label">
-                          <input type="checkbox" required />
-                          <span>{money(selected.amountMinor)} tutarındaki gerçek iadeyi yaptım ve referansını doğruladım.</span>
-                        </label>
-                      </>
-                    )}
-                    <p className="muted small">Onay işlemi sipariş ve muhasebe kayıtlarını değiştirir; seçimini kaydetmeden önce kontrol et.</p>
-                    <button type="submit" className="primary">Kararı kaydet</button>
+                    <label>
+                      Gerekçe
+                      <textarea
+                        name="reason"
+                        minLength={3}
+                        maxLength={500}
+                        required
+                        placeholder="Kararın gerekçesini yaz"
+                      />
+                    </label>
+                    {decision === "approve" &&
+                      (selected.kind === "refund" || selected.amountMinor > 0) && (
+                        <>
+                          <label>
+                            Gerçekleştirilen fiziksel iade yöntemi
+                            <select name="method" defaultValue="cash" required>
+                              <option value="cash">Nakit</option>
+                              <option value="card">Kart</option>
+                            </select>
+                          </label>
+                          <label>
+                            İşlem referansı
+                            <input
+                              name="reference"
+                              minLength={1}
+                              maxLength={120}
+                              required
+                              placeholder="Dekont veya banka işlem referansı"
+                            />
+                          </label>
+                          <label className="check-label">
+                            <input type="checkbox" required />
+                            <span>
+                              {money(selected.amountMinor)} tutarındaki gerçek iadeyi yaptım ve
+                              referansını doğruladım.
+                            </span>
+                          </label>
+                        </>
+                      )}
+                    <p className="muted small">
+                      Onay işlemi sipariş ve muhasebe kayıtlarını değiştirir; seçimini kaydetmeden
+                      önce kontrol et.
+                    </p>
+                    <button type="submit" className="primary">
+                      Kararı kaydet
+                    </button>
                   </fieldset>
                 </form>
               )}

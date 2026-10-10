@@ -254,14 +254,20 @@ export function OrdersView({
                 <dt>İçindeki KDV</dt>
                 <dd>{money(selected.vatMinor)}</dd>
               </dl>
-              {manageBranchIds.includes(selected.branchId) ? <OrderActions
-                key={selected.id}
-                order={selected}
-                onChanged={async (detail) => {
-                  acceptDetail(detail);
-                  await refresh();
-                }}
-              /> : <p className="muted small">Bu siparişi görüntüleyebilirsiniz; işlem yapma yetkiniz yok.</p>}
+              {manageBranchIds.includes(selected.branchId) ? (
+                <OrderActions
+                  key={selected.id}
+                  order={selected}
+                  onChanged={async (detail) => {
+                    acceptDetail(detail);
+                    await refresh();
+                  }}
+                />
+              ) : (
+                <p className="muted small">
+                  Bu siparişi görüntüleyebilirsiniz; işlem yapma yetkiniz yok.
+                </p>
+              )}
               <h3 className="history-title">İşlem geçmişi</h3>
               <ol className="history">
                 {selected.history.map((entry) => (

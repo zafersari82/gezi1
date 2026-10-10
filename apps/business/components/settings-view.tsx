@@ -5,8 +5,8 @@ import {
   type EngineCapabilityManifest,
   type InstanceCapabilities,
   instanceCapabilitiesSchema,
-  studioTemplateById,
   type StudioConfiguration,
+  studioTemplateById,
 } from "@vado/contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -60,8 +60,8 @@ export function SettingsView({
         <h2>Mağaza taslağın</h2>
         {studio === null ? (
           <p className="muted">
-            Bu işletme için henüz bir şablon seçilmemiş. İlk mağaza oluşturucu açıldığında
-            şablonunu buradan yöneteceksin.
+            Bu işletme için henüz bir şablon seçilmemiş. İlk mağaza oluşturucu açıldığında şablonunu
+            buradan yöneteceksin.
           </p>
         ) : (
           <p>
@@ -72,7 +72,9 @@ export function SettingsView({
         <p className="small muted">
           Mağaza görünümünü telefonundan düzenleyebilirsin. Taslağı kaydetmek yayınlamak değildir.
         </p>
-        <Link className="secondary" href="/studio">Mağazamı tasarla</Link>
+        <Link className="secondary" href="/studio">
+          Mağazamı tasarla
+        </Link>
       </section>
       <section className="panel settings-picker">
         <label>

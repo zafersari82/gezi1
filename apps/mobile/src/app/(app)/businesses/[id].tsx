@@ -1,5 +1,8 @@
 import {
-  businessMiniAppLaunchSchema, CATEGORY_LABELS, studioPaletteById, studioTemplateById,
+  businessMiniAppLaunchSchema,
+  CATEGORY_LABELS,
+  studioPaletteById,
+  studioTemplateById,
 } from "@vado/contracts";
 import { Image } from "expo-image";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -9,8 +12,8 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { api, errorMessage } from "@/api/client";
 import { CategoryTile } from "@/features/businesses/category-tile";
 import { useBusiness } from "@/features/businesses/queries";
-import { MiniAppIcon } from "@/features/miniapps/mini-app-icon";
 import { rememberLaunch } from "@/features/miniapps/launch-params";
+import { MiniAppIcon } from "@/features/miniapps/mini-app-icon";
 import { ReportSheet } from "@/features/reports/report-sheet";
 import { colors, radius, space } from "@/theme/tokens";
 import { AppText } from "@/ui/app-text";
@@ -32,11 +35,14 @@ export default function BusinessScreen() {
     setOpeningApp(miniAppId);
     try {
       // İşletme örneğini sunucu belirler; kabuk bu kapsamı her işlemde doğrular.
-      const context = businessMiniAppLaunchSchema.parse(await api.get<unknown>(
-        `/v1/businesses/${id}/miniapps/${encodeURIComponent(miniAppId)}/launch`,
-      ));
+      const context = businessMiniAppLaunchSchema.parse(
+        await api.get<unknown>(
+          `/v1/businesses/${id}/miniapps/${encodeURIComponent(miniAppId)}/launch`,
+        ),
+      );
       const launch = rememberLaunch(miniAppId, context, null, {
-        type: "business", businessId: context.businessId,
+        type: "business",
+        businessId: context.businessId,
       });
       router.push({ pathname: "/miniapps/[id]", params: { id: miniAppId, launch } });
     } catch (error) {
@@ -84,12 +90,14 @@ export default function BusinessScreen() {
           accessibilityLabel={`${name} kapak fotoğrafı`}
         />
       )}
-      <View style={[
-        styles.header,
-        { backgroundColor: palette?.surface ?? colors.surface },
-        layout === "editorial" && styles.editorialHeader,
-        layout === "enterprise" && styles.enterpriseHeader,
-      ]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: palette?.surface ?? colors.surface },
+          layout === "editorial" && styles.editorialHeader,
+          layout === "enterprise" && styles.enterpriseHeader,
+        ]}
+      >
         {storefront?.logoUrl != null ? (
           <Image
             source={{ uri: storefront.logoUrl }}
@@ -103,7 +111,9 @@ export default function BusinessScreen() {
         <View style={styles.headerText}>
           <AppText variant="heading">{storefront?.title ?? name}</AppText>
           {storefront !== null && storefront.title !== name && (
-            <AppText color="muted" variant="caption">{name}</AppText>
+            <AppText color="muted" variant="caption">
+              {name}
+            </AppText>
           )}
           <AppText color="muted">
             {CATEGORY_LABELS[category]}, {city}
@@ -131,7 +141,13 @@ export default function BusinessScreen() {
           leading={<MiniAppIcon miniApp={miniApp} />}
           trailing={openingApp === miniApp.id ? <ActivityIndicator color={colors.teal} /> : null}
           chevron
-          onPress={openingApp === null ? () => { void openBusinessApp(miniApp.id); } : undefined}
+          onPress={
+            openingApp === null
+              ? () => {
+                  void openBusinessApp(miniApp.id);
+                }
+              : undefined
+          }
           testID={`business-miniapp-${miniApp.id}`}
         />
       ))}

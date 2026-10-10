@@ -20,7 +20,11 @@ export async function availableBranchIds(tx: Database, scope: TenantScope): Prom
   return branches.map((branch) => branch.id);
 }
 /** Reads are scoped too; staff must not inspect unrelated branch schedules or operations. */
-export async function requireBranchOperator(tx: Database, scope: TenantScope, branchId: string): Promise<void> {
+export async function requireBranchOperator(
+  tx: Database,
+  scope: TenantScope,
+  branchId: string,
+): Promise<void> {
   if (scope.role === "owner" || scope.role === "manager") return;
   if (scope.role !== "staff") throw new AppError("forbidden");
   const direct = await tx.maybeOne(sql`

@@ -90,7 +90,8 @@ export function catalogRoutes(server: FastifyInstance, { services, guard }: Rout
     const { businessId, id } = parse(businessRecordParamsSchema, request.params);
     return catalog.setItemImage(
       await businessManagement.authorise(userId, businessId),
-      id, parse(studioItemImageBodySchema, request.body),
+      id,
+      parse(studioItemImageBodySchema, request.body),
     );
   });
   server.put("/v1/business/:businessId/catalog/branch-prices", async (request) => {

@@ -6,7 +6,9 @@ import { getBusinessContext } from "../../../lib/context";
 
 export default async function PerformancePage() {
   const { membership } = await getBusinessContext();
-  const initial = await apiGet(branchPerformanceSchema,
-    `/v1/business/${membership.businessId}/orders/performance?days=30`);
+  const initial = await apiGet(
+    branchPerformanceSchema,
+    `/v1/business/${membership.businessId}/orders/performance?days=30`,
+  );
   return <PerformanceView key={membership.businessId} initial={initial} />;
 }

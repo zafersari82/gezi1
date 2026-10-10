@@ -12,13 +12,21 @@ import { call, errorMessage } from "../lib/client";
 import { formText, minutesFromTime, timeFromMinutes } from "../lib/values";
 import { BranchAvailabilityGrants } from "./branch-availability-grants";
 import { BranchLocationFields } from "./branch-location-fields";
+import { BranchOrderingView } from "./branch-ordering-view";
 import { BusinessRegionsView } from "./business-regions-view";
 import { OrderAccessGrants } from "./order-access-grants";
-import { BranchOrderingView } from "./branch-ordering-view";
 type Hours = z.infer<typeof branchHoursBodySchema>;
 type Mutation = (run: () => Promise<void>) => Promise<void>;
 const weekdays = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
-export function BranchesView({ initial, canWrite, canDelegate }: { initial: Branch[]; canWrite: boolean; canDelegate: boolean }) {
+export function BranchesView({
+  initial,
+  canWrite,
+  canDelegate,
+}: {
+  initial: Branch[];
+  canWrite: boolean;
+  canDelegate: boolean;
+}) {
   const [branches, setBranches] = useState(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const hoursRequest = useRef(0);
@@ -154,7 +162,10 @@ export function BranchesView({ initial, canWrite, canDelegate }: { initial: Bran
                 Adres
                 <textarea name="address" maxLength={500} defaultValue={branch?.address} />
               </label>
-              <BranchLocationFields provinceId={branch?.provinceId ?? null} districtId={branch?.districtId ?? null} />
+              <BranchLocationFields
+                provinceId={branch?.provinceId ?? null}
+                districtId={branch?.districtId ?? null}
+              />
               <label>
                 Saat dilimi
                 <input
@@ -184,7 +195,9 @@ export function BranchesView({ initial, canWrite, canDelegate }: { initial: Bran
           {branch && (
             <BranchOrderingView key={branch.id} branchId={branch.id} canWrite={canWrite} />
           )}
-          {branch && canDelegate && <BranchAvailabilityGrants key={branch.id} branchId={branch.id} />}
+          {branch && canDelegate && (
+            <BranchAvailabilityGrants key={branch.id} branchId={branch.id} />
+          )}
           {branch && canDelegate && <OrderAccessGrants kind="branch" targetId={branch.id} />}
         </section>
       </div>

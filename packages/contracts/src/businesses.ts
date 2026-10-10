@@ -50,11 +50,12 @@ export const businessMiniAppLaunchSchema = z.object({
 export type BusinessMiniAppLaunch = z.infer<typeof businessMiniAppLaunchSchema>;
 
 /** Açılış isteğinin kayıt ve işletme kimlikleri; örnek ID'si sunucudan gelir. */
-export const businessMiniAppLaunchParamsSchema = z.object({
-  businessId: idSchema,
-  miniAppId: miniAppIdSchema,
-}).strict();
-
+export const businessMiniAppLaunchParamsSchema = z
+  .object({
+    businessId: idSchema,
+    miniAppId: miniAppIdSchema,
+  })
+  .strict();
 
 export const businessListQuerySchema = z.object({
   category: categorySchema.optional(),

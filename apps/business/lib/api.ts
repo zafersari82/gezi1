@@ -72,15 +72,17 @@ export async function apiGet<Schema extends z.ZodType>(
 /** İkili görselin gövdesi yeniden JSON'a çevrilmeden API'ye aktarılır. */
 export async function apiUpload(path: string, form: FormData): Promise<Response> {
   const token = await sessionToken();
-  if (token === null)
-    throw new BusinessApiError(401, "unauthorized", "VADO hesabınla giriş yap.");
+  if (token === null) throw new BusinessApiError(401, "unauthorized", "VADO hesabınla giriş yap.");
   let response: Response;
   try {
     response = await fetch(
       `${(process.env.VADO_API_INTERNAL_URL ?? "http://127.0.0.1:4000").replace(/\/+$/, "")}${path}`,
       {
-        method: "POST", cache: "no-store", signal: AbortSignal.timeout(30_000),
-        headers: { authorization: `Bearer ${token}` }, body: form,
+        method: "POST",
+        cache: "no-store",
+        signal: AbortSignal.timeout(30_000),
+        headers: { authorization: `Bearer ${token}` },
+        body: form,
       },
     );
   } catch {
@@ -89,8 +91,11 @@ export async function apiUpload(path: string, form: FormData): Promise<Response>
   if (!response.ok) {
     const parsed = apiErrorBodySchema.safeParse(await response.json().catch(() => null));
     const code = parsed.success ? parsed.data.error.code : "internal_error";
-    throw new BusinessApiError(response.status, code,
-      isErrorCode(code) ? ERROR_MESSAGES[code] : "Görsel yüklenemedi.");
+    throw new BusinessApiError(
+      response.status,
+      code,
+      isErrorCode(code) ? ERROR_MESSAGES[code] : "Görsel yüklenemedi.",
+    );
   }
   return response;
 }

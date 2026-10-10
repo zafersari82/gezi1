@@ -3,8 +3,8 @@ import {
   type BusinessDetail,
   type Category,
   type CreateBusinessBody,
-  type PublishStudioBody,
   publicStorefrontSchema,
+  type PublishStudioBody,
   type SaveStudioBody,
   type StudioConfiguration,
   type StudioDesign,
@@ -131,15 +131,16 @@ export function createBusinessService({ config, db, storage }: AppContext) {
   }
   const STUDIO_COLUMNS = sql`template_id, status, title, tagline, palette, version, updated_at,
     published_design, published_version, published_at, logo_media_id, cover_media_id`;
-  async function studioMediaUrls(tx: Database,
-    logoId: string | null, coverId: string | null,
-  ) {
+  async function studioMediaUrls(tx: Database, logoId: string | null, coverId: string | null) {
     const ids = [logoId, coverId].filter((id): id is string => id !== null);
-    const entries = ids.length === 0 ? [] : await tx.many<{ id: string; storage_key: string }>(sql`
+    const entries =
+      ids.length === 0
+        ? []
+        : await tx.many<{ id: string; storage_key: string }>(sql`
       select id, storage_key from media where id = any(${ids}::uuid[])
     `);
-    const url = (id: string | null) => id === null ? null :
-      (entries.find((entry) => entry.id === id)?.storage_key ?? null);
+    const url = (id: string | null) =>
+      id === null ? null : (entries.find((entry) => entry.id === id)?.storage_key ?? null);
     const logoKey = url(logoId);
     const coverKey = url(coverId);
     return {
@@ -147,20 +148,38 @@ export function createBusinessService({ config, db, storage }: AppContext) {
       coverUrl: coverKey === null ? null : storage.publicUrl(coverKey),
     };
   }
-  async function studioView(tx: Database,
-    row: StudioRow | null, businessName: string) {
-    const published = row?.published_design == null ? null : studioDesignSchema.parse(row.published_design);
-    const draftMedia = await studioMediaUrls(tx, row?.logo_media_id ?? null, row?.cover_media_id ?? null);
-    const publishedMedia = published === null ? null : await studioMediaUrls(tx, published.logoMediaId, published.coverMediaId);
+  async function studioView(tx: Database, row: StudioRow | null, businessName: string) {
+    const published =
+      row?.published_design == null ? null : studioDesignSchema.parse(row.published_design);
+    const draftMedia = await studioMediaUrls(
+      tx,
+      row?.logo_media_id ?? null,
+      row?.cover_media_id ?? null,
+    );
+    const publishedMedia =
+      published === null
+        ? null
+        : await studioMediaUrls(tx, published.logoMediaId, published.coverMediaId);
     return {
-      configuration: row === null ? null : {
-        templateId: row.template_id, status: row.status, title: row.title || businessName,
-        tagline: row.tagline, palette: row.palette, version: row.version,
-        updatedAt: row.updated_at.toISOString(),
-        logoMediaId: row.logo_media_id, coverMediaId: row.cover_media_id,
-        ...draftMedia,
-      } satisfies StudioConfiguration,
-      published: published === null ? null : studioStorefrontSchema.parse({ ...published, ...publishedMedia }),
+      configuration:
+        row === null
+          ? null
+          : ({
+              templateId: row.template_id,
+              status: row.status,
+              title: row.title || businessName,
+              tagline: row.tagline,
+              palette: row.palette,
+              version: row.version,
+              updatedAt: row.updated_at.toISOString(),
+              logoMediaId: row.logo_media_id,
+              coverMediaId: row.cover_media_id,
+              ...draftMedia,
+            } satisfies StudioConfiguration),
+      published:
+        published === null
+          ? null
+          : studioStorefrontSchema.parse({ ...published, ...publishedMedia }),
       publishedVersion: row?.published_version ?? 0,
       publishedAt: row?.published_at?.toISOString() ?? null,
     };
@@ -180,7 +199,7 @@ export function createBusinessService({ config, db, storage }: AppContext) {
       return {
         businessName: business.name,
         category: business.category,
-        ...await studioView(tx, row, business.name),
+        ...(await studioView(tx, row, business.name)),
       };
     });
   }
@@ -195,8 +214,9 @@ export function createBusinessService({ config, db, storage }: AppContext) {
         `);
         if (studioTemplateById(body.templateId).category !== business.category)
           throw new AppError("validation_failed");
-        const requestedMedia = [body.logoMediaId, body.coverMediaId]
-          .filter((id): id is string => id !== null);
+        const requestedMedia = [body.logoMediaId, body.coverMediaId].filter(
+          (id): id is string => id !== null,
+        );
         if (requestedMedia.length > 0) {
           const existing = await tx.one<{ count: number }>(sql`
             select count(*)::int as count from business_media
@@ -238,7 +258,7 @@ export function createBusinessService({ config, db, storage }: AppContext) {
         return {
           businessName: business.name,
           category: business.category,
-          ...await studioView(tx, row, business.name),
+          ...(await studioView(tx, row, business.name)),
         };
       });
     } catch (error) {
@@ -287,7 +307,7 @@ export function createBusinessService({ config, db, storage }: AppContext) {
       return {
         businessName: business.name,
         category: business.category,
-        ...await studioView(tx, row, business.name),
+        ...(await studioView(tx, row, business.name)),
       };
     });
   }

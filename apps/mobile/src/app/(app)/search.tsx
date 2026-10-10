@@ -1,12 +1,18 @@
-import { CATEGORIES, categorySchema, type Category, type DiscoveryItem, type DiscoveryPage } from "@vado/contracts";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  CATEGORIES,
+  type Category,
+  categorySchema,
+  type DiscoveryItem,
+  type DiscoveryPage,
+} from "@vado/contracts";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
 import { api } from "@/api/client";
-import { discoveryItemKey, DiscoveryResultRow } from "@/features/discovery/discovery-result-row";
 import { useDiscoveryLocation } from "@/features/discovery/discovery-location";
+import { discoveryItemKey, DiscoveryResultRow } from "@/features/discovery/discovery-result-row";
 import { type DiscoveryKind } from "@/features/discovery/search";
 import { colors, space } from "@/theme/tokens";
 import { AppText } from "@/ui/app-text";
@@ -33,24 +39,38 @@ export default function SearchScreen() {
   const [kind, setKind] = useState<DiscoveryKind>(() => searchKind(params.kind));
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => { setDebouncedQuery(query.trim()); }, 300);
+    return () => { clearTimeout(timer); };
   }, [query]);
 
   const search = useInfiniteQuery({
-    queryKey: ["discovery", "search", debouncedQuery, kind, category, location?.provinceId, location?.districtId],
+    queryKey: [
+      "discovery",
+      "search",
+      debouncedQuery,
+      kind,
+      category,
+      location?.provinceId,
+      location?.districtId,
+    ],
     enabled: !locationPending,
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => api.get<DiscoveryPage>("/v1/discovery/search", {
-      q: debouncedQuery, kind, category: category ?? undefined, limit: 20,
-      cursor: pageParam,
-      provinceId: kind === "miniapp" ? undefined : location?.provinceId,
-      districtId: kind === "miniapp" ? undefined : location?.districtId,
-    }),
+    queryFn: ({ pageParam }) =>
+      api.get<DiscoveryPage>("/v1/discovery/search", {
+        q: debouncedQuery,
+        kind,
+        category: category ?? undefined,
+        limit: 20,
+        cursor: pageParam,
+        provinceId: kind === "miniapp" ? undefined : location?.provinceId,
+        districtId: kind === "miniapp" ? undefined : location?.districtId,
+      }),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
   const updating = query.trim() !== debouncedQuery;
-  const items: DiscoveryItem[] = updating ? [] : (search.data?.pages.flatMap((page) => page.items) ?? []);
+  const items: DiscoveryItem[] = updating
+    ? []
+    : (search.data?.pages.flatMap((page) => page.items) ?? []);
 
   return (
     <FlatList
@@ -62,47 +82,96 @@ export default function SearchScreen() {
       ListHeaderComponent={
         <View>
           <AppText color="muted" variant="caption" style={styles.hint}>
-            {location === null ? "Tüm Türkiye" : `${location.provinceName}${location.districtName ? ` / ${location.districtName}` : ""}`} · Mini uygulamalar ülke genelinde gösterilir.
+            {location === null
+              ? "Tüm Türkiye"
+              : `${location.provinceName}${location.districtName ? ` / ${location.districtName}` : ""}`}{" "}
+            · Mini uygulamalar ülke genelinde gösterilir.
           </AppText>
-          <SearchField value={query} onChangeText={setQuery} placeholder="İşletme, hizmet veya uygulama ara" />
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder="İşletme, hizmet veya uygulama ara"
+          />
           <View style={styles.kindFilters}>
-            <Chip label="Tümü" selected={kind === "all"} onPress={() => setKind("all")} />
-            <Chip label="İşletmeler" selected={kind === "business"} onPress={() => setKind("business")} />
-            <Chip label="Mini uygulamalar" selected={kind === "miniapp"} onPress={() => setKind("miniapp")} />
+            <Chip label="Tümü" selected={kind === "all"} onPress={() => { setKind("all"); }} />
+            <Chip
+              label="İşletmeler"
+              selected={kind === "business"}
+              onPress={() => { setKind("business"); }}
+            />
+            <Chip
+              label="Mini uygulamalar"
+              selected={kind === "miniapp"}
+              onPress={() => { setKind("miniapp"); }}
+            />
           </View>
           <CategoryFilter available={[...CATEGORIES]} selected={category} onChange={setCategory} />
           <AppText color="muted" variant="caption" style={styles.hint}>
-            {updating || search.isPending ? "Aranıyor…" : `${items.length} sonuç gösteriliyor${search.hasNextPage ? " · Daha fazlası var" : ""}`}
+            {updating || search.isPending
+              ? "Aranıyor…"
+              : `${items.length} sonuç gösteriliyor${search.hasNextPage ? " · Daha fazlası var" : ""}`}
           </AppText>
         </View>
       }
       renderItem={({ item }) => <DiscoveryResultRow item={item} />}
       ListEmptyComponent={
         <View style={styles.state}>
-          {(updating || search.isPending) ? <ActivityIndicator color={colors.teal} /> :
-            search.isError ? (
-              <EmptyState icon="cloud-offline-outline" title="Arama yapılamadı"
-                message="İnternet bağlantını kontrol edip yeniden dene."
-                actionLabel="Tekrar dene" onAction={() => { void search.refetch(); }} />
-            ) : (
-              <EmptyState icon="search-outline" title="Sonuç bulunamadı"
-                message="Arama ifadesini kısalt veya kategori süzgecini kaldır." />
-            )}
+          {updating || search.isPending ? (
+            <ActivityIndicator color={colors.teal} />
+          ) : search.isError ? (
+            <EmptyState
+              icon="cloud-offline-outline"
+              title="Arama yapılamadı"
+              message="İnternet bağlantını kontrol edip yeniden dene."
+              actionLabel="Tekrar dene"
+              onAction={() => {
+                void search.refetch();
+              }}
+            />
+          ) : (
+            <EmptyState
+              icon="search-outline"
+              title="Sonuç bulunamadı"
+              message="Arama ifadesini kısalt veya kategori süzgecini kaldır."
+            />
+          )}
         </View>
       }
-      ListFooterComponent={items.length > 0 ? (
-        <View style={styles.footer}>
-          {search.isFetchNextPageError ? (
-            <Button label="Devamını yeniden dene" variant="secondary" size="small"
-              onPress={() => { void search.fetchNextPage(); }} />
-          ) : search.hasNextPage ? (
-            <Button label="Daha fazla göster" variant="secondary" size="small"
-              loading={search.isFetchingNextPage} onPress={() => { void search.fetchNextPage(); }} />
-          ) : null}
-        </View>
-      ) : null}
-      refreshControl={<RefreshControl refreshing={search.isRefetching && !search.isFetchingNextPage}
-        onRefresh={() => { void search.refetch(); }} tintColor={colors.teal} />}
+      ListFooterComponent={
+        items.length > 0 ? (
+          <View style={styles.footer}>
+            {search.isFetchNextPageError ? (
+              <Button
+                label="Devamını yeniden dene"
+                variant="secondary"
+                size="small"
+                onPress={() => {
+                  void search.fetchNextPage();
+                }}
+              />
+            ) : search.hasNextPage ? (
+              <Button
+                label="Daha fazla göster"
+                variant="secondary"
+                size="small"
+                loading={search.isFetchingNextPage}
+                onPress={() => {
+                  void search.fetchNextPage();
+                }}
+              />
+            ) : null}
+          </View>
+        ) : null
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={search.isRefetching && !search.isFetchingNextPage}
+          onRefresh={() => {
+            void search.refetch();
+          }}
+          tintColor={colors.teal}
+        />
+      }
     />
   );
 }
@@ -110,7 +179,13 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   content: { flexGrow: 1, paddingBottom: space.lg },
-  kindFilters: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.md },
+  kindFilters: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
+  },
   hint: { paddingHorizontal: space.lg, paddingVertical: space.sm },
   state: { minHeight: 220, justifyContent: "center" },
   footer: { padding: space.lg, alignItems: "center" },

@@ -42,7 +42,17 @@ export const businessBlockSchema = z
   .object({
     id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
     title: z.string().min(1).max(80),
-    view: z.enum(["orders", "catalog", "branches", "settings", "kitchen", "tables", "devices", "reviews", "returns"]),
+    view: z.enum([
+      "orders",
+      "catalog",
+      "branches",
+      "settings",
+      "kitchen",
+      "tables",
+      "devices",
+      "reviews",
+      "returns",
+    ]),
     path: z.string().regex(/^\/[a-z][a-z0-9/-]*(?:\?[a-z][a-z0-9_=.-]*)?$/),
     states: z.array(orderStateSchema).default([]),
     titleConfigKey: z.string().optional(),

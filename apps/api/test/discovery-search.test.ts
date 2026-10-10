@@ -4,7 +4,10 @@ import { discoveryPageSchema, discoveryQuerySchema } from "@vado/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { sql } from "../src/core/database";
-import { decodeDiscoveryCursor, encodeDiscoveryCursor } from "../src/modules/discovery/discovery-cursor";
+import {
+  decodeDiscoveryCursor,
+  encodeDiscoveryCursor,
+} from "../src/modules/discovery/discovery-cursor";
 import { as, createUser, startTestApp, type TestApp } from "./support/harness";
 import { publishSample } from "./support/packages";
 
@@ -12,7 +15,12 @@ const base = { q: "IŞIK pilav", kind: "all" as const, limit: 20 };
 
 describe("VADO Search sayfalama imleci", () => {
   it("sıralama ve arama bağlamına özgüdür", () => {
-    const cursor = encodeDiscoveryCursor(base, { score: 2, nameKey: "isik pilav", kind: "business", recordId: randomUUID() });
+    const cursor = encodeDiscoveryCursor(base, {
+      score: 2,
+      nameKey: "isik pilav",
+      kind: "business",
+      recordId: randomUUID(),
+    });
     expect(decodeDiscoveryCursor({ ...base, cursor })?.score).toBe(2);
     expect(() => decodeDiscoveryCursor({ ...base, q: "başka", cursor })).toThrow();
     expect(() => decodeDiscoveryCursor({ ...base, kind: "miniapp", cursor })).toThrow();
@@ -40,7 +48,10 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
   beforeAll(async () => {
     app = await startTestApp();
     token = await createUser(app, "Keşif müşterisi");
-    const entries = Array.from({ length: 205 }, (_, index) => `${prefix} Pilav ${String(index).padStart(2, "0")}`);
+    const entries = Array.from(
+      { length: 205 },
+      (_, index) => `${prefix} Pilav ${String(index).padStart(2, "0")}`,
+    );
     await app.db.transaction(async (tx) => {
       for (const [index, name] of entries.entries()) {
         await tx.execute(sql`
@@ -55,11 +66,17 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
     });
     const release = await publishSample(app);
     miniAppId = release.miniApp.id;
-    await app.db.execute(sql`update mini_apps set name = ${`${prefix} Uygulama`} where id = ${miniAppId}`);
+    await app.db.execute(
+      sql`update mini_apps set name = ${`${prefix} Uygulama`} where id = ${miniAppId}`,
+    );
     // Aynı şehirdeki iki ayrı ilçeyi ayırır; serbest adres metni yerel sonuç sayılmaz.
     await app.platformDb.transaction(async (tx) => {
-      await tx.execute(sql`insert into location_countries(code,name) values('TR','Türkiye') on conflict(code) do nothing`);
-      const country = await tx.one<{ id: string }>(sql`select id from location_countries where code='TR'`);
+      await tx.execute(
+        sql`insert into location_countries(code,name) values('TR','Türkiye') on conflict(code) do nothing`,
+      );
+      const country = await tx.one<{ id: string }>(
+        sql`select id from location_countries where code='TR'`,
+      );
       await tx.execute(sql`insert into location_provinces(id,country_id,source_id,name,full_official_name)
         values(${nearbyProvinceId},${country.id},${2_100_000 + Math.floor(Math.random() * 200_000)},'İstanbul','İstanbul')`);
       await tx.execute(sql`insert into location_districts(id,province_id,source_id,name,full_official_name)
@@ -68,7 +85,7 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
         values(${distantDistrictId},${nearbyProvinceId},${2_500_000 + Math.floor(Math.random() * 200_000)},'Uzak İlçe','Uzak İlçe')`);
     });
     const sample = await app.db.many<{ id: string }>(sql`
-      select id from businesses where name like ${prefix + ' Pilav %'} order by name limit 2
+      select id from businesses where name like ${prefix + " Pilav %"} order by name limit 2
     `);
     for (const [i, value] of sample.entries()) {
       await app.db.transaction(async (tx) => {
@@ -78,12 +95,22 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
       });
     }
   });
-  afterAll(async () => { await app.stop(); });
+  afterAll(async () => {
+    await app.stop();
+  });
 
   it("Keşfet ana ekranı için işletme ve mini uygulama önizlemeleri ayrı, sınırlı sayfalardır", async () => {
     const client = as(app, token);
-    const businesses = await client.ok(discoveryPageSchema, "GET", "/v1/discovery/search?kind=business&limit=6");
-    const miniApps = await client.ok(discoveryPageSchema, "GET", "/v1/discovery/search?kind=miniapp&limit=6");
+    const businesses = await client.ok(
+      discoveryPageSchema,
+      "GET",
+      "/v1/discovery/search?kind=business&limit=6",
+    );
+    const miniApps = await client.ok(
+      discoveryPageSchema,
+      "GET",
+      "/v1/discovery/search?kind=miniapp&limit=6",
+    );
     expect(businesses.items.length).toBeLessThanOrEqual(6);
     expect(miniApps.items.length).toBeLessThanOrEqual(6);
     expect(businesses.items.every((item) => item.kind === "business")).toBe(true);
@@ -95,9 +122,14 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
     const url = `/v1/discovery/search?q=${prefix}&provinceId=${nearbyProvinceId}&districtId=${nearbyDistrictId}`;
     const page = await client.ok(discoveryPageSchema, "GET", url);
     expect(page.items.filter((item) => item.kind === "business")).toHaveLength(1);
-    expect(page.items.some((item) => item.kind === "miniapp" && item.miniApp.id === miniAppId)).toBe(true);
-    await client.fail("validation_failed", "GET",
-      `/v1/discovery/search?districtId=${nearbyDistrictId}`);
+    expect(
+      page.items.some((item) => item.kind === "miniapp" && item.miniApp.id === miniAppId),
+    ).toBe(true);
+    await client.fail(
+      "validation_failed",
+      "GET",
+      `/v1/discovery/search?districtId=${nearbyDistrictId}`,
+    );
   });
 
   it("200 kayıt üstüne çıkabilen birleşik anahtar sayfalama yapar ve gizli kayıtları göstermez", async () => {
@@ -108,7 +140,11 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
     do {
       const url = `/v1/discovery/search?q=${prefix}&limit=40${cursor === null ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;
       const page = await client.ok(discoveryPageSchema, "GET", url);
-      ids.push(...page.items.map((item) => item.kind === "business" ? item.business.id : item.miniApp.id));
+      ids.push(
+        ...page.items.map((item) =>
+          item.kind === "business" ? item.business.id : item.miniApp.id,
+        ),
+      );
       cursor = page.nextCursor;
       loops += 1;
       expect(loops).toBeLessThan(10);
@@ -116,15 +152,29 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
     expect(ids).toHaveLength(206);
     expect(new Set(ids).size).toBe(206);
     expect(ids).toContain(miniAppId);
-    const filtered = await client.ok(discoveryPageSchema, "GET", `/v1/discovery/search?q=${prefix}&kind=miniapp`);
+    const filtered = await client.ok(
+      discoveryPageSchema,
+      "GET",
+      `/v1/discovery/search?q=${prefix}&kind=miniapp`,
+    );
     expect(filtered.items).toHaveLength(1);
     expect(filtered.items[0]?.kind).toBe("miniapp");
-    const wrongCategory = await client.ok(discoveryPageSchema, "GET",
-      `/v1/discovery/search?q=${prefix}&category=health`);
+    const wrongCategory = await client.ok(
+      discoveryPageSchema,
+      "GET",
+      `/v1/discovery/search?q=${prefix}&category=health`,
+    );
     expect(wrongCategory.items).toHaveLength(0);
-    const literalWildcard = await client.ok(discoveryPageSchema, "GET",
-      `/v1/discovery/search?q=${prefix}%25`);
+    const literalWildcard = await client.ok(
+      discoveryPageSchema,
+      "GET",
+      `/v1/discovery/search?q=${prefix}%25`,
+    );
     expect(literalWildcard.items).toHaveLength(0);
-    await client.fail("validation_failed", "GET", `/v1/discovery/search?q=wrong&cursor=${encodeURIComponent(encodeDiscoveryCursor({ q: prefix, kind: "all", limit: 20 }, { score: 0, nameKey: "a", kind: "business", recordId: randomUUID() }))}`);
+    await client.fail(
+      "validation_failed",
+      "GET",
+      `/v1/discovery/search?q=wrong&cursor=${encodeURIComponent(encodeDiscoveryCursor({ q: prefix, kind: "all", limit: 20 }, { score: 0, nameKey: "a", kind: "business", recordId: randomUUID() }))}`,
+    );
   });
 });

@@ -10,12 +10,12 @@ import { createBusinessHostBinding } from "./business-host-binding";
 import type { MiniAppTransport } from "./host-transport";
 
 export type FeedbackHost = {
-  [Method in Extract<
-    keyof BridgeParams,
-    `feedback.${string}`
-  > as Method extends `feedback.${infer Name}` ? Name : never]: (
-    params: BridgeParams[Method],
-  ) => Promise<BridgeResults[Method]>;
+  [
+    Method in Extract<
+      keyof BridgeParams,
+      `feedback.${string}`
+    > as Method extends `feedback.${infer Name}` ? Name : never
+  ]: (params: BridgeParams[Method]) => Promise<BridgeResults[Method]>;
 };
 
 /** Değerlendirme ve favori işlemlerinde işletme kimliğini yalnızca kabuk belirler. */

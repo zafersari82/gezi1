@@ -38,11 +38,14 @@ describe("VADO Business Studio mağaza taslağı", () => {
     );
     expect(read).toMatchObject({ businessName: "Ustanın Pilavı", category: "food" });
     expect(read.configuration).toMatchObject({
-      templateId: "food-fast", status: "draft", version: 1, title: "Ustanın Pilavı",
+      templateId: "food-fast",
+      status: "draft",
+      version: 1,
+      title: "Ustanın Pilavı",
     });
-    expect(
-      await as(app, stranger).request("GET", `/v1/business/${id}/studio`),
-    ).toMatchObject({ status: 403 });
+    expect(await as(app, stranger).request("GET", `/v1/business/${id}/studio`)).toMatchObject({
+      status: 403,
+    });
     const scope = await app.services.businessManagement.authorise(owner.id, id);
     expect(
       await withTenant(app.db, scope, (tx) =>
@@ -57,22 +60,46 @@ describe("VADO Business Studio mağaza taslağı", () => {
     const staff = await createUser(app, "Taslak personeli");
     const stranger = await createUser(app, "Taslak yabancısı");
     const business = await as(app, owner).request("POST", "/v1/businesses", {
-      body: { name: "Güncel Pilav", slug: `design-${randomUUID()}`, category: "food", city: "İzmir" },
+      body: {
+        name: "Güncel Pilav",
+        slug: `design-${randomUUID()}`,
+        category: "food",
+        city: "İzmir",
+      },
     });
     expect(business.status).toBe(200);
     const id = (business.body as { id: string }).id;
-    const initial = { templateId: "food-fast", title: "Güncel Pilav", tagline: "Sıcak servis", palette: "forest", expectedVersion: 0 };
+    const initial = {
+      templateId: "food-fast",
+      title: "Güncel Pilav",
+      tagline: "Sıcak servis",
+      palette: "forest",
+      expectedVersion: 0,
+    };
     const created = await as(app, owner).ok(
-      studioConfigurationResponseSchema, "PUT", `/v1/business/${id}/studio`, { body: initial },
+      studioConfigurationResponseSchema,
+      "PUT",
+      `/v1/business/${id}/studio`,
+      { body: initial },
     );
     expect(created.configuration).toMatchObject({
-      title: "Güncel Pilav", tagline: "Sıcak servis", palette: "forest", version: 1, status: "draft",
+      title: "Güncel Pilav",
+      tagline: "Sıcak servis",
+      palette: "forest",
+      version: 1,
+      status: "draft",
     });
     const updated = await as(app, owner).ok(
-      studioConfigurationResponseSchema, "PUT", `/v1/business/${id}/studio`,
+      studioConfigurationResponseSchema,
+      "PUT",
+      `/v1/business/${id}/studio`,
       { body: { ...initial, templateId: "food-premium", title: "Pilav Evi", expectedVersion: 1 } },
     );
-    expect(updated.configuration).toMatchObject({ templateId: "food-premium", version: 2, status: "draft" });
+    expect(updated.configuration).toMatchObject({
+      templateId: "food-premium",
+      version: 2,
+      status: "draft",
+    });
     await as(app, owner).fail("record_version_conflict", "PUT", `/v1/business/${id}/studio`, {
       body: { ...initial, title: "Eski telefondaki taslak", expectedVersion: 1 },
     });
@@ -81,7 +108,9 @@ describe("VADO Business Studio mağaza taslağı", () => {
     });
     const scopeForRoles = await app.services.businessManagement.authorise(owner.id, id);
     await app.services.businessManagement.setMember(scopeForRoles, {
-      userId: staff.id, role: "staff", active: true,
+      userId: staff.id,
+      role: "staff",
+      active: true,
     });
     await as(app, staff).fail("forbidden", "PUT", `/v1/business/${id}/studio`, {
       body: { ...initial, expectedVersion: 2 },
@@ -90,14 +119,22 @@ describe("VADO Business Studio mağaza taslağı", () => {
       body: { ...initial, expectedVersion: 2 },
     });
     const read = await as(app, owner).ok(
-      studioConfigurationResponseSchema, "GET", `/v1/business/${id}/studio`,
+      studioConfigurationResponseSchema,
+      "GET",
+      `/v1/business/${id}/studio`,
     );
     expect(read.configuration).toMatchObject({ title: "Pilav Evi", version: 2 });
     const scope = await app.services.businessManagement.authorise(owner.id, id);
-    expect(await withTenant(app.db, scope, (tx) => tx.many(sql`
+    expect(
+      await withTenant(app.db, scope, (tx) =>
+        tx.many(sql`
       select * from business_studio where business_id=${id} and title='Pilav Evi'
-    `))).toHaveLength(1);
-    expect(await app.db.many(sql`select * from business_studio where business_id=${id}`)).toEqual([]);
+    `),
+      ),
+    ).toHaveLength(1);
+    expect(await app.db.many(sql`select * from business_studio where business_id=${id}`)).toEqual(
+      [],
+    );
   });
 
   it("farklı sektörün şablonunu veritabanına kaydetmeden reddeder", async () => {

@@ -71,7 +71,13 @@ export function useBusinessLive(
           await refresh();
           initial = false;
           if (!isDisposed())
-            setStatus(pollOnly ? "Güvenli yenileme" : socket?.connected ? "Canlı" : "Soket kesildi · olaylar eşitleniyor");
+            setStatus(
+              pollOnly
+                ? "Güvenli yenileme"
+                : socket?.connected
+                  ? "Canlı"
+                  : "Soket kesildi · olaylar eşitleniyor",
+            );
         } while (needsSync() && !isDisposed());
       } catch (cause) {
         if (!isDisposed() && !denied(cause)) setStatus("Bağlantı kesildi · yeniden deneniyor");
