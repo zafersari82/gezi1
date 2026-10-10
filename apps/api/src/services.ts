@@ -14,7 +14,11 @@ import { createBusinessManagementService } from "./modules/business-management/b
 import { createBusinessSocketService } from "./modules/business-management/business-socket.service";
 import { createKitchenDeviceService } from "./modules/business-management/kitchen-devices.service";
 import { createBusinessService } from "./modules/businesses/businesses.service";
-import { permitOrderTransition } from "./modules/capabilities/capabilities.registry";
+import {
+  deviceMaySetStatus,
+  orderDecisionRequired,
+  permitOrderTransition,
+} from "./modules/capabilities/capabilities.registry";
 import { createCapabilityService } from "./modules/capabilities/capabilities.service";
 import { createCatalogService } from "./modules/catalog/catalog.service";
 import { createChatService } from "./modules/chat/chat.service";
@@ -74,7 +78,11 @@ export function createServices(context: AppContext) {
   const ordering = createOrderingService(
     context,
     catalog,
-    permitOrderTransition,
+    {
+      permitTransition: permitOrderTransition,
+      deviceMaySetStatus,
+      decisionRequired: orderDecisionRequired,
+    },
     createFulfilmentValidator([deliveryFulfilmentPolicy, restaurantFulfilmentPolicy]),
     orderingLifecycle,
     incentives.pricing,

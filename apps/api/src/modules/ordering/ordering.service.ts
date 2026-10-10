@@ -116,7 +116,7 @@ function memberOrders(
   scope: TenantScope,
   permission: "orders.view" | "orders.manage",
 ): SqlFragment {
-  if (scope.role === "customer" || scope.role === "kitchen") return sql.empty;
+  if (scope.role === "customer" || scope.role === "device") return sql.empty;
   return permittedBranch(scope, permission, sql`orders.branch_id`);
 }
 function summary(row: OrderRow): OrderSummary {
@@ -147,15 +147,22 @@ function summary(row: OrderRow): OrderSummary {
   };
 }
 
-export function createOrderingService(
-  { db }: TenantContext,
-  catalog: CatalogService,
+/** Paketlerin sipariş işletimine kattığı kurallar; çekirdek paket adlarını bilmez. */
+export interface OrderRules {
   permitTransition: (
     capabilities: readonly string[],
     from: string,
     to: string,
     fulfilment?: Cart["fulfilment"],
-  ) => boolean,
+  ) => boolean;
+  deviceMaySetStatus: (capabilities: readonly string[], status: string) => boolean;
+  decisionRequired: (capabilities: readonly string[]) => boolean;
+}
+
+export function createOrderingService(
+  { db }: TenantContext,
+  catalog: CatalogService,
+  rules: OrderRules,
   validateFulfilment: ReturnType<typeof createFulfilmentValidator>,
   lifecycle: OrderingLifecycle,
   priceOrder: OrderPricing,
@@ -448,7 +455,7 @@ export function createOrderingService(
     const owned =
       scope.role === "customer"
         ? sql`and app_instance_id=${customer(scope).instanceId} and business_customer_id=${customer(scope).customerId}`
-        : scope.role === "kitchen"
+        : scope.role === "device"
           ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
           : sql.empty;
     const row = await tx.maybeOne<OrderRow>(
@@ -634,7 +641,7 @@ export function createOrderingService(
       const owned =
         scope.role === "customer"
           ? sql`and business_customer_id=${customer(scope).customerId} and app_instance_id=${customer(scope).instanceId}`
-          : scope.role === "kitchen"
+          : scope.role === "device"
             ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
             : sql.empty;
       const cursor =
@@ -676,10 +683,10 @@ export function createOrderingService(
     connection: Database = db,
   ): Promise<Order> {
     if (body.status === "cancelled") requireBusinessRole(scope, ["owner", "manager"]);
-    if (scope.role !== "kitchen") requireBusinessRole(scope, ["owner", "manager", "staff"]);
+    if (scope.role !== "device") requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(connection, scope, async (tx) => {
       let actorId: string;
-      if (scope.role === "kitchen") actorId = scope.deviceId;
+      if (scope.role === "device") actorId = scope.deviceId;
       else {
         const actor = await tx.maybeOne<{ id: string }>(
           sql`select id from business_members where business_id=${scope.businessId} and user_id=${scope.userId} and role=${scope.role} and active for share`,
@@ -688,28 +695,24 @@ export function createOrderingService(
         actorId = actor.id;
       }
       const deviceFilter =
-        scope.role === "kitchen"
+        scope.role === "device"
           ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
           : sql.empty;
       const row = await tx.maybeOne<OrderRow>(
         sql`select * from orders where business_id=${scope.businessId} and id=${id} ${deviceFilter} ${memberOrders(scope, "orders.manage")} for update`,
       );
       if (row === null) throw new AppError("not_found");
-      if (
-        scope.role === "kitchen" &&
-        (!row.capabilities.includes("ordering.kitchen@1.0.0") ||
-          !["accepted", "rejected", "preparing", "ready", "completed"].includes(body.status))
-      )
+      if (scope.role === "device" && !rules.deviceMaySetStatus(row.capabilities, body.status))
         throw new AppError("forbidden");
       if (row.version !== body.expectedVersion)
         throw new AppError("order_version_conflict", { order: await readOrder(tx, scope, id) });
       if (
         !row.state_graph[row.status]?.includes(body.status) ||
-        !permitTransition(row.capabilities, row.status, body.status, row.fulfilment)
+        !rules.permitTransition(row.capabilities, row.status, body.status, row.fulfilment)
       )
         throw new AppError("order_state_invalid");
       if (
-        row.capabilities.includes("ordering.kitchen@1.0.0") &&
+        rules.decisionRequired(row.capabilities) &&
         ((body.status === "accepted" && decision?.preparationMinutes === undefined) ||
           (body.status === "rejected" && decision?.reason === undefined))
       )
@@ -731,7 +734,7 @@ export function createOrderingService(
               ),
             );
       await tx.execute(
-        sql`select set_config('vado.order_actor_kind',${scope.role === "kitchen" ? "device" : "business"},true),set_config('vado.order_actor_id',${actorId},true)`,
+        sql`select set_config('vado.order_actor_kind',${scope.role === "device" ? "device" : "business"},true),set_config('vado.order_actor_id',${actorId},true)`,
       );
       await tx.execute(
         sql`update orders set status=${body.status},version=version+1,preparation_minutes=${decision?.preparationMinutes ?? row.preparation_minutes},estimated_ready_at=${readyAt},rejection_reason=${decision?.reason ?? row.rejection_reason} where business_id=${scope.businessId} and id=${id} and version=${body.expectedVersion}`,
