@@ -184,7 +184,7 @@ it("kişi limiti şubeler arasında korunur ve iptal rezervasyonu bir kez çöze
   const branch = await app.services.businessManagement.saveBranch(f.scope, {
     name: "Başka şube",
     timezone: "Europe/Istanbul",
-    address: "",
+    address: null,
     active: true,
   });
   const empty = await f.client.ok(cartSchema, "POST", `${f.root}/carts`, {
@@ -368,7 +368,7 @@ it("aynı müşteri iki şubede eşzamanlı olarak mevcut puanından fazla harca
   const branch = await app.services.businessManagement.saveBranch(f.scope, {
     name: "İkinci şube",
     timezone: "Europe/Istanbul",
-    address: "",
+    address: null,
     active: true,
   });
   const carts = await Promise.all(

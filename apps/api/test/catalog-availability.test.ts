@@ -35,7 +35,7 @@ describe("Saatli menü ve şubeye özel tükenme", () => {
     const branch = await app.services.businessManagement.saveBranch(f.scope, {
       name: "İkinci",
       timezone: "Europe/Istanbul",
-      address: "",
+      address: null,
       active: true,
     });
     const other = await app.services.catalog.preview(f.scope, branch.id, [

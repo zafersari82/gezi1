@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { type Category,categorySchema, idSchema } from "./common";
+import { type Category, categorySchema, idSchema } from "./common";
 
 /** Tek bir mini uygulama motoru, birden çok mağaza görünümüne hizmet eder. */
 export const studioTemplateIdSchema = z.enum([

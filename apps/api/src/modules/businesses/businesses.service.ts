@@ -117,7 +117,7 @@ export function createBusinessService({ config, db, storage }: AppContext) {
 
   interface StudioRow {
     template_id: StudioConfiguration["templateId"];
-    status: StudioConfiguration["status"];
+    published_from_version: number | null;
     title: string;
     tagline: string;
     palette: StudioConfiguration["palette"];
@@ -129,8 +129,8 @@ export function createBusinessService({ config, db, storage }: AppContext) {
     logo_media_id: string | null;
     cover_media_id: string | null;
   }
-  const STUDIO_COLUMNS = sql`template_id, status, title, tagline, palette, version, updated_at,
-    published_design, published_version, published_at, logo_media_id, cover_media_id`;
+  const STUDIO_COLUMNS = sql`template_id, published_from_version, title, tagline, palette, version,
+    updated_at, published_design, published_version, published_at, logo_media_id, cover_media_id`;
   async function studioMediaUrls(tx: Database, logoId: string | null, coverId: string | null) {
     const ids = [logoId, coverId].filter((id): id is string => id !== null);
     const entries =
@@ -149,8 +149,8 @@ export function createBusinessService({ config, db, storage }: AppContext) {
     };
   }
   async function studioView(tx: Database, row: StudioRow | null, businessName: string) {
-    const published =
-      row?.published_design == null ? null : studioDesignSchema.parse(row.published_design);
+    const design = row?.published_design ?? null;
+    const published = design === null ? null : studioDesignSchema.parse(design);
     const draftMedia = await studioMediaUrls(
       tx,
       row?.logo_media_id ?? null,
@@ -166,7 +166,8 @@ export function createBusinessService({ config, db, storage }: AppContext) {
           ? null
           : ({
               templateId: row.template_id,
-              status: row.status,
+              // Taslak, son yayımlanan sürümden ilerideyse yayımlanmamış değişiklik vardır.
+              status: row.published_from_version === row.version ? "ready" : "draft",
               title: row.title || businessName,
               tagline: row.tagline,
               palette: row.palette,
@@ -242,7 +243,7 @@ export function createBusinessService({ config, db, storage }: AppContext) {
               template_id = ${body.templateId},
               title = ${body.title}, tagline = ${body.tagline}, palette = ${body.palette},
               logo_media_id = ${body.logoMediaId}, cover_media_id = ${body.coverMediaId},
-              status = 'draft', version = version + 1, updated_at = now()
+              version = version + 1, updated_at = now()
             where business_id = ${scope.businessId} and version = ${body.expectedVersion}
             returning ${STUDIO_COLUMNS}
           `);
@@ -290,7 +291,7 @@ export function createBusinessService({ config, db, storage }: AppContext) {
             'logoMediaId', logo_media_id, 'coverMediaId', cover_media_id),
           published_version = published_version + 1,
           published_at = now(),
-          status = 'ready', updated_at = now()
+          published_from_version = version
         where business_id = ${scope.businessId} and version = ${body.expectedVersion}
         returning ${STUDIO_COLUMNS}
       `);

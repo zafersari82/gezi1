@@ -9,10 +9,10 @@ import { createAdminService } from "./modules/admin/admin.service";
 import { createAdminAccountService } from "./modules/admin-accounts/admin-accounts.service";
 import { createAuthService } from "./modules/auth/auth.service";
 import { createBranchOperationsService } from "./modules/business-management/branch-operations.service";
+import { createBusinessAccessService } from "./modules/business-management/business-access.service";
 import { createBusinessManagementService } from "./modules/business-management/business-management.service";
 import { createBusinessSocketService } from "./modules/business-management/business-socket.service";
 import { createKitchenDeviceService } from "./modules/business-management/kitchen-devices.service";
-import { createRegionManagementService } from "./modules/business-management/region-management.service";
 import { createBusinessService } from "./modules/businesses/businesses.service";
 import { permitOrderTransition } from "./modules/capabilities/capabilities.registry";
 import { createCapabilityService } from "./modules/capabilities/capabilities.service";
@@ -108,7 +108,7 @@ export function createServices(context: AppContext) {
     businesses,
     discovery: createDiscoveryService(context),
     businessManagement,
-    regionManagement: createRegionManagementService(context),
+    businessAccess: createBusinessAccessService(context),
     branchOperations: createBranchOperationsService(context),
     liveReplay: createLiveReplayService(context),
     kitchenDevices: createKitchenDeviceService(context),

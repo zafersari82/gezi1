@@ -11,6 +11,7 @@ import {
 } from "@vado/contracts";
 
 import { recordAudit } from "../../core/audit";
+import { authorize, permittedBranch } from "../../core/business-access";
 import type { TenantContext } from "../../core/context";
 import { type Database, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
@@ -21,6 +22,7 @@ import { requireBusinessRole, type TenantScope, withTenant } from "../../core/te
 interface ReviewRow {
   id: string;
   business_id: string;
+  branch_id: string;
   order_id: string;
   business_customer_id: string;
   seq: number | string;
@@ -95,10 +97,11 @@ export function createFeedbackService({ db }: TenantContext) {
       if (page.cursor !== undefined && !/^\d+$/.test(page.cursor))
         throw new AppError("validation_failed");
       const rows = await tx.many<ReviewRow>(
-        sql`select r.id,r.business_id,r.order_id,r.business_customer_id,r.seq::text as seq,
+        sql`select r.id,r.business_id,r.branch_id,r.order_id,r.business_customer_id,r.seq::text as seq,
           r.rating,r.comment,r.reply,r.visibility,r.version,r.created_at,r.updated_at
         from reviews r
-        where r.business_id=${scope.businessId} ${management ? sql.empty : sql`and r.visibility='published'`}
+        where r.business_id=${scope.businessId}
+          ${management ? permittedBranch(scope, "reviews.reply", sql`r.branch_id`) : sql`and r.visibility='published'`}
           ${page.cursor === undefined ? sql.empty : sql`and r.seq<${page.cursor}::bigint`}
         order by r.seq desc limit ${page.limit + 1}`,
       );
@@ -121,8 +124,8 @@ export function createFeedbackService({ db }: TenantContext) {
         key,
         body,
         async () => {
-          const order = await tx.maybeOne<{ status: string; version: number }>(
-            sql`select status,version from orders where business_id=${scope.businessId} and id=${id} and business_customer_id=${actor.customerId} and app_instance_id=${scope.appInstanceId} for share`,
+          const order = await tx.maybeOne<{ status: string; version: number; branch_id: string }>(
+            sql`select status,version,branch_id from orders where business_id=${scope.businessId} and id=${id} and business_customer_id=${actor.customerId} and app_instance_id=${scope.appInstanceId} for share`,
           );
           if (order === null) throw new AppError("not_found");
           if (order.status !== "completed") throw new AppError("review_order_invalid");
@@ -136,7 +139,7 @@ export function createFeedbackService({ db }: TenantContext) {
             throw new AppError("review_exists");
           await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${id},732))`);
           const row = await tx.maybeOne<ReviewRow>(
-            sql`insert into reviews(business_id,order_id,business_customer_id,rating,comment) values(${scope.businessId},${id},${actor.customerId},${body.rating},${body.comment}) on conflict(business_id,order_id) do nothing returning *`,
+            sql`insert into reviews(business_id,branch_id,order_id,business_customer_id,rating,comment) values(${scope.businessId},${order.branch_id},${id},${actor.customerId},${body.rating},${body.comment}) on conflict(business_id,order_id) do nothing returning *`,
           );
           if (row === null) throw new AppError("review_exists");
           return changed(tx, scope, review(row), "review.created");
@@ -150,7 +153,7 @@ export function createFeedbackService({ db }: TenantContext) {
     key: string,
     body: ReviewEditBody | ReviewReplyBody,
   ) {
-    if ("reply" in body) requireBusinessRole(scope, ["owner", "manager"]);
+    if ("reply" in body) requireBusinessRole(scope, ["owner", "manager", "staff"]);
     else personal(scope);
     if (scope.userId === null) throw new AppError("forbidden");
     const userId = scope.userId;
@@ -173,6 +176,7 @@ export function createFeedbackService({ db }: TenantContext) {
             sql`select * from reviews where business_id=${scope.businessId} and id=${id} ${owned} for update`,
           );
           if (current === null) throw new AppError("not_found");
+          if ("reply" in body) await authorize(tx, scope, "reviews.reply", current.branch_id);
           if (current.version !== body.expectedVersion)
             throw new AppError("record_version_conflict", { review: review(current) });
           const update =
@@ -212,7 +216,7 @@ export function createFeedbackService({ db }: TenantContext) {
         last = items.at(-1);
       return {
         items: items.map(favorite),
-        nextCursor: rows.length > page.limit && last !== undefined ? String(last.seq) : null,
+        nextCursor: rows.length > page.limit && last !== undefined ? last.seq : null,
       };
     });
   }

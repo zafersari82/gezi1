@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { sql } from "../src/core/database";
 import { as, startTestApp, type TestApp } from "./support/harness";
-import { createTenantFixture,scoped } from "./support/tenant-fixture";
+import { createTenantFixture, scoped } from "./support/tenant-fixture";
 
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGOQLFqFFTEMLQkAC0pNQWlTN4kAAAAASUVORK5CYII=",

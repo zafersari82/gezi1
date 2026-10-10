@@ -100,11 +100,6 @@ export function orderingRoutes(server: FastifyInstance, { services, guard }: Rou
       Number(days) as 7 | 30,
     );
   });
-  server.get("/v1/business/:businessId/orders/access/me", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId } = parse(businessParamsSchema, request.params);
-    return ordering.permittedBranches(await businessManagement.authorise(userId, businessId));
-  });
   server.get("/v1/business/:businessId/orders/:id", async (request) => {
     const { userId } = await guard(request);
     const { businessId, id } = parse(businessRecordParamsSchema, request.params);

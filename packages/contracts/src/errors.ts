@@ -14,6 +14,8 @@ export const ERROR_MESSAGES = {
     "Adres kataloğu henüz hazır değil. Kurulumda konum kataloğu içe aktarılmalıdır.",
   location_parent_invalid: "Adresin il, ilçe ve mahalle seçimi uyuşmuyor.",
   record_version_conflict: "Kayıt değişti. Güncel bilgiyi açıp yeniden dene.",
+  region_name_taken: "Bu adla bir bölge zaten var. Başka bir ad seç.",
+  already_member: "Bu kişi zaten işletmenin üyesi.",
   review_exists: "Bu sipariş için zaten bir değerlendirme var.",
   review_order_invalid: "Yalnız tamamlanmış sipariş değerlendirilebilir.",
   location_version_conflict: "Adres veya bölge değişti. Güncel kaydı aç.",

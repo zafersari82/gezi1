@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { discoveryPageSchema, discoveryQuerySchema } from "@vado/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { z } from "zod";
 
 import { sql } from "../src/core/database";
 import {
@@ -44,6 +45,7 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
   const nearbyProvinceId = randomUUID();
   const nearbyDistrictId = randomUUID();
   const distantDistrictId = randomUUID();
+  const neighborhoodIds = [randomUUID(), randomUUID()];
 
   beforeAll(async () => {
     app = await startTestApp();
@@ -83,6 +85,9 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
         values(${nearbyDistrictId},${nearbyProvinceId},${2_300_000 + Math.floor(Math.random() * 200_000)},'Yakın İlçe','Yakın İlçe')`);
       await tx.execute(sql`insert into location_districts(id,province_id,source_id,name,full_official_name)
         values(${distantDistrictId},${nearbyProvinceId},${2_500_000 + Math.floor(Math.random() * 200_000)},'Uzak İlçe','Uzak İlçe')`);
+      for (const [index, districtId] of [nearbyDistrictId, distantDistrictId].entries())
+        await tx.execute(sql`insert into location_neighborhoods(id,district_id,source_id,name,full_official_name)
+          values(${neighborhoodIds[index]},${districtId},${2_700_000 + index * 100_000 + Math.floor(Math.random() * 90_000)},'Merkez Mahallesi','Merkez Mahallesi')`);
     });
     const sample = await app.db.many<{ id: string }>(sql`
       select id from businesses where name like ${prefix + " Pilav %"} order by name limit 2
@@ -90,8 +95,9 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
     for (const [i, value] of sample.entries()) {
       await app.db.transaction(async (tx) => {
         await tx.execute(sql`select set_config('vado.business_id', ${value.id}, true)`);
-        await tx.execute(sql`insert into branches(business_id,name,province_id,district_id)
-          values(${value.id},'Merkez',${nearbyProvinceId},${i === 0 ? nearbyDistrictId : distantDistrictId})`);
+        await tx.execute(sql`insert into branches(business_id,name,province_id,district_id,neighborhood_id,address_line)
+          values(${value.id},'Merkez',${nearbyProvinceId},${i === 0 ? nearbyDistrictId : distantDistrictId},
+            ${neighborhoodIds[i]},'Atatürk Caddesi No: 1')`);
       });
     }
   });
@@ -139,7 +145,11 @@ describe("VADO Search: bütün katalogda sunucu araması", () => {
     let loops = 0;
     do {
       const url = `/v1/discovery/search?q=${prefix}&limit=40${cursor === null ? "" : `&cursor=${encodeURIComponent(cursor)}`}`;
-      const page = await client.ok(discoveryPageSchema, "GET", url);
+      const page: z.infer<typeof discoveryPageSchema> = await client.ok(
+        discoveryPageSchema,
+        "GET",
+        url,
+      );
       ids.push(
         ...page.items.map((item) =>
           item.kind === "business" ? item.business.id : item.miniApp.id,

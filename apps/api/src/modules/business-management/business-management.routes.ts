@@ -8,8 +8,6 @@ import {
   businessParamsSchema,
   businessRecordParamsSchema,
   miniAppIdSchema,
-  staffInvitationCreateSchema,
-  staffInvitationTokenBodySchema,
 } from "@vado/contracts";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -46,37 +44,6 @@ export function businessManagementRoutes(
       false,
     );
     return reply.code(204).send();
-  });
-  server.get("/v1/business/:businessId/invitations", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId } = parse(businessParamsSchema, request.params);
-    return business.invitations(await business.authorise(userId, businessId));
-  });
-  server.post("/v1/business/:businessId/invitations", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId } = parse(businessParamsSchema, request.params);
-    return business.createInvitation(
-      await business.authorise(userId, businessId),
-      parse(staffInvitationCreateSchema, request.body),
-    );
-  });
-  server.post("/v1/business/:businessId/invitations/:id/revoke", async (request, reply) => {
-    const { userId } = await guard(request);
-    const { businessId, id } = parse(businessRecordParamsSchema, request.params);
-    parse(z.object({}).strict(), request.body ?? {});
-    await business.revokeInvitation(await business.authorise(userId, businessId), id);
-    return reply.code(204).send();
-  });
-  // The recipient has a verified session, but is not a business member yet.
-  server.post("/v1/business/invitations/preview", async (request) => {
-    const { userId } = await guard(request);
-    const { token } = parse(staffInvitationTokenBodySchema, request.body);
-    return business.previewInvitation(userId, token);
-  });
-  server.post("/v1/business/invitations/accept", async (request) => {
-    const { userId } = await guard(request);
-    const { token } = parse(staffInvitationTokenBodySchema, request.body);
-    return business.acceptInvitation(userId, token);
   });
   server.get("/v1/business/:businessId/branches", async (request) => {
     const { userId } = await guard(request);

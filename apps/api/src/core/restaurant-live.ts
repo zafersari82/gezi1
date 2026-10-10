@@ -17,9 +17,13 @@ export function createRestaurantLiveConsumer({ platformDb, realtime }: AppContex
       const data = await platformScope(platformDb, async (tx) => {
         const row = await readLive(tx, event.businessId ?? "", event.id);
         if (row === null) return null;
-        const members = await tx.many<{ user_id: string }>(
-          sql`select m.user_id from business_members m join users u on u.id=m.user_id where m.business_id=${row.business_id} and m.role in ('owner','manager','staff') and m.active and u.status='active'`,
-        );
+        // Sipariş olayını sipariş görme, masa olayını masa servisi izni olan üyeler alır.
+        const permission = row.order_id === null ? "tables.serve" : "orders.view";
+        const members = await tx.many<{ user_id: string }>(sql`
+          select m.user_id from business_members m
+          where m.business_id = ${row.business_id}
+            and business_member_can(m.business_id, m.user_id, ${permission}, ${row.branch_id}::uuid)
+        `);
         const customer = await tx.maybeOne<{ user_id: string }>(
           sql`select c.user_id from business_customers c join users u on u.id=c.user_id where c.business_id=${row.business_id} and c.id=${row.business_customer_id} and u.status='active'`,
         );

@@ -9,8 +9,9 @@ import type {
 } from "@vado/contracts";
 
 import { recordAudit } from "../../core/audit";
+import { accessibleBranchIds, requireBranchAccess } from "../../core/business-access";
 import type { AppContext } from "../../core/context";
-import { isUniqueViolation, sql } from "../../core/database";
+import { type Database, isForeignKeyViolation, isUniqueViolation, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { platformScope } from "../../core/platform-scope";
 import {
@@ -20,8 +21,6 @@ import {
   withTenant,
 } from "../../core/tenant-scope";
 import { miniAppLive } from "../miniapps/miniapp-rows";
-import { availableBranchIds, requireBranchOperator } from "./branch-access";
-import { createStaffInvitations } from "./staff-invitations";
 
 const MANAGERS = ["owner", "manager"] as const;
 
@@ -54,18 +53,49 @@ interface BranchRow {
   active: boolean;
   province_id: string | null;
   district_id: string | null;
+  neighborhood_id: string | null;
+  address_line: string | null;
+  province_name: string | null;
+  district_name: string | null;
+  neighborhood_name: string | null;
 }
 function toBranch(row: BranchRow): Branch {
+  const structured =
+    row.province_id !== null && row.district_id !== null && row.neighborhood_id !== null
+      ? {
+          provinceId: row.province_id,
+          districtId: row.district_id,
+          neighborhoodId: row.neighborhood_id,
+          line: row.address_line ?? "",
+          provinceName: row.province_name ?? "",
+          districtName: row.district_name ?? "",
+          neighborhoodName: row.neighborhood_name ?? "",
+        }
+      : null;
   return {
     id: row.id,
     businessId: row.business_id,
     name: row.name,
     timezone: row.timezone,
-    address: row.address,
+    address: structured,
+    legacyAddress: row.address,
     active: row.active,
-    provinceId: row.province_id,
-    districtId: row.district_id,
   };
+}
+/** Şube satırı adres adlarıyla birlikte okunur; adlar katalogdan gelir, şubede kopyalanmaz. */
+function readBranches(tx: Database, businessId: string, ids: string[] | null) {
+  return tx.many<BranchRow>(sql`
+    select b.id, b.business_id, b.name, b.timezone, b.address, b.active,
+      b.province_id, b.district_id, b.neighborhood_id, b.address_line,
+      p.name as province_name, d.name as district_name, n.name as neighborhood_name
+    from branches b
+    left join location_provinces p on p.id = b.province_id
+    left join location_districts d on d.id = b.district_id
+    left join location_neighborhoods n on n.id = b.neighborhood_id
+    where b.business_id = ${businessId}
+      and (${ids === null} or b.id = any(${ids ?? []}::uuid[]))
+    order by b.name, b.id
+  `);
 }
 interface InstanceRow {
   id: string;
@@ -89,8 +119,6 @@ function toInstance(row: InstanceRow) {
 }
 
 export function createBusinessManagementService({ db, platformDb, config }: AppContext) {
-  const staffInvitations = createStaffInvitations({ db, platformDb });
-
   async function memberships(userId: string): Promise<BusinessMembership[]> {
     return platformScope(platformDb, async (tx) => {
       const rows = await tx.many<MembershipRow>(sql`
@@ -162,26 +190,14 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
           and user_id = ${body.userId} and role = 'owner'
       `);
       if (owner !== null) throw new AppError("forbidden");
+      // Rol değişir ya da üyelik kapanırsa personel izinlerini veritabanı tetikleyicisi siler.
       await tx.execute(sql`
         insert into business_members(business_id, user_id, role, active)
         values (${scope.businessId}, ${body.userId}, ${body.role}, ${body.active})
-        on conflict (business_id, user_id) do update set role = excluded.role, active = excluded.active
+        on conflict (business_id, user_id) do update
+          set role = excluded.role, active = excluded.active,
+            version = business_members.version + 1
       `);
-      // An inactive or promoted member must not regain an old branch grant later.
-      if (!body.active || body.role !== "staff") {
-        await tx.execute(sql`
-          delete from branch_availability_grants
-          where business_id=${scope.businessId} and user_id=${body.userId}
-        `);
-        await tx.execute(sql`
-          delete from business_region_operators
-          where business_id=${scope.businessId} and user_id=${body.userId}
-        `);
-        await tx.execute(sql`delete from business_branch_order_grants
-          where business_id=${scope.businessId} and user_id=${body.userId}`);
-        await tx.execute(sql`delete from business_region_order_grants
-          where business_id=${scope.businessId} and user_id=${body.userId}`);
-      }
       await recordAudit(tx, {
         actor: scope.userId,
         action: "business.member_changed",
@@ -193,48 +209,51 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
   }
 
   function branches(scope: TenantScope): Promise<Branch[]> {
-    return withTenant(db, scope, async (tx) => {
-      const branchIds = scope.role === "staff" ? await availableBranchIds(tx, scope) : null;
-      return (
-        await tx.many<BranchRow>(sql`
-        select * from branches where business_id=${scope.businessId}
-          and (${branchIds === null} or id=any(${branchIds ?? []}::uuid[]))
-        order by name,id
-      `)
-      ).map(toBranch);
-    });
+    return withTenant(db, scope, async (tx) =>
+      (await readBranches(tx, scope.businessId, await accessibleBranchIds(tx, scope))).map(
+        toBranch,
+      ),
+    );
   }
 
+  /** Yapılandırılmış adres kaydedilince 2.8 öncesinden kalan serbest metin boşalır. */
   async function saveBranch(scope: TenantScope, body: BranchBody, id?: string): Promise<Branch> {
     requireBusinessRole(scope, MANAGERS);
+    const address = body.address;
+    const columns = {
+      province: address?.provinceId ?? null,
+      district: address?.districtId ?? null,
+      neighborhood: address?.neighborhoodId ?? null,
+      line: address?.line ?? null,
+    };
     try {
       return await withTenant(db, scope, async (tx) => {
-        if (body.provinceId !== undefined && body.provinceId !== null) {
-          const location = await tx.maybeOne(sql`
-            select 1 from location_districts where province_id=${body.provinceId}
-              and id=${body.districtId}
-          `);
-          if (location === null) throw new AppError("validation_failed");
-        }
-        const row =
+        const saved =
           id === undefined
-            ? await tx.one<BranchRow>(sql`
-          insert into branches(business_id, name, timezone, address, active, province_id, district_id)
-          values (${scope.businessId}, ${body.name}, ${body.timezone}, ${body.address}, ${body.active},
-            ${body.provinceId ?? null}, ${body.districtId ?? null}) returning *
-        `)
-            : await tx.maybeOne<BranchRow>(sql`
-          update branches set name = ${body.name}, timezone = ${body.timezone},
-            address = ${body.address}, active = ${body.active},
-            province_id = ${body.provinceId === undefined ? sql`province_id` : sql`${body.provinceId}`},
-            district_id = ${body.districtId === undefined ? sql`district_id` : sql`${body.districtId}`}
-          where business_id = ${scope.businessId} and id = ${id} returning *
-        `);
-        if (row === null) throw new AppError("not_found");
+            ? await tx.one<{ id: string }>(sql`
+                insert into branches (business_id, name, timezone, active, province_id, district_id,
+                  neighborhood_id, address_line)
+                values (${scope.businessId}, ${body.name}, ${body.timezone}, ${body.active},
+                  ${columns.province}, ${columns.district}, ${columns.neighborhood}, ${columns.line})
+                returning id
+              `)
+            : await tx.maybeOne<{ id: string }>(sql`
+                update branches set name = ${body.name}, timezone = ${body.timezone},
+                  active = ${body.active}, province_id = ${columns.province},
+                  district_id = ${columns.district}, neighborhood_id = ${columns.neighborhood},
+                  address_line = ${columns.line},
+                  address = case when ${address !== null} then '' else address end
+                where business_id = ${scope.businessId} and id = ${id}
+                returning id
+              `);
+        if (saved === null) throw new AppError("not_found");
+        const [row] = await readBranches(tx, scope.businessId, [saved.id]);
+        if (row === undefined) throw new AppError("not_found");
         return toBranch(row);
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw new AppError("validation_failed");
+      if (isForeignKeyViolation(error)) throw new AppError("location_parent_invalid");
       throw error;
     }
   }
@@ -242,7 +261,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
   function hours(scope: TenantScope, branchId: string) {
     return withTenant(db, scope, async (tx) => {
       await requireBranch(tx, scope, branchId);
-      await requireBranchOperator(tx, scope, branchId);
+      await requireBranchAccess(tx, scope, branchId);
       const rows = await tx.many<{ weekday: number; opens_at: number; closes_at: number }>(sql`
         select weekday, opens_at, closes_at from branch_hours
         where business_id = ${scope.businessId} and branch_id = ${branchId} order by weekday, opens_at
@@ -402,7 +421,6 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
   return {
     businessLaunch,
     resolveCustomerScope,
-    ...staffInvitations,
     memberships,
     authorise,
     members,

@@ -147,3 +147,8 @@ export function isUniqueViolation(error: unknown, constraint?: string): boolean 
   if (!(error instanceof pg.DatabaseError) || error.code !== "23505") return false;
   return constraint === undefined || error.constraint === constraint;
 }
+
+/** PostgreSQL yabancı anahtar ihlali (23503) hatası mı? */
+export function isForeignKeyViolation(error: unknown): boolean {
+  return error instanceof pg.DatabaseError && error.code === "23503";
+}

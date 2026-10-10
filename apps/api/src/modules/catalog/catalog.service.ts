@@ -406,8 +406,7 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
         const stale =
           expected === null
             ? current !== null
-            : current === null ||
-              current.amount_minor !== expected.amountMinor ||
+            : current?.amount_minor !== expected.amountMinor ||
               current.vat_basis_points !== expected.vatBasisPoints;
         if (stale) throw new AppError("record_version_conflict");
       }

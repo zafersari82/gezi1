@@ -6,8 +6,8 @@ import { inject } from "vitest";
 import { migrate } from "../../src/core/migrator";
 import { startTestApp } from "./harness";
 
-/** Küresel katalog boşluğu/sayımı sınanırken başka test dosyalarının örnek verisi karışmaz. */
-export async function startIsolatedTestApp() {
+/** Boş, ayrı bir test veritabanı; üç rolün bağlantı adresleri ve silme işleviyle. */
+export async function createIsolatedDatabase() {
   const admin = new pg.Client({
     connectionString:
       process.env.DATABASE_TEST_ADMIN_URL ?? "postgres://postgres:vado@localhost:5432/postgres",
@@ -20,19 +20,26 @@ export async function startIsolatedTestApp() {
     url.pathname = `/${name}`;
     return url.toString();
   };
-  const databaseUrl = connection(inject("databaseUrl"));
-  const migrateUrl = connection(inject("databaseMigrateUrl"));
-  const platformUrl = connection(inject("databasePlatformUrl"));
-  const cleanup = async () => {
-    await admin.query(`drop database if exists ${name} with (force)`);
-    await admin.end();
+  return {
+    databaseUrl: connection(inject("databaseUrl")),
+    migrateUrl: connection(inject("databaseMigrateUrl")),
+    platformUrl: connection(inject("databasePlatformUrl")),
+    drop: async () => {
+      await admin.query(`drop database if exists ${name} with (force)`);
+      await admin.end();
+    },
   };
+}
+
+/** Küresel katalog boşluğu/sayımı sınanırken başka test dosyalarının örnek verisi karışmaz. */
+export async function startIsolatedTestApp() {
+  const database = await createIsolatedDatabase();
   try {
-    await migrate(migrateUrl);
+    await migrate(database.migrateUrl);
     const app = await startTestApp({
-      DATABASE_URL: databaseUrl,
-      DATABASE_MIGRATE_URL: migrateUrl,
-      DATABASE_PLATFORM_URL: platformUrl,
+      DATABASE_URL: database.databaseUrl,
+      DATABASE_MIGRATE_URL: database.migrateUrl,
+      DATABASE_PLATFORM_URL: database.platformUrl,
     });
     return {
       ...app,
@@ -40,12 +47,12 @@ export async function startIsolatedTestApp() {
         try {
           await app.stop();
         } finally {
-          await cleanup();
+          await database.drop();
         }
       },
     };
   } catch (error) {
-    await cleanup();
+    await database.drop();
     throw error;
   }
 }

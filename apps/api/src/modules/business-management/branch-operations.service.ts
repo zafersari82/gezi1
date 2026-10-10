@@ -1,6 +1,5 @@
 import type {
   BranchAvailabilityBatchBody,
-  BranchAvailabilityGrantBody,
   BranchHoursExceptionBody,
   BranchOrderingSettingsBody,
   ItemAvailabilityBody,
@@ -8,11 +7,11 @@ import type {
 } from "@vado/contracts";
 
 import { recordAudit } from "../../core/audit";
+import { authorize, requireBranchAccess } from "../../core/business-access";
 import type { TenantContext } from "../../core/context";
 import { type Database, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
-import { availableBranchIds, requireBranchOperator } from "./branch-access";
 
 const MANAGERS = ["owner", "manager"] as const;
 interface SettingsRow {
@@ -44,7 +43,7 @@ export function createBranchOperationsService({ db }: TenantContext) {
         sql`select 1 from branches where business_id=${scope.businessId} and id=${branchId}`,
       );
       if (branch === null) throw new AppError("not_found");
-      await requireBranchOperator(tx, scope, branchId);
+      await requireBranchAccess(tx, scope, branchId);
       return settingsView(
         scope,
         branchId,
@@ -72,7 +71,7 @@ export function createBranchOperationsService({ db }: TenantContext) {
   }
   function exceptions(scope: TenantScope, branchId: string) {
     return withTenant(db, scope, async (tx) => {
-      await requireBranchOperator(tx, scope, branchId);
+      await requireBranchAccess(tx, scope, branchId);
       const rows = await tx.many<{
         date: Date;
         hours: BranchHoursExceptionBody["hours"];
@@ -95,68 +94,6 @@ export function createBranchOperationsService({ db }: TenantContext) {
         on conflict(business_id,branch_id,date) do update set hours=excluded.hours returning date::text,hours,version`);
     });
   }
-  function accessibleBranches(scope: TenantScope) {
-    requireBusinessRole(scope, ["owner", "manager", "staff"]);
-    return withTenant(db, scope, async (tx) => ({ items: await availableBranchIds(tx, scope) }));
-  }
-  function grants(scope: TenantScope, branchId: string) {
-    requireBusinessRole(scope, ["owner"]);
-    return withTenant(db, scope, async (tx) => {
-      if (
-        (await tx.maybeOne(
-          sql`select 1 from branches where business_id=${scope.businessId} and id=${branchId}`,
-        )) === null
-      )
-        throw new AppError("not_found");
-      return {
-        items: await tx.many(sql`
-        select m.user_id as "userId",coalesce(nullif(u.display_name,''),nullif(u.username,''),'Personel') as "displayName",
-          (g.user_id is not null) as allowed
-        from business_members m join users u on u.id=m.user_id
-        left join branch_availability_grants g on g.business_id=m.business_id
-          and g.branch_id=${branchId} and g.user_id=m.user_id
-        where m.business_id=${scope.businessId} and m.role='staff' and m.active and u.status='active'
-        order by "displayName",m.user_id
-      `),
-      };
-    });
-  }
-  function saveGrant(scope: TenantScope, branchId: string, body: BranchAvailabilityGrantBody) {
-    requireBusinessRole(scope, ["owner"]);
-    return withTenant(db, scope, async (tx) => {
-      await lockBranch(tx, scope, branchId);
-      if (
-        (await tx.maybeOne(sql`
-        select 1 from business_members m join users u on u.id=m.user_id
-        where m.business_id=${scope.businessId} and m.user_id=${body.userId}
-          and m.role='staff' and m.active and u.status='active' for share of m,u
-      `)) === null
-      )
-        throw new AppError("not_found");
-      if (body.allowed)
-        await tx.execute(sql`
-        insert into branch_availability_grants(business_id,branch_id,user_id)
-        values(${scope.businessId},${branchId},${body.userId}) on conflict do nothing
-      `);
-      else
-        await tx.execute(sql`
-        delete from branch_availability_grants where business_id=${scope.businessId}
-          and branch_id=${branchId} and user_id=${body.userId}
-      `);
-      await recordAudit(tx, {
-        actor: scope.userId,
-        action: "branches.availability_grant_changed",
-        targetType: "branch",
-        targetId: branchId,
-        metadata: {
-          businessId: scope.businessId,
-          memberUserId: body.userId,
-          allowed: body.allowed,
-        },
-      });
-      return { userId: body.userId, allowed: body.allowed };
-    });
-  }
   function availability(scope: TenantScope, branchId: string) {
     return withTenant(db, scope, async (tx) => {
       if (
@@ -165,7 +102,7 @@ export function createBranchOperationsService({ db }: TenantContext) {
         )) === null
       )
         throw new AppError("not_found");
-      await requireBranchOperator(tx, scope, branchId);
+      await requireBranchAccess(tx, scope, branchId);
       return {
         items: await tx.many(sql`
         select item_id as "itemId",available,version from catalog_branch_availability
@@ -178,7 +115,7 @@ export function createBranchOperationsService({ db }: TenantContext) {
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
       await lockBranch(tx, scope, body.branchId);
-      await requireBranchOperator(tx, scope, body.branchId);
+      await authorize(tx, scope, "catalog.availability", body.branchId);
       if (
         (await tx.maybeOne(
           sql`select 1 from catalog_items where business_id=${scope.businessId} and id=${itemId} for update`,
@@ -194,12 +131,12 @@ export function createBranchOperationsService({ db }: TenantContext) {
         on conflict(business_id,branch_id,item_id) do update set available=excluded.available returning item_id as "itemId",branch_id as "branchId",available,version`);
     });
   }
-  /** Deterministic branch -> item locking; any mismatch rolls back the complete batch. */
+  /** Kilit sırası sabittir (şube, sonra ürünler); tek bir uyuşmazlık bütün toplu işlemi geri alır. */
   function saveAvailabilityBatch(scope: TenantScope, body: BranchAvailabilityBatchBody) {
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
       await lockBranch(tx, scope, body.branchId);
-      await requireBranchOperator(tx, scope, body.branchId);
+      await authorize(tx, scope, "catalog.availability", body.branchId);
       const sorted = [...body.changes].sort((a, b) => a.itemId.localeCompare(b.itemId, "en"));
       for (const change of sorted) {
         if (
@@ -246,7 +183,7 @@ export function createBranchOperationsService({ db }: TenantContext) {
     kind: "item" | "category",
   ) {
     return withTenant(db, scope, async (tx) => {
-      await requireBranchOperator(tx, scope, branchId);
+      await requireBranchAccess(tx, scope, branchId);
       return readWindows(tx, scope, branchId, id, kind);
     });
   }
@@ -295,9 +232,6 @@ export function createBranchOperationsService({ db }: TenantContext) {
     availability,
     saveAvailability,
     saveAvailabilityBatch,
-    accessibleBranches,
-    grants,
-    saveGrant,
     menuWindows,
     saveMenuWindows,
   };

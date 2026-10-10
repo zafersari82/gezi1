@@ -135,14 +135,16 @@ export function createDiscoveryService({ config, db }: AppContext) {
     ]);
     const businesses = new Map(businessRows.map((row) => [row.id, toBusiness(row)]));
     const miniApps = new Map(miniAppRows.map((row) => [row.id, mapper.toMiniApp(row)]));
-    const items: DiscoveryItem[] = current.flatMap((row) => {
+    const items: DiscoveryItem[] = [];
+    for (const row of current) {
       if (row.kind === "business") {
         const business = businesses.get(row.record_id);
-        return business === undefined ? [] : [{ kind: "business" as const, business }];
+        if (business !== undefined) items.push({ kind: "business", business });
+      } else {
+        const miniApp = miniApps.get(row.record_id);
+        if (miniApp !== undefined) items.push({ kind: "miniapp", miniApp });
       }
-      const miniApp = miniApps.get(row.record_id);
-      return miniApp === undefined ? [] : [{ kind: "miniapp" as const, miniApp }];
-    });
+    }
     const last = current.at(-1);
     return {
       items,

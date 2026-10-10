@@ -1,6 +1,5 @@
 import {
   branchAvailabilityBatchBodySchema,
-  branchAvailabilityGrantBodySchema,
   branchHoursExceptionBodySchema,
   branchOrderingSettingsBodySchema,
   businessRecordParamsSchema,
@@ -18,30 +17,6 @@ export function branchOperationsRoutes(
   { services, guard }: RouteContext,
 ): void {
   const operations = services.branchOperations;
-  server.get("/v1/business/:businessId/branches/availability-access/me", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId } = parse(
-      businessRecordParamsSchema.pick({ businessId: true }),
-      request.params,
-    );
-    return operations.accessibleBranches(
-      await services.businessManagement.authorise(userId, businessId),
-    );
-  });
-  server.get("/v1/business/:businessId/branches/:id/availability-grants", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId, id } = parse(businessRecordParamsSchema, request.params);
-    return operations.grants(await services.businessManagement.authorise(userId, businessId), id);
-  });
-  server.put("/v1/business/:businessId/branches/:id/availability-grants", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId, id } = parse(businessRecordParamsSchema, request.params);
-    return operations.saveGrant(
-      await services.businessManagement.authorise(userId, businessId),
-      id,
-      parse(branchAvailabilityGrantBodySchema, request.body),
-    );
-  });
   server.put("/v1/business/:businessId/branches/availability-batch", async (request) => {
     const { userId } = await guard(request);
     const { businessId } = parse(

@@ -37,7 +37,7 @@ export async function createTenantFixture(app: TestApp) {
   const branch = await app.services.businessManagement.saveBranch(scope, {
     name: "Merkez",
     timezone: "Europe/Istanbul",
-    address: "",
+    address: null,
     active: true,
   });
   const instance = await app.services.businessManagement.createInstance(scope, {

@@ -61,10 +61,18 @@ export async function pendingMigrations(databaseUrl: string): Promise<string[]> 
 /**
  * Bekleyen şema dosyalarını sırayla uygular ve uygulananların adlarını döndürür.
  * Her dosya kendi işlemi içinde çalışır; aynı anda başlayan ikinci bir süreç kilit sayesinde bekler.
+ * `through` verilirse o dosyada durur; sürüm geçişi denemeleri eski şemayı böyle kurar.
  */
-export async function migrate(databaseUrl: string): Promise<string[]> {
+export async function migrate(
+  databaseUrl: string,
+  options: { through?: string } = {},
+): Promise<string[]> {
   const dir = findMigrationsDir();
-  const files = await listMigrationFiles(dir);
+  const all = await listMigrationFiles(dir);
+  const { through } = options;
+  if (through !== undefined && !all.includes(through))
+    throw new Error(`${through} adlı şema dosyası yok`);
+  const files = through === undefined ? all : all.filter((file) => file <= through);
 
   return withClient(databaseUrl, async (client) => {
     await client.query("select pg_advisory_lock($1)", [ADVISORY_LOCK_KEY]);

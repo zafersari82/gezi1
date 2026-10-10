@@ -126,12 +126,9 @@ test("üyelik ve oturum iptali önceden verilmiş bileti geçersiz kılar", asyn
     role: "staff",
     active: true,
   });
-  await as(app, staff).fail("forbidden", "POST", `/v1/business/${f.businessId}/socket-ticket`);
-  await app.services.businessManagement.setMember(f.scope, {
-    userId: staff.id,
-    role: "manager",
-    active: true,
-  });
+  // Personel bilet alır; olaylar alıcının izinlerine göre süzülür. İşletme dışı kişi alamaz.
+  const outsider = await createUser(app, "Dışarıdan");
+  await as(app, outsider).fail("forbidden", "POST", `/v1/business/${f.businessId}/socket-ticket`);
   const ticket = await as(app, staff).ok(
     ticketSchema,
     "POST",

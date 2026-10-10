@@ -5,6 +5,7 @@ import {
   type UpdateRestaurantTableBody,
 } from "@vado/contracts";
 
+import { authorize, permittedBranch } from "../../core/business-access";
 import type { AppContext } from "../../core/context";
 import { type Database, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
@@ -62,11 +63,11 @@ export function createRestaurantService(
         select published_design from business_studio where business_id = ${scope.businessId}
       `);
       const design =
-        publication?.published_design == null
+        publication === null || publication.published_design === null
           ? null
           : studioDesignSchema.parse(publication.published_design);
       const ids = [design?.logoMediaId, design?.coverMediaId].filter(
-        (id): id is string => id != null,
+        (id): id is string => typeof id === "string",
       );
       const media =
         ids.length === 0
@@ -131,7 +132,7 @@ export function createRestaurantService(
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => ({
       items: await tx.many(sql`
-    select t.id,t.branch_id as "branchId",t.app_instance_id as "appInstanceId",t.label,t.active,t.version,s.id as "sessionId" from restaurant_tables t left join table_sessions s on s.business_id=t.business_id and s.table_id=t.id and s.status='open' where t.business_id=${scope.businessId} order by t.label,t.id`),
+    select t.id,t.branch_id as "branchId",t.app_instance_id as "appInstanceId",t.label,t.active,t.version,s.id as "sessionId" from restaurant_tables t left join table_sessions s on s.business_id=t.business_id and s.table_id=t.id and s.status='open' where t.business_id=${scope.businessId} ${permittedBranch(scope, "tables.serve", sql`t.branch_id`)} order by t.label,t.id`),
     }));
   }
   function createTable(scope: TenantScope, body: RestaurantTableBody) {
@@ -264,6 +265,7 @@ export function createRestaurantService(
         sql`select s.*,t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=${scope.businessId} and s.id=${id} for share of s`,
       );
       if (session === null) throw new AppError("not_found");
+      if (!isCustomer) await authorize(tx, scope, "tables.serve", session.branch_id);
       const row = await tx.one<{
         total: number;
         paid: number;
@@ -295,12 +297,17 @@ export function createRestaurantService(
     return withTenant(db, scope, async (tx) => ({
       items:
         await tx.many(sql`select r.id,r.table_session_id as "tableSessionId",r.kind,r.status,r.version,r.created_at as "createdAt",t.label,s.branch_id as "branchId"
-    from table_service_requests r join table_sessions s on s.business_id=r.business_id and s.id=r.table_session_id join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where r.business_id=${scope.businessId} and r.status='open' order by r.created_at,r.id`),
+    from table_service_requests r join table_sessions s on s.business_id=r.business_id and s.id=r.table_session_id join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where r.business_id=${scope.businessId} and r.status='open' ${permittedBranch(scope, "tables.serve", sql`s.branch_id`)} order by r.created_at,r.id`),
     }));
   }
   function resolveRequest(scope: TenantScope, id: string, expectedVersion: number) {
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
+      const target = await tx.maybeOne<{ branch_id: string }>(
+        sql`select s.branch_id from table_service_requests r join table_sessions s on s.business_id=r.business_id and s.id=r.table_session_id where r.business_id=${scope.businessId} and r.id=${id}`,
+      );
+      if (target === null) throw new AppError("not_found");
+      await authorize(tx, scope, "tables.serve", target.branch_id);
       const row = await tx.maybeOne(
         sql`update table_service_requests set status='resolved',version=version+1 where business_id=${scope.businessId} and id=${id} and version=${expectedVersion} and status='open' returning id,version`,
       );
@@ -311,10 +318,11 @@ export function createRestaurantService(
   function closeSession(scope: TenantScope, id: string, expectedVersion: number) {
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
-      const target = await tx.maybeOne<{ table_id: string }>(
-        sql`select table_id from table_sessions where business_id=${scope.businessId} and id=${id}`,
+      const target = await tx.maybeOne<{ table_id: string; branch_id: string }>(
+        sql`select table_id,branch_id from table_sessions where business_id=${scope.businessId} and id=${id}`,
       );
       if (target === null) throw new AppError("not_found");
+      await authorize(tx, scope, "tables.serve", target.branch_id);
       await tx.one(
         sql`select id from restaurant_tables where business_id=${scope.businessId} and id=${target.table_id} for update`,
       );

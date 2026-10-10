@@ -2,14 +2,14 @@ import sharp from "sharp";
 
 import { AppError } from "../../core/errors";
 
-/** Limits decompression cost even for tiny, maliciously crafted files. */
+/** Kötü niyetle hazırlanmış küçük dosyalarda bile açma maliyetini sınırlar. */
 export const BUSINESS_IMAGE_MAX_PIXELS = 20_000_000;
 export const BUSINESS_IMAGE_MAX_EDGE = 1600;
 
 /**
- * Every storefront upload becomes a bounded, single-frame WebP. Re-encoding drops
- * embedded EXIF (including GPS), IPTC and XMP rather than copying arbitrary bytes.
- * The shared chat/avatar upload contract remains unchanged.
+ * Vitrine yüklenen her görsel sınırlı boyutta, tek kareli WebP'ye yeniden yazılır. Yeniden
+ * kodlama, gömülü EXIF (GPS dahil), IPTC ve XMP bilgisini taşımaz. Sohbet ve profil görseli
+ * yüklemeleri bu işlemden geçmez.
  */
 export async function processBusinessImage(input: Buffer): Promise<Buffer> {
   try {
@@ -20,7 +20,7 @@ export async function processBusinessImage(input: Buffer): Promise<Buffer> {
     });
     const metadata = await source.metadata();
     if (
-      !["jpeg", "png", "webp"].includes(metadata.format ?? "") ||
+      !["jpeg", "png", "webp"].includes(metadata.format) ||
       !metadata.width ||
       !metadata.height ||
       metadata.width * metadata.height > BUSINESS_IMAGE_MAX_PIXELS ||

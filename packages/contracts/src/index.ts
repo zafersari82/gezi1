@@ -2,6 +2,7 @@ export * from "./admin";
 export * from "./admin-accounts";
 export * from "./auth";
 export * from "./bridge";
+export * from "./business-access";
 export * from "./business-live";
 export * from "./business-management";
 export * from "./businesses";

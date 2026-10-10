@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  accessibleBranchesSchema,
+  type AccessGrant,
   branchAvailabilityBatchResultSchema,
-  branchAvailabilityGrantsSchema,
   branchAvailabilityListSchema,
   catalogItemBodySchema,
+  memberAccessListSchema,
+  memberAccessSchema,
 } from "@vado/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -82,7 +83,7 @@ describe("Şube bazlı bulunurluk ve kısıtlı personel yetkisi", () => {
     });
   });
 
-  it("yetkilendirilmiş personel yalnız seçili şubede ürün açıp kapatır, fiyat değiştiremez", async () => {
+  it("bulunurluk izni olan personel yalnız izinli şubede ürün açıp kapatır, fiyat değiştiremez", async () => {
     const f = await createTenantFixture(app);
     const other = await createTenantFixture(app);
     const staff = await createUser(app, "Şube görevlisi");
@@ -99,8 +100,23 @@ describe("Şube bazlı bulunurluk ve kısıtlı personel yetkisi", () => {
       }),
     );
     const url = `/v1/business/${f.businessId}/branches/availability-batch`;
-    const grantUrl = `/v1/business/${f.businessId}/branches/${f.branchId}/availability-grants`;
+    const owner = as(app, f.owner);
     const staffClient = as(app, staff);
+    const grant = async (grants: AccessGrant[]) => {
+      const members = await owner.ok(
+        memberAccessListSchema,
+        "GET",
+        `/v1/business/${f.businessId}/access/members`,
+      );
+      const member = members.items.find((row) => row.userId === staff.id);
+      if (member === undefined) throw new Error("Personel bulunamadı");
+      await owner.ok(
+        memberAccessSchema,
+        "PUT",
+        `/v1/business/${f.businessId}/access/members/${member.memberId}`,
+        { body: { grants, expectedVersion: member.version } },
+      );
+    };
     const body = {
       branchId: f.branchId,
       changes: [{ itemId: item.id, expectedVersion: 0, available: false }],
@@ -111,23 +127,18 @@ describe("Şube bazlı bulunurluk ve kısıtlı personel yetkisi", () => {
       "GET",
       `/v1/business/${f.businessId}/branches/${f.branchId}/availability`,
     );
-    await staffClient.fail("forbidden", "PUT", grantUrl, {
-      body: { userId: staff.id, allowed: true },
-    });
-    await as(app, f.owner).ok(branchAvailabilityGrantsSchema, "GET", grantUrl);
-    expect(
-      (
-        await as(app, f.owner).request("PUT", grantUrl, {
-          body: { userId: staff.id, allowed: true },
-        })
-      ).status,
-    ).toBe(200);
-    const access = await staffClient.ok(
-      accessibleBranchesSchema,
+    // Sipariş görme izni bulunurluk değiştirmeyi açmaz.
+    await grant([{ permission: "orders.view", scope: { kind: "branch", branchId: f.branchId } }]);
+    await staffClient.ok(
+      branchAvailabilityListSchema,
       "GET",
-      `/v1/business/${f.businessId}/branches/availability-access/me`,
+      `/v1/business/${f.businessId}/branches/${f.branchId}/availability`,
     );
-    expect(access.items).toContain(f.branchId);
+    await staffClient.fail("forbidden", "PUT", url, { body });
+
+    await grant([
+      { permission: "catalog.availability", scope: { kind: "branch", branchId: f.branchId } },
+    ]);
     expect(await staffClient.ok(branchAvailabilityBatchResultSchema, "PUT", url, { body })).toEqual(
       { updated: 1 },
     );
@@ -156,42 +167,13 @@ describe("Şube bazlı bulunurluk ve kısıtlı personel yetkisi", () => {
         changes: [{ itemId: item.id, expectedVersion: 1, available: true }],
       },
     });
-    expect(
-      (
-        await as(app, f.owner).request("PUT", grantUrl, {
-          body: { userId: staff.id, allowed: false },
-        })
-      ).status,
-    ).toBe(200);
+    await grant([]);
     await staffClient.fail("forbidden", "PUT", url, {
       body: {
         branchId: f.branchId,
         changes: [{ itemId: item.id, expectedVersion: 1, available: true }],
       },
     });
-    // Assignment must also disappear when the member is disabled and later reactivated.
-    await as(app, f.owner).request("PUT", grantUrl, {
-      body: { userId: staff.id, allowed: true },
-    });
-    await app.services.businessManagement.setMember(f.scope, {
-      userId: staff.id,
-      role: "staff",
-      active: false,
-    });
-    await app.services.businessManagement.setMember(f.scope, {
-      userId: staff.id,
-      role: "staff",
-      active: true,
-    });
-    expect(
-      (
-        await staffClient.ok(
-          accessibleBranchesSchema,
-          "GET",
-          `/v1/business/${f.businessId}/branches/availability-access/me`,
-        )
-      ).items,
-    ).not.toContain(f.branchId);
   });
 
   it("başka işletmenin ürününü eklemek işlemin tamamını reddeder; veri RLS ile gizlidir", async () => {
@@ -231,12 +213,12 @@ describe("Şube bazlı bulunurluk ve kısıtlı personel yetkisi", () => {
       select * from catalog_branch_availability where business_id=${f.businessId} and item_id=${local.id}`),
       ),
     ).toEqual([]);
-    expect(await app.db.many(sql`select * from branch_availability_grants`)).toEqual([]);
+    expect(await app.db.many(sql`select * from business_member_grants`)).toEqual([]);
     const flag = await app.migrationDb.one<{
       relrowsecurity: boolean;
       relforcerowsecurity: boolean;
     }>(sql`
-      select relrowsecurity,relforcerowsecurity from pg_class where relname='branch_availability_grants'`);
+      select relrowsecurity,relforcerowsecurity from pg_class where relname='business_member_grants'`);
     expect(flag).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
   });
 });

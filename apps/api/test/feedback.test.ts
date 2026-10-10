@@ -272,5 +272,14 @@ it("favori sıralaması doğrudan SQL ile değiştirilemez", async () => {
         sql`update user_favorites set seq=seq+1,version=version+1 where business_id=${f.businessId} and user_id=${f.customer.id}`,
       );
     }),
-  ).rejects.toThrow(/Favori bağlamı ve sürümü korunmalıdır/);
+    // Sıra numarası kimlik sütunudur; PostgreSQL elle değiştirilmesine izin vermez.
+  ).rejects.toThrow(/can only be updated to DEFAULT/);
+  await expect(
+    scoped(app.db, f.businessId, async (tx) => {
+      await tx.execute(sql`select set_config('vado.user_id',${f.customer.id},true)`);
+      await tx.execute(
+        sql`update user_favorites set item_id=null,version=version where business_id=${f.businessId} and user_id=${f.customer.id}`,
+      );
+    }),
+  ).rejects.toThrow(/Favorinin bağlamı ve sürümü korunmalıdır/);
 });

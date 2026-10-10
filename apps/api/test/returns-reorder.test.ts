@@ -276,7 +276,7 @@ it("işletme iade listesi tarih + kimlik imleciyle ikinci sayfaya geçer", async
   const nextPage = await f.owner.ok(
     pageSchema,
     "GET",
-    `${url}?limit=1&cursor=${encodeURIComponent(firstPage.nextCursor!)}`,
+    `${url}?limit=1&cursor=${encodeURIComponent(firstPage.nextCursor ?? "")}`,
   );
   expect(nextPage.items.map((item) => item.id)).toEqual([firstRequest.id]);
   expect(nextPage.nextCursor).toBeNull();

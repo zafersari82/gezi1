@@ -21,10 +21,15 @@ export function createBusinessOrderConsumer(
         sequence: event.sequence,
         type: event.type,
       });
+      // Alıcılar, siparişin şubesinde sipariş görme izni olan üyelerdir.
       const members = await platformScope(platformDb, (tx) =>
         tx.many<{ user_id: string }>(sql`
-        select m.user_id from business_members m join users u on u.id=m.user_id
-        where m.business_id=${payload.businessId} and m.role in ('owner','manager','staff') and m.active and u.status='active'`),
+          select m.user_id
+          from business_members m
+          join orders o on o.business_id = m.business_id and o.id = ${payload.orderId}
+          where m.business_id = ${payload.businessId}
+            and business_member_can(m.business_id, m.user_id, 'orders.view', o.branch_id)
+        `),
       );
       realtime.emitBusiness(
         payload.businessId,

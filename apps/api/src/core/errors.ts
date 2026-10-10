@@ -11,6 +11,8 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   location_parent_invalid: 400,
   location_version_conflict: 409,
   record_version_conflict: 409,
+  region_name_taken: 409,
+  already_member: 409,
   review_exists: 409,
   review_order_invalid: 409,
   location_inactive: 409,

@@ -24,8 +24,9 @@ import {
 } from "@vado/contracts";
 
 import { recordAudit } from "../../core/audit";
+import { permittedBranch } from "../../core/business-access";
 import type { TenantContext } from "../../core/context";
-import { type Database, sql } from "../../core/database";
+import { type Database, sql, type SqlFragment } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { withIdempotency } from "../../core/idempotency";
 import type { OrderingLifecycle } from "../../core/ordering-lifecycle";
@@ -36,7 +37,6 @@ import { requireBusinessRole, type TenantScope, withTenant } from "../../core/te
 import type { CatalogService } from "../catalog/catalog.service";
 import { quoteDelivery } from "../delivery/delivery-policy";
 import { type createFulfilmentValidator, type FulfilmentChoice } from "./fulfilment";
-import { orderAccess } from "./order-access";
 
 interface CartRow {
   incentive_choice: IncentiveChoice;
@@ -110,6 +110,14 @@ function customer(scope: TenantScope) {
   )
     throw new AppError("forbidden");
   return { instanceId: scope.appInstanceId, customerId: scope.businessCustomerId };
+}
+/** Müşteri ve operasyon cihazı kendi sahiplik süzgecini ayrıca uygular; işletme üyesi yalnız izinli şubeleri görür. */
+function memberOrders(
+  scope: TenantScope,
+  permission: "orders.view" | "orders.manage",
+): SqlFragment {
+  if (scope.role === "customer" || scope.role === "kitchen") return sql.empty;
+  return permittedBranch(scope, permission, sql`orders.branch_id`);
 }
 function summary(row: OrderRow): OrderSummary {
   return {
@@ -444,7 +452,7 @@ export function createOrderingService(
           ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
           : sql.empty;
     const row = await tx.maybeOne<OrderRow>(
-      sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,(select t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=orders.business_id and s.id=orders.table_session_id) as table_label,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} and id=${id} ${owned} ${orderAccess(scope, sql`orders.branch_id`)} for share of orders`,
+      sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,(select t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=orders.business_id and s.id=orders.table_session_id) as table_label,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} and id=${id} ${owned} ${memberOrders(scope, "orders.view")} for share of orders`,
     );
     if (row === null) throw new AppError("not_found");
     const lines = await tx.many<OrderLineRow>(
@@ -633,8 +641,8 @@ export function createOrderingService(
         page.cursor === undefined
           ? sql.empty
           : ascending
-            ? sql`and (created_at,id)>(select created_at,id from orders where business_id=${scope.businessId} and id=${page.cursor} ${owned} ${orderAccess(scope, sql`orders.branch_id`)})`
-            : sql`and (created_at,id)<(select created_at,id from orders where business_id=${scope.businessId} and id=${page.cursor} ${owned} ${orderAccess(scope, sql`orders.branch_id`)})`;
+            ? sql`and (created_at,id)>(select created_at,id from orders where business_id=${scope.businessId} and id=${page.cursor} ${owned} ${memberOrders(scope, "orders.view")})`
+            : sql`and (created_at,id)<(select created_at,id from orders where business_id=${scope.businessId} and id=${page.cursor} ${owned} ${memberOrders(scope, "orders.view")})`;
       const status = page.status === undefined ? sql.empty : sql`and status=${page.status}`;
       const statuses =
         page.statuses === undefined ? sql.empty : sql`and status=any(${page.statuses}::text[])`;
@@ -647,26 +655,10 @@ export function createOrderingService(
       const filters = sql`${page.branchId === undefined ? sql.empty : sql`and branch_id=${page.branchId}`} ${page.appInstanceId === undefined ? sql.empty : sql`and app_instance_id=${page.appInstanceId}`}`;
       const sorting = ascending ? sql`created_at asc,id asc` : sql`created_at desc,id desc`;
       const rows = await tx.many<OrderRow>(
-        sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,(select t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=orders.business_id and s.id=orders.table_session_id) as table_label,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} ${owned} ${orderAccess(scope, sql`orders.branch_id`)} ${cursor} ${status} ${statuses} ${active} ${filters} order by ${sorting} limit ${page.limit + 1}`,
+        sql`select orders.*,(select b.timezone from branches b where b.business_id=orders.business_id and b.id=orders.branch_id) as branch_timezone,(select t.label from table_sessions s join restaurant_tables t on t.business_id=s.business_id and t.id=s.table_id where s.business_id=orders.business_id and s.id=orders.table_session_id) as table_label,exists(select 1 from order_payments p where p.business_id=orders.business_id and p.order_id=orders.id) as payment_paid from orders where business_id=${scope.businessId} ${owned} ${memberOrders(scope, "orders.view")} ${cursor} ${status} ${statuses} ${active} ${filters} order by ${sorting} limit ${page.limit + 1}`,
       );
       const items = rows.slice(0, page.limit).map(summary);
       return { items, nextCursor: rows.length > page.limit ? (items.at(-1)?.id ?? null) : null };
-    });
-  }
-  /** Branch scopes for the phone UI. Server-side order queries recheck rights every time. */
-  function permittedBranches(scope: TenantScope) {
-    requireBusinessRole(scope, ["owner", "manager", "staff"]);
-    return withTenant(db, scope, async (tx) => {
-      const visible = await tx.many<{ id: string }>(sql`
-        select b.id from branches b where b.business_id=${scope.businessId} and b.active
-        ${orderAccess(scope, sql`b.id`)} order by b.name,b.id`);
-      const manageable = await tx.many<{ id: string }>(sql`
-        select b.id from branches b where b.business_id=${scope.businessId} and b.active
-        ${orderAccess(scope, sql`b.id`, true)} order by b.name,b.id`);
-      return {
-        viewBranchIds: visible.map((row) => row.id),
-        manageBranchIds: manageable.map((row) => row.id),
-      };
     });
   }
   async function listQueue(scope: TenantScope, page: OrderListQuery) {
@@ -700,7 +692,7 @@ export function createOrderingService(
           ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId}`
           : sql.empty;
       const row = await tx.maybeOne<OrderRow>(
-        sql`select * from orders where business_id=${scope.businessId} and id=${id} ${deviceFilter} ${orderAccess(scope, sql`orders.branch_id`, true)} for update`,
+        sql`select * from orders where business_id=${scope.businessId} and id=${id} ${deviceFilter} ${memberOrders(scope, "orders.manage")} for update`,
       );
       if (row === null) throw new AppError("not_found");
       if (
@@ -780,7 +772,7 @@ export function createOrderingService(
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
       const row = await tx.maybeOne<OrderRow>(
-        sql`select * from orders where business_id=${scope.businessId} and id=${id} ${orderAccess(scope, sql`orders.branch_id`, true)} for update`,
+        sql`select * from orders where business_id=${scope.businessId} and id=${id} ${memberOrders(scope, "orders.manage")} for update`,
       );
       if (row === null) throw new AppError("not_found");
       const order = await readOrder(tx, scope, id);
@@ -944,8 +936,10 @@ export function createOrderingService(
       ),
     );
   }
-  /** No cross-branch leakage: aggregates use the exact same SQL permission as order lists.
-   * Completed amounts do not equal settled payments or accounting revenue. */
+  /**
+   * Şube performansı; personel yalnız rapor izni olan şubeleri görür. Tamamlanan siparişlerin
+   * tutarı tahsilat ya da muhasebe geliri değildir (iade ve tahsilat ayrı tutulur).
+   */
   function branchPerformance(scope: TenantScope, days: 7 | 30): Promise<BranchPerformance> {
     requireBusinessRole(scope, ["owner", "manager", "staff"]);
     return withTenant(db, scope, async (tx) => {
@@ -959,7 +953,7 @@ export function createOrderingService(
         from orders o join branches b on b.business_id=o.business_id and b.id=o.branch_id
         where o.business_id=${scope.businessId}
           and o.created_at >= now() - make_interval(days => ${days}::integer)
-          ${orderAccess(scope, sql`o.branch_id`)}
+          ${permittedBranch(scope, "reports.view", sql`o.branch_id`)}
         group by o.branch_id,b.name
         order by b.name,o.branch_id
       `);
@@ -978,7 +972,6 @@ export function createOrderingService(
     getOrder,
     listOrders,
     branchPerformance,
-    permittedBranches,
     listQueue,
     updateStatus,
     accept,
