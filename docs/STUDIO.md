@@ -9,18 +9,25 @@ kopyalanmış mini uygulama yoktur.
 Şablonlar `packages/contracts/src/studio.ts` dosyasındaki kayıttan gelir; veritabanı şablon
 kimliğini yalnız biçim olarak denetler. Yeni şablon şema değişikliği gerektirmez.
 
-| Kimlik            | Ad                 | Düzen           | Motor       |
-| ----------------- | ------------------ | --------------- | ----------- |
-| `food-fast`       | Hızlı Servis       | Kompakt         | Sipariş     |
-| `food-classic`    | Klasik Restoran    | Klasik          | Sipariş     |
-| `food-premium`    | Seçkin Restoran    | Fotoğraf odaklı | Sipariş     |
-| `food-enterprise` | Kurumsal Zincir    | Kurumsal        | Sipariş     |
-| `beauty-solo`     | Tek Kişilik Berber | Kompakt         | Rezervasyon |
-| `beauty-team`     | Ekipli Salon       | Klasik          | Rezervasyon |
-| `beauty-premium`  | Seçkin Salon       | Fotoğraf odaklı | Rezervasyon |
+| Kimlik              | Ad                 | Düzen           | Motor       |
+| ------------------- | ------------------ | --------------- | ----------- |
+| `food-fast`         | Hızlı Servis       | Kompakt         | Sipariş     |
+| `food-classic`      | Klasik Restoran    | Klasik          | Sipariş     |
+| `food-premium`      | Seçkin Restoran    | Fotoğraf odaklı | Sipariş     |
+| `food-enterprise`   | Kurumsal Zincir    | Kurumsal        | Sipariş     |
+| `shop-neighborhood` | Mahalle Mağazası   | Kompakt         | Sipariş     |
+| `shop-boutique`     | Butik ve Çiçekçi   | Fotoğraf odaklı | Sipariş     |
+| `shop-enterprise`   | Çok Şubeli Mağaza  | Kurumsal        | Sipariş     |
+| `beauty-solo`       | Tek Kişilik Berber | Kompakt         | Rezervasyon |
+| `beauty-team`       | Ekipli Salon       | Klasik          | Rezervasyon |
+| `beauty-premium`    | Seçkin Salon       | Fotoğraf odaklı | Rezervasyon |
 
-Motoru yayında olmayan şablon sunulmaz (`OFFERED_STUDIO_TEMPLATES`). Güzellik şablonları
-Rezervasyon motoruyla (2.9) açılır; o zamana kadar güzellik işletmesi şablonsuz kaydolur.
+Motoru yayında olmayan şablon sunulmaz (`OFFERED_STUDIO_TEMPLATES`). Rezervasyon motoru S11'de
+geldi, ama randevu mini uygulamasının köprüsü henüz yok; güzellik şablonları bu köprüyle birlikte
+açılır (Mağazam planı, M1).
+
+Bu tablo, sektör paketi × düzen × renk ve blok sistemine geçişte (Mağazam planı, M1) yerini sektör
+paketlerine bırakır: [PLAN_MAGAZAM.md](PLAN_MAGAZAM.md).
 
 Renkler sabit bir setten seçilir (deniz yeşili, doğal yeşil, lacivert, mürdüm); istemciden serbest
 CSS alınmaz.
@@ -62,8 +69,9 @@ CSS alınmaz.
 
 ## Olmayanlar
 
-Görsel CDN'i ve boyut türevleri, zamanlanmış otomatik temizlik, sürükle-bırak sayfa düzenleyici,
-otuz şablon, yapay zekâ ile menü okuma, CSV/ERP aktarımı.
+Görsel CDN'i ve boyut türevleri, zamanlanmış otomatik temizlik, CSV/ERP aktarımı. Blok tabanlı
+sayfa, sektör paketleri ve yapay zekâ ile ürün listesi önerisi Mağazam planındadır
+([PLAN_MAGAZAM.md](PLAN_MAGAZAM.md)).
 
 ## Denenen ve denenmeyen
 

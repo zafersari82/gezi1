@@ -1,5 +1,16 @@
 # Değişiklikler
 
+## Hazırlanıyor: 2.8.0-alpha.6 — tarafsız sipariş çekirdeği (A2)
+
+Bu bölüm ara sürüm tamamlanınca tarihlenir; sürüm numarası o zaman değişir.
+
+- **Operasyon cihazı rolü (A2-1):** çekirdekteki `kitchen` rolü genel `device` rolüne dönüştü.
+  Cihazın verebileceği durumlar ve kabul/ret kararının zorunluluğu paket manifestindeki
+  `operations` alanından okunur; sipariş servisi `ordering.kitchen` adını bilmez. Restoranda cihaz
+  yine "Mutfak ekranı" olarak görünür; davranış değişmedi.
+- **Mağazam planı:** telefondan kod yazmadan dükkân kurma planı
+  ([docs/PLAN_MAGAZAM.md](docs/PLAN_MAGAZAM.md)).
+
 ## 2.8.0-alpha.5 — kanallar, işletme sohbeti, paylaşım, Shops, Booking (2026-10-10)
 
 alpha.4 üzerine başka bir ortamda S1–S11 adımlarıyla yazılan kaynak ilk kez gerçek ortamda

@@ -232,6 +232,10 @@ Her ara sürüm boş klasörde `npm ci` + `npm run check` geçmeden verilmez. He
 | A5  | K8 mevzuat: yasal profil, ön bilgilendirme ve sözleşme, onay kanıtı, ileti izinleri, İYS arayüzü                    | Değişen metinde `cart_changed`; izinsiz ticari ileti gönderilemez                         |
 | A6  | Kapanış                                                                                                             | Aşağıda                                                                                   |
 
+**Mağazam:** telefondan kod yazmadan dükkân kurma adımları (M1–M9) ve A2'den sonraki sıra
+[PLAN_MAGAZAM.md](PLAN_MAGAZAM.md)'dedir. A3'ün teslimat bölgesi ekranı M4'te, A5'in mevzuat
+çekirdeği M3'te yapılır.
+
 **Kapanış (A6):**
 
 - Bozma denemesi 164'ün üstüne çıkar; yeni korumaların her biri için gerçek bozma kanıtı.
@@ -249,8 +253,6 @@ Her ara sürüm boş klasörde `npm ci` + `npm run check` geçmeden verilmez. He
 - Vardiya ve görev yönetimi.
 - e-Arşiv/e-Fatura.
 - ERP/CSV toplu aktarım.
-- 30 şablon, sürükle-bırak düzenleyici, yapay zekâ.
+- Yapay zekâ ile ürün listesi önerisi, sürüm sahibinin sağlayıcı kararına kadar
+  ([PLAN_MAGAZAM.md](PLAN_MAGAZAM.md), MK7).
 - Ücretli sıralama.
-- Mağaza/Market müşteri deneyimi (motor 2.8'de kanıtlanır; birinci sınıf mağaza ürünü kendi
-  sürümünde gelir).
-- 2.8.0'dan sonra 2.9 Rezervasyon motoru.
