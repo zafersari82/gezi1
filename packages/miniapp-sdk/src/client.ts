@@ -97,21 +97,10 @@ export interface Vado {
     getDeliverySnapshot: (
       params: BridgeParams["ordering.getDeliverySnapshot"],
     ) => Promise<BridgeResults["ordering.getDeliverySnapshot"]>;
-    getRestaurant: () => Promise<BridgeResults["ordering.getRestaurant"]>;
     getStore: () => Promise<BridgeResults["ordering.getStore"]>;
     getSlots: (
       params: BridgeParams["ordering.getSlots"],
     ) => Promise<BridgeResults["ordering.getSlots"]>;
-    joinTable: () => Promise<BridgeResults["ordering.joinTable"]>;
-    getTable: (
-      params: BridgeParams["ordering.getTable"],
-    ) => Promise<BridgeResults["ordering.getTable"]>;
-    getBill: (
-      params: BridgeParams["ordering.getBill"],
-    ) => Promise<BridgeResults["ordering.getBill"]>;
-    requestService: (
-      params: BridgeParams["ordering.requestService"],
-    ) => Promise<BridgeResults["ordering.requestService"]>;
     getEvents: (
       params: BridgeParams["ordering.getEvents"],
     ) => Promise<BridgeResults["ordering.getEvents"]>;
@@ -141,6 +130,16 @@ export interface Vado {
     getOrder: (
       params: BridgeParams["ordering.getOrder"],
     ) => Promise<BridgeResults["ordering.getOrder"]>;
+  };
+  tableService: {
+    join: () => Promise<BridgeResults["tableService.join"]>;
+    get: (params: BridgeParams["tableService.get"]) => Promise<BridgeResults["tableService.get"]>;
+    getBill: (
+      params: BridgeParams["tableService.getBill"],
+    ) => Promise<BridgeResults["tableService.getBill"]>;
+    request: (
+      params: BridgeParams["tableService.request"],
+    ) => Promise<BridgeResults["tableService.request"]>;
   };
   /** Mini uygulama VADO içinde mi çalışıyor? Tarayıcıda doğrudan açıldığında `false` döner. */
   isAvailable: () => boolean;
@@ -368,17 +367,18 @@ export function createVado(host: HostWindow | undefined): Vado {
       getLoyalty: () => quick("incentives.getLoyalty"),
       applyCart: (params) => interactive("incentives.applyCart", params),
     },
+    tableService: {
+      join: () => quick("tableService.join"),
+      get: (params) => quick("tableService.get", params),
+      getBill: (params) => quick("tableService.getBill", params),
+      request: (params) => quick("tableService.request", params),
+    },
     ordering: {
       reorder: (params) => quick("ordering.reorder", params),
       getDeliveryQuote: (params) => interactive("ordering.getDeliveryQuote", params),
       getDeliverySnapshot: (params) => interactive("ordering.getDeliverySnapshot", params),
-      getRestaurant: () => quick("ordering.getRestaurant"),
       getStore: () => quick("ordering.getStore"),
       getSlots: (params) => quick("ordering.getSlots", params),
-      joinTable: () => quick("ordering.joinTable"),
-      getTable: (params) => quick("ordering.getTable", params),
-      getBill: (params) => quick("ordering.getBill", params),
-      requestService: (params) => quick("ordering.requestService", params),
       getEvents: (params) => quick("ordering.getEvents", params),
       listOrders: (params) => quick("ordering.listOrders", params),
       onChange(listener) {

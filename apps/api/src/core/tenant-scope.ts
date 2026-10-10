@@ -1,4 +1,4 @@
-import type { BusinessMemberRole } from "@vado/contracts";
+import { DELIVERY_AGENT_ROLE, type BusinessMemberRole } from "@vado/contracts";
 
 import { type Database, sql } from "./database";
 import { AppError } from "./errors";
@@ -18,7 +18,7 @@ export interface PersonalTenantScope extends ScopeBase {
   readonly branchId?: never;
 }
 /**
- * Operasyon cihazı (ör. mutfak ekranı) kişisel hesap değildir; yalnız eşleştirildiği şube ve
+ * Operasyon cihazı (ör. operasyon paneli) kişisel hesap değildir; yalnız eşleştirildiği şube ve
  * uygulama örneğine erişir. Hangi işlemleri yapabileceğini cihazı veren paket belirler.
  */
 export interface DeviceTenantScope extends ScopeBase {
@@ -83,7 +83,7 @@ export function withTenant<T>(
     await tx.execute(sql`select set_config('vado.business_id', ${scope.businessId}, true)`);
     if (scope.role !== "device") {
       await tx.execute(sql`select set_config('vado.user_id',${scope.userId},true)`);
-      if (scope.role === "courier") throw new AppError("forbidden");
+      if (scope.role === DELIVERY_AGENT_ROLE) throw new AppError("forbidden");
     }
     if (scope.role === "device") {
       await tx.execute(sql`select set_config('vado.tenant_device_id',${scope.deviceId},true)`);

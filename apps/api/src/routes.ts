@@ -17,6 +17,7 @@ import { channelRoutes } from "./modules/channels/channels.routes";
 import { businessChatRoutes } from "./modules/chat/business-chat.routes";
 import { chatRoutes } from "./modules/chat/chat.routes";
 import { contactRoutes } from "./modules/contacts/contacts.routes";
+import { courierRoutes } from "./modules/delivery/courier.routes";
 import { deliveryRoutes } from "./modules/delivery/delivery.routes";
 import { discoveryRoutes } from "./modules/discovery/discovery.routes";
 import { feedbackRoutes } from "./modules/feedback/feedback.routes";
@@ -34,6 +35,7 @@ import { paymentRoutes } from "./modules/payments/payments.routes";
 import { qrRoutes } from "./modules/qr/qr.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { restaurantRoutes } from "./modules/restaurant/restaurant.routes";
+import { storefrontRoutes } from "./modules/storefront/storefront.routes";
 import { returnRoutes } from "./modules/returns/returns.routes";
 import { userRoutes } from "./modules/users/users.routes";
 import type { Services } from "./services";
@@ -77,6 +79,7 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   catalogRoutes(server, context);
   capabilityRoutes(server, context);
   orderingRoutes(server, context);
+  storefrontRoutes(server, context);
   bookingRoutes(server, context);
   returnRoutes(server, context);
   deliveryRoutes(server, context);
@@ -92,4 +95,3 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   miniAppAdminRoutes(server, context);
   packageRoutes(server, context);
 }
-import { courierRoutes } from "./modules/delivery/courier.routes";

@@ -108,12 +108,14 @@ export function MiniAppHost({
   const selected = context.success
     ? { ...context.data, miniAppId: miniApp.id }
     : { miniAppId: miniApp.id };
+  const commerceHost = createOrderingHost(selected, transport, launchQr);
   const host: BridgeHost = {
     location: createLocationHost(transport),
     incentives: createIncentivesHost(selected, transport),
     feedback: createFeedbackHost(selected, transport),
     returns: createReturnsHost(selected, transport),
-    ordering: createOrderingHost(selected, transport, launchQr),
+    ordering: commerceHost,
+    tableService: commerceHost,
     miniApp,
     launchParams,
     containerInfo: () => ({

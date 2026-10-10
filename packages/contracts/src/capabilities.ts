@@ -14,6 +14,7 @@ export const CAPABILITIES = [
   "storage.local",
   "share.native",
   "ordering.basic",
+  "table_service.basic",
   "incentives.basic",
 ] as const;
 
@@ -32,6 +33,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "share.native": "Telefonun paylaşım menüsünü açma",
   "incentives.basic": "Bu işletmedeki kampanya, kupon ve sadakat puanını yönetme",
   "ordering.basic": "Bu işletmedeki sepetini ve siparişlerini yönetme",
+  "table_service.basic": "Masaya katılma, masa hesabını görme ve servis çağırma",
 };
 
 /**

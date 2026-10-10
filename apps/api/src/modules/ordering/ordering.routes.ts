@@ -17,14 +17,7 @@ import { parse } from "../../core/http";
 import type { RouteContext } from "../../routes";
 
 export function orderingRoutes(server: FastifyInstance, { services, guard }: RouteContext): void {
-  const { ordering, businessManagement, restaurant } = services;
-  server.get("/v1/shell/:businessId/:appInstanceId/store", async (request) => {
-    const { userId } = await guard(request);
-    const { businessId, appInstanceId } = parse(shellBusinessParamsSchema, request.params);
-    return restaurant.context(
-      await businessManagement.customerScope(userId, businessId, appInstanceId),
-    );
-  });
+  const { ordering, businessManagement } = services;
   server.post("/v1/shell/:businessId/:appInstanceId/carts", async (request) => {
     const { userId } = await guard(request);
     const { businessId, appInstanceId } = parse(shellBusinessParamsSchema, request.params);

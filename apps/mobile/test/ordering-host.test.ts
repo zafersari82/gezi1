@@ -144,7 +144,7 @@ test("masa köprüsü paketten QR kabul etmez, kabukta kalan imzayı yollar", as
     api,
     "ham-imza",
   );
-  expect(await host.joinTable(undefined)).toEqual(session);
+  expect(await host.join(undefined)).toEqual(session);
   expect(calls[0]?.path).toBe("/v1/shell/business-context");
   expect(calls[1]).toEqual({
     method: "POST",
@@ -152,16 +152,122 @@ test("masa köprüsü paketten QR kabul etmez, kabukta kalan imzayı yollar", as
     body: { qr: "ham-imza" },
   });
   const noQr = createOrderingHost({ businessId, appInstanceId, miniAppId: "siparis" }, api);
-  await expect(noQr.joinTable(undefined)).rejects.toThrow("QR kodunu");
+  await expect(noQr.join(undefined)).rejects.toThrow("QR kodunu");
 });
 
-test("restoran bağlamında başka işletme veya uygulama kaydı dönemez", async () => {
+test("masa oturumu sorgusu istenen oturumu ve uygulama örneğini doğrular", async () => {
+  const { api: original } = transport();
+  const requestedId = randomUUID();
+  const session = {
+    id: requestedId,
+    tableId: randomUUID(),
+    branchId,
+    appInstanceId,
+    label: "12",
+    status: "open",
+    version: 1,
+  };
+  const api: OrderingTransport = {
+    request: (method, path, body, key) =>
+      path.endsWith(`/table-sessions/${requestedId}`)
+        ? Promise.resolve(session)
+        : original.request(method, path, body, key),
+  };
+  const host = createOrderingHost({ businessId, appInstanceId, miniAppId: "siparis" }, api);
+  await expect(host.get({ id: requestedId })).resolves.toEqual(session);
+
+  const foreignId = randomUUID();
+  session.id = foreignId;
+  await expect(host.get({ id: requestedId })).rejects.toThrow("Sipariş bağlamı uyuşmuyor.");
+
+  session.id = requestedId;
+  session.appInstanceId = randomUUID();
+  await expect(host.get({ id: requestedId })).rejects.toThrow("Sipariş bağlamı uyuşmuyor.");
+});
+
+test("masa servis isteği yanıtı kendi oturumuna aittir ve tekrar anahtarı iletilir", async () => {
+  const { api, calls } = transport();
+  const sessionId = randomUUID();
+  const reply = {
+    id: randomUUID(),
+    tableSessionId: sessionId,
+    kind: "waiter",
+    label: "Servis çağrısı",
+  };
+  const original = api.request;
+  api.request = (method, path, body, key) => {
+    if (!path.endsWith(`/table-sessions/${sessionId}/requests`))
+      return original(method, path, body, key);
+    calls.push({ method, path, body, key });
+    return Promise.resolve(reply);
+  };
+  const host = createOrderingHost({ businessId, appInstanceId, miniAppId: "siparis" }, api);
+  expect(await host.request({ id: sessionId, kind: "waiter", key: "masa-istek-1" })).toEqual(reply);
+  expect(calls.at(-1)).toEqual({
+    method: "POST",
+    path: `/v1/shell/${businessId}/${appInstanceId}/table-sessions/${sessionId}/requests`,
+    body: { kind: "waiter" },
+    key: "masa-istek-1",
+  });
+});
+
+test("masa servis isteği başka oturuma veya çağrı türüne ait yanıtı reddeder", async () => {
+  const sessionId = randomUUID();
+  const { api: original } = transport();
+  const reply = {
+    id: randomUUID(),
+    tableSessionId: randomUUID(),
+    kind: "waiter",
+    label: "Başka oturum",
+  };
+  const api: OrderingTransport = {
+    request: (method, path, body, key) =>
+      path.endsWith(`/table-sessions/${sessionId}/requests`)
+        ? Promise.resolve(reply)
+        : original.request(method, path, body, key),
+  };
+  const host = createOrderingHost({ businessId, appInstanceId, miniAppId: "siparis" }, api);
+  await expect(
+    host.request({ id: sessionId, kind: "waiter", key: "masa-istek-2" }),
+  ).rejects.toThrow("Masa servisi bağlamı uyuşmuyor.");
+  reply.tableSessionId = sessionId;
+  reply.kind = "bill";
+  await expect(
+    host.request({ id: sessionId, kind: "waiter", key: "masa-istek-3" }),
+  ).rejects.toThrow("Masa servisi bağlamı uyuşmuyor.");
+});
+
+test("sipariş listesi isteğinde bulunmayan filtreler URL'ye yazılmaz", async () => {
+  const { api: original } = transport();
+  const calls: { method: string; path: string }[] = [];
+  const api: OrderingTransport = {
+    request: (method, path, body, key) => {
+      if (path.includes("/orders?")) {
+        calls.push({ method, path });
+        return Promise.resolve({ items: [], nextCursor: null });
+      }
+      return original.request(method, path, body, key);
+    },
+  };
+  const host = createOrderingHost({ businessId, appInstanceId, miniAppId: "siparis" }, api);
+  await expect(
+    host.listOrders({ limit: 30, cursor: undefined, active: undefined }),
+  ).resolves.toEqual({
+    items: [],
+    nextCursor: null,
+  });
+  expect(calls).toEqual([
+    { method: "GET", path: `/v1/shell/${businessId}/${appInstanceId}/orders?limit=30` },
+  ]);
+});
+
+test("mağaza bağlamında başka işletme veya uygulama kaydı dönemez", async () => {
   const { api } = transport();
   const host = createOrderingHost(
     { miniAppId: "randevu", businessId, appInstanceId },
     {
       request: async (method, path, body, key) =>
-        path.endsWith("/restaurant")
+        path.endsWith("/store")
           ? {
               businessId: randomUUID(),
               appInstanceId,
@@ -173,7 +279,7 @@ test("restoran bağlamında başka işletme veya uygulama kaydı dönemez", asyn
           : api.request(method, path, body, key),
     },
   );
-  await expect(host.getRestaurant(undefined)).rejects.toThrow("Sipariş bağlamı uyuşmuyor.");
+  await expect(host.getStore(undefined)).rejects.toThrow("Mağaza bağlamı uyuşmuyor.");
 });
 
 test("teslimat kabuğu teklif ve görüntü için kendi bağlamındaki sabit uçları kullanır", async () => {

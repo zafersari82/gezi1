@@ -144,7 +144,7 @@ Dosya adını çatının belirlediği yerler (Expo Router ve Next.js'te `_layout
 - Şema dosyaları `apps/api/migrations` içindedir ve 0001'den başlayarak boşluksuz numaralanır.
 - Yayınlanmış bir şema dosyası bir daha düzenlenmez; değişiklik sıradaki numarayla yeni dosya olarak
   eklenir. (2.0 yayınlanana kadar tek dosya, `0001_baseline.sql`, doğrudan düzenlendi.)
-  `0001–0034` içerik özetleri `docs/yayimlanmis-sema-ozetleri.json` içinde sabitlenmiştir;
+  `0001–0036` içerik özetleri `docs/yayimlanmis-sema-ozetleri.json` içinde sabitlenmiştir;
   `npm run conventions` bunların SHA-256 bütünlüğünü kontrol eder. Yeni yayın sonrası özet kaydını
   yalnız onaylanan yayımlanmış şema kümesi için güncelle; mevcut özetleri geriye dönük değiştirme.
 - Kayıtların kimliği UUID'dir (`id`); iki kaydı birbirine bağlayan tablolarda (`contacts`,
@@ -159,6 +159,16 @@ Dosya adını çatının belirlediği yerler (Expo Router ve Next.js'te `_layout
   korunur ve bu koruma, kuralı doğrudan SQL ile zorlayan bir testle birlikte yazılır. Böyle bir
   tabloya `update` ya da `delete` gerektiren bir özellik, tetikleyiciyi gevşetmek yerine yeni bir
   satır ekleyecek biçimde tasarlanır.
+
+## Mini uygulama köprüsü — A2-3
+
+Masa oturumuna ait işlemler `tableService.join`, `tableService.get`, `tableService.getBill` ve
+`tableService.request` yöntemlerindedir. Bu yöntemler `table_service.basic` iznini gerektirir;
+ortak `ordering` köprüsünde sektör bağımsız sipariş işlemleri bulunur. Önceden kullanılan
+`ordering.getRestaurant` ve `ordering` altındaki eski masa yöntemleri yeniden eklenemez.
+`npm run conventions`, sözleşme, SDK, mobil köprü ve mini uygulama üretim kaynaklarında bu eski
+adları reddeder. Geçmiş yöntemlerin bulunmadığını doğrulayan test dosyaları bu taramaya dahil
+edilmez; denetimin kendisi negatif testte sınanır.
 
 ## Mobil uygulama (`apps/mobile`)
 

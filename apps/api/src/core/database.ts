@@ -105,7 +105,7 @@ function bind(executor: Executor, transaction: Database["transaction"]): Databas
 export function createDatabase(connectionString: string, maxConnections = 20): DatabasePool {
   const pool = new pg.Pool({ connectionString, max: maxConnections });
   // Havuz, boştaki bir bağlantı koptuğunda "error" olayı yayar; dinleyicisi olmayan olay Node.js
-  // sürecini sonlandırır. Bu dinleyici, kimse kayıt tutmasa da sürecin ayakta kalmasını sağlar.
+  // sürecini sonlandırır. Bu dinleyici, kimse kayıt tutmadığında da sürecin ayakta kalmasını sağlar.
   pool.on("error", () => undefined);
 
   const transaction: Database["transaction"] = async (run) => {

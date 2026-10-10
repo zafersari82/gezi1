@@ -78,7 +78,7 @@ async function main(): Promise<void> {
       app.services.events.purgeExpiredKeys(),
       app.services.tenantMaintenance.purgeCarts(),
       app.services.tenantMaintenance.purgeBusinessTickets(),
-      app.services.tenantMaintenance.purgeRestaurantState(),
+      app.services.tenantMaintenance.purgeDeviceEvents(),
       app.services.adminAccounts.purgeExpired(),
     ]).catch((error: unknown) => {
       log.error(error, "Bakım görevi başarısız");

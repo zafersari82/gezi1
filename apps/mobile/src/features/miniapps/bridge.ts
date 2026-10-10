@@ -24,7 +24,7 @@ import {
 import type { FeedbackHost } from "./feedback-host";
 import type { IncentivesHost } from "./incentives-host";
 import type { LocationHost } from "./location-host";
-import type { OrderingHost } from "./ordering-host";
+import type { OrderingHost, TableServiceHost } from "./ordering-host";
 import type { ReturnsHost } from "./returns-host";
 
 /**
@@ -36,6 +36,7 @@ export interface BridgeHost {
   returns?: ReturnsHost | undefined;
   incentives?: IncentivesHost | undefined;
   ordering?: OrderingHost | undefined;
+  tableService?: TableServiceHost | undefined;
   location?: LocationHost | undefined;
   miniApp: MiniAppDetail;
   /** Uygulamayı açan QR kodunun imzalı parametreleri; listeden açıldıysa boş. */
@@ -85,6 +86,12 @@ function ordering(host: BridgeHost): OrderingHost {
   return host.ordering;
 }
 
+function tableService(host: BridgeHost): TableServiceHost {
+  if (host.tableService === undefined)
+    throw new BridgeFailure("unavailable", "Bu uygulamanın masa servisi yok.");
+  return host.tableService;
+}
+
 function location(host: BridgeHost): LocationHost {
   if (host.location === undefined)
     throw new BridgeFailure("unavailable", "Adres servisi kullanılamıyor.");
@@ -131,13 +138,12 @@ const handlers: Handlers = {
 
   "ordering.getDeliveryQuote": (host, params) => ordering(host).getDeliveryQuote(params),
   "ordering.getDeliverySnapshot": (host, params) => ordering(host).getDeliverySnapshot(params),
-  "ordering.getRestaurant": (host, params) => ordering(host).getRestaurant(params),
   "ordering.getStore": (host, params) => ordering(host).getStore(params),
   "ordering.getSlots": (host, params) => ordering(host).getSlots(params),
-  "ordering.joinTable": (host, params) => ordering(host).joinTable(params),
-  "ordering.getTable": (host, params) => ordering(host).getTable(params),
-  "ordering.getBill": (host, params) => ordering(host).getBill(params),
-  "ordering.requestService": (host, params) => ordering(host).requestService(params),
+  "tableService.join": (host, params) => tableService(host).join(params),
+  "tableService.get": (host, params) => tableService(host).get(params),
+  "tableService.getBill": (host, params) => tableService(host).getBill(params),
+  "tableService.request": (host, params) => tableService(host).request(params),
   "ordering.getEvents": (host, params) => ordering(host).getEvents(params),
   "ordering.listOrders": (host, params) => ordering(host).listOrders(params),
   "ordering.getCatalog": (host, params) => ordering(host).getCatalog(params),

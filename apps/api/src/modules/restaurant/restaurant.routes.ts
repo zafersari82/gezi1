@@ -48,7 +48,7 @@ export function restaurantRoutes(server: FastifyInstance, { services, guard }: R
     ),
   );
   server.get("/v1/shell/:businessId/:appInstanceId/restaurant", async (request) =>
-    restaurant.context(await shell(request)),
+    services.storefrontContext(await shell(request)),
   );
   server.get("/v1/shell/:businessId/:appInstanceId/fulfilment-slots", async (request) =>
     restaurant.slots(await shell(request), parse(catalogBranchQuerySchema, request.query).branchId),

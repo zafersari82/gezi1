@@ -156,6 +156,23 @@ describe("handleBridgeMessage", () => {
     ).toMatchObject({ ok: false, error: { code: "unavailable" } });
   });
 
+  it("masa köprüsü sipariş izninden bağımsız olarak kendi iznini ister", async () => {
+    const regular = createHost({ capabilities: ["ordering.basic"] });
+    expect(await handleBridgeMessage(request("tableService.join"), regular.host)).toMatchObject({
+      ok: false,
+      error: { code: "capability_denied" },
+    });
+    const tableOnly = createHost({ capabilities: ["table_service.basic"] });
+    expect(await handleBridgeMessage(request("tableService.join"), tableOnly.host)).toMatchObject({
+      ok: false,
+      error: { code: "unavailable" },
+    });
+    expect(await handleBridgeMessage(request("ordering.joinTable"), tableOnly.host)).toMatchObject({
+      ok: false,
+      error: { code: "unknown_method" },
+    });
+  });
+
   it("değerlendirme, favori ve iade yetkisi kabukta denetlenir", async () => {
     const id = "0468d9b0-5837-41c2-bb46-a2ca5a87d8fc";
     const withoutOrdering = createHost({ capabilities: [] });

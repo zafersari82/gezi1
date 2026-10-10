@@ -12,7 +12,6 @@ import {
   orderSchema,
   orderSummarySchema,
   reorderResultSchema,
-  restaurantContextSchema,
   storeContextSchema,
   tableBillSchema,
   tableSessionSchema,
@@ -31,12 +30,21 @@ export type OrderingHost = {
   ]: (params: BridgeParams[Method]) => Promise<BridgeResults[Method]>;
 };
 
+export type TableServiceHost = {
+  [
+    Method in Extract<
+      keyof BridgeParams,
+      `tableService.${string}`
+    > as Method extends `tableService.${infer Name}` ? Name : never
+  ]: (params: BridgeParams[Method]) => Promise<BridgeResults[Method]>;
+};
+
 /** Bağlam kabuğun açtığı uygulamadan gelir; paket parametreleri bağlam taşımaz. */
 export function createOrderingHost(
   selected: { businessId?: string; appInstanceId?: string; miniAppId: string },
   transport: OrderingTransport,
   launchQr: string | null = null,
-): OrderingHost {
+): OrderingHost & TableServiceHost {
   let binding: { businessId: string; appInstanceId: string; miniAppId: string } | null =
     selected.businessId === undefined || selected.appInstanceId === undefined
       ? null
@@ -113,22 +121,13 @@ export function createOrderingHost(
         throw new Error("Mağaza bağlamı uyuşmuyor.");
       return value;
     },
-    async getRestaurant() {
-      const context = await confirm();
-      const value = restaurantContextSchema.parse(
-        await transport.request("GET", `${base()}/restaurant`),
-      );
-      if (value.businessId !== context.businessId || value.appInstanceId !== context.appInstanceId)
-        throw new Error("Sipariş bağlamı uyuşmuyor.");
-      return value;
-    },
     async getSlots({ branchId }) {
       await confirm();
       return fulfilmentSlotsSchema.parse(
         await transport.request("GET", `${base()}/fulfilment-slots?branchId=${branchId}`),
       );
     },
-    async joinTable() {
+    async join() {
       await confirm();
       if (launchQr === null)
         throw new Error("Masaya katılmak için masanın QR kodunu VADO ile okut.");
@@ -139,12 +138,12 @@ export function createOrderingHost(
         throw new Error("Sipariş bağlamı uyuşmuyor.");
       return value;
     },
-    async getTable({ id }) {
+    async get({ id }) {
       await confirm();
       const value = tableSessionSchema.parse(
         await transport.request("GET", `${base()}/table-sessions/${id}`),
       );
-      if (value.appInstanceId !== binding?.appInstanceId)
+      if (value.appInstanceId !== binding?.appInstanceId || value.id !== id)
         throw new Error("Sipariş bağlamı uyuşmuyor.");
       return value;
     },
@@ -154,9 +153,9 @@ export function createOrderingHost(
         await transport.request("GET", `${base()}/table-sessions/${id}/bill`),
       );
     },
-    async requestService({ id, key, kind }) {
+    async request({ id, key, kind }) {
       await confirm();
-      return z
+      const response = z
         .object({
           id: z.uuid(),
           tableSessionId: z.uuid(),
@@ -166,6 +165,9 @@ export function createOrderingHost(
         .parse(
           await transport.request("POST", `${base()}/table-sessions/${id}/requests`, { kind }, key),
         );
+      if (response.tableSessionId !== id || response.kind !== kind)
+        throw new Error("Masa servisi bağlamı uyuşmuyor.");
+      return response;
     },
     async getEvents({ cursor }) {
       const context = await confirm();
@@ -184,7 +186,7 @@ export function createOrderingHost(
       const { businessCustomerId, businessId, appInstanceId } = await confirm();
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(params)) {
-        query.set(key, String(value));
+        if (value !== undefined) query.set(key, String(value));
       }
       const value = z
         .object({ items: z.array(orderSummarySchema), nextCursor: z.string().nullable() })

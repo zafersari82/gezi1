@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { cartSchema, orderSchema } from "@vado/contracts";
+import { type Category, cartSchema, orderSchema } from "@vado/contracts";
 import { expect } from "vitest";
 
 import { sql } from "../../src/core/database";
@@ -11,8 +11,9 @@ export async function createDeliveryFixture(
   app: TestApp,
   restaurant = false,
   pricing: { amountMinor?: number; feeMinor?: number; minimumMinor?: number } = {},
+  businessCategory: Category = "food",
 ) {
-  const f = await createCatalogFixture(app);
+  const f = await createCatalogFixture(app, businessCategory);
   const owner = as(app, f.owner);
   if (pricing.amountMinor !== undefined)
     await app.services.catalog.savePrice(f.scope, f.itemId, {

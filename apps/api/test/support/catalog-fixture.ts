@@ -1,4 +1,5 @@
 import {
+  type Category,
   catalogCategoryBodySchema,
   catalogItemBodySchema,
   catalogOptionGroupBodySchema,
@@ -7,8 +8,8 @@ import {
 import type { TestApp } from "./harness";
 import { createTenantFixture } from "./tenant-fixture";
 
-export async function createCatalogFixture(app: TestApp) {
-  const f = await createTenantFixture(app);
+export async function createCatalogFixture(app: TestApp, businessCategory: Category = "food") {
+  const f = await createTenantFixture(app, businessCategory);
   const category = await app.services.catalog.saveCategory(
     f.scope,
     catalogCategoryBodySchema.parse({ name: "Ürünler" }),

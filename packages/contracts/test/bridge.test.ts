@@ -20,6 +20,30 @@ describe("köprü protokolü", () => {
     }
   });
 
+  it("masa servisi yalnız yeni ad alanı ve kendi izniyle açılır", () => {
+    for (const old of [
+      "ordering.getRestaurant",
+      "ordering.joinTable",
+      "ordering.getTable",
+      "ordering.getBill",
+      "ordering.requestService",
+    ]) expect(isBridgeMethod(old)).toBe(false);
+    for (const method of [
+      "tableService.join",
+      "tableService.get",
+      "tableService.getBill",
+      "tableService.request",
+    ] as const) {
+      expect(isBridgeMethod(method)).toBe(true);
+      expect(BRIDGE_METHODS[method]).toBe("table_service.basic");
+    }
+    expect(bridgeParamsSchemas["tableService.join"].safeParse(undefined).success).toBe(true);
+    expect(bridgeParamsSchemas["tableService.get"].safeParse({ id: "bozuk" }).success).toBe(false);
+    expect(bridgeParamsSchemas["tableService.get"].safeParse({
+      id: "b2cd9772-164f-4300-b8c6-61a26a846790", businessId: "yabancı"
+    }).success).toBe(false);
+  });
+
   it("her yetkinin Türkçe açıklaması vardır", () => {
     for (const capability of CAPABILITIES) {
       expect(CAPABILITY_LABELS[capability].length).toBeGreaterThan(0);

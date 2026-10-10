@@ -42,7 +42,7 @@ import {
 } from "./ordering";
 import type { ConfigValues } from "./packages";
 import { merchantIdSchema, orderIdSchema, paymentDescriptionSchema } from "./payments";
-import { type RestaurantContext, tableRequestBodySchema, type TableSession } from "./restaurant";
+import { tableRequestBodySchema, type TableSession } from "./restaurant";
 import {
   reorderBodySchema,
   type ReorderResult,
@@ -98,13 +98,12 @@ export const BRIDGE_METHODS = {
   "ordering.resetCart": "ordering.basic",
   "ordering.checkout": "ordering.basic",
   "ordering.getOrder": "ordering.basic",
-  "ordering.getRestaurant": "ordering.basic",
   "ordering.getStore": "ordering.basic",
   "ordering.getSlots": "ordering.basic",
-  "ordering.joinTable": "ordering.basic",
-  "ordering.getTable": "ordering.basic",
-  "ordering.getBill": "ordering.basic",
-  "ordering.requestService": "ordering.basic",
+  "tableService.join": "table_service.basic",
+  "tableService.get": "table_service.basic",
+  "tableService.getBill": "table_service.basic",
+  "tableService.request": "table_service.basic",
   "ordering.getEvents": "ordering.basic",
   "ordering.listOrders": "ordering.basic",
   "ordering.reorder": "ordering.basic",
@@ -195,13 +194,12 @@ export const bridgeParamsSchemas = {
     .extend({ id: idSchema, key: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/) })
     .strict(),
   "ordering.getOrder": z.object({ id: idSchema }).strict(),
-  "ordering.getRestaurant": noParamsSchema,
   "ordering.getStore": noParamsSchema,
   "ordering.getSlots": z.object({ branchId: idSchema }).strict(),
-  "ordering.joinTable": noParamsSchema,
-  "ordering.getTable": z.object({ id: idSchema }).strict(),
-  "ordering.getBill": z.object({ id: idSchema }).strict(),
-  "ordering.requestService": tableRequestBodySchema
+  "tableService.join": noParamsSchema,
+  "tableService.get": z.object({ id: idSchema }).strict(),
+  "tableService.getBill": z.object({ id: idSchema }).strict(),
+  "tableService.request": tableRequestBodySchema
     .extend({ id: idSchema, key: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/) })
     .strict(),
   "ordering.getEvents": z
@@ -297,13 +295,12 @@ export interface BridgeResults {
   "ordering.resetCart": { type: "cart" | "cart_conflict"; cart: Cart };
   "ordering.checkout": { type: "order"; order: Order } | { type: "cart_changed"; cart: Cart };
   "ordering.getOrder": Order;
-  "ordering.getRestaurant": RestaurantContext;
   "ordering.getStore": StoreContext;
   "ordering.getSlots": { items: { at: string }[]; preparationMinutes: number; openNow: boolean };
-  "ordering.joinTable": TableSession;
-  "ordering.getTable": TableSession;
-  "ordering.getBill": { ownTotalMinor: number; ownPaidMinor: number; ownDueMinor: number };
-  "ordering.requestService": {
+  "tableService.join": TableSession;
+  "tableService.get": TableSession;
+  "tableService.getBill": { ownTotalMinor: number; ownPaidMinor: number; ownDueMinor: number };
+  "tableService.request": {
     id: string;
     tableSessionId: string;
     kind: "waiter" | "bill";

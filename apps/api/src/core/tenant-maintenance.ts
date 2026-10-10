@@ -20,7 +20,7 @@ export function createTenantMaintenance(platformDb: Database) {
       (select id from business_socket_tickets where expires_at<=now() order by expires_at for update skip locked limit 1000)`),
     );
   }
-  function purgeRestaurantState() {
+  function purgeDeviceEvents() {
     return platformScope(platformDb, async (tx) => {
       const events = await tx.execute(
         sql`delete from business_live_events where (business_id,cursor) in (select business_id,cursor from business_live_events where created_at<now()-interval '30 days' order by created_at for update skip locked limit 1000)`,
@@ -34,5 +34,5 @@ export function createTenantMaintenance(platformDb: Database) {
       return { events, pairings, tickets };
     });
   }
-  return { purgeCarts, purgeBusinessTickets, purgeRestaurantState };
+  return { purgeCarts, purgeBusinessTickets, purgeDeviceEvents };
 }

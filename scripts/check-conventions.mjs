@@ -34,6 +34,18 @@ const FRAMEWORK_FILE = /^(_layout|\+[a-z-]+|\[[a-zA-Z.]+\])\.tsx?$/;
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$/;
 const MIGRATION_FILE = /^(\d{4})_[a-z0-9]+(_[a-z0-9]+)*\.sql$/;
 const PUBLISHED_MIGRATION_COUNT = 36;
+/** Paketlerin adları kayıt dosyalarında kalır, çekirdeğe taşınmaz. */
+const DOMAIN_WORDS = /table_session|tableSession|kitchen|waiter|courier|restaurant|dine_in|masa|mutfak|garson|kurye|restoran/i;
+/** Yayımlanan şemalar değişmez; SHA kontrolü aşağıda dosyanın bütün içeriğini korur. */
+const IMMUTABLE_CORE_MIGRATIONS = new Set([
+  "0031_ordering_catalog.sql",
+  "0033_ordering_fulfilment.sql",
+  "0035_operation_devices.sql",
+]);
+/** Yeni çekirdek şemalar adlarından anlaşılır ve aynı alan kuralını taşır. */
+const FUTURE_CORE_MIGRATION = /^\d{4}_.*(?:ordering|operation|capabilit|fulfilment|context|live).*\.sql$/;
+/** A2-3 ile yayımdan kaldırılan masa köprüsü yöntemleri tekrar eklenemez. */
+const LEGACY_BRIDGE_METHOD = /\bordering\.(?:getRestaurant|joinTable|getTable|getBill|requestService)\b/;
 
 const SUPPRESSION = /eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck/;
 const LEFTOVER_NOTE = /\b(TODO|FIXME|XXX|HACK)\b/;
@@ -119,6 +131,37 @@ const rules = [
         : [{ file: file.path, line: index + 1, message: "Paket dışına göreli yolla çıkılmaz" }];
     });
   },
+
+  // Çekirdek mimarisi sektörlerden bağımsızdır. Yayımlanmış 0031, 0033, 0035
+  // dosyaları değiştirmemek için sözcük taramasından muaf; SHA denetimi onları sabit tutar.
+  // packages/contracts/src/ordering-registry.ts kayıt sözlüğüdür; çekirdek kodu değildir.
+  lineRule(
+    (file) =>
+      file.path.startsWith("apps/api/src/core/") ||
+      file.path.startsWith("apps/api/src/modules/ordering/") ||
+      (file.path.startsWith("apps/api/migrations/") &&
+        file.extension === ".sql" &&
+        FUTURE_CORE_MIGRATION.test(file.name) &&
+        !IMMUTABLE_CORE_MIGRATIONS.has(file.name) &&
+        Number(file.name.slice(0, 4)) > PUBLISHED_MIGRATION_COUNT),
+    DOMAIN_WORDS,
+    "Sektör kavramı çekirdeğe yazılmaz; özellik kendi paketinde tanımlanır",
+  ),
+
+  // Masa işlevleri tableService alanının sorumluluğudur. Sözleşme, SDK, mobil kabuk ve
+  // mini uygulamalarda eski ordering yöntemleri yeniden yayımlanmamalıdır. Testlerde bu eski
+  // adların yokluğunu doğrulayan sabitler bulunduğu için kaynak testleri muaf tutulur.
+  lineRule(
+    (file) =>
+      isCode(file) &&
+      (file.path.startsWith("packages/contracts/src/") ||
+        file.path.startsWith("packages/miniapp-sdk/src/") ||
+        file.path.startsWith("apps/mobile/src/features/miniapps/") ||
+        file.path.startsWith("miniapps/restaurant/src/") ||
+        file.path.startsWith("miniapps/shop/src/")),
+    LEGACY_BRIDGE_METHOD,
+    "Eski masa köprüsü yeniden eklenemez; tableService alanını kullan",
+  ),
 
   // Renkler yalnızca tema dosyalarında tanımlanır.
   lineRule(

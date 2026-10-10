@@ -52,6 +52,16 @@ describe("mini uygulama SDK'sı", () => {
     });
     await expect(pending).resolves.toEqual({ type: "cart_changed", cart: { version: 3 } });
   });
+  it("masa işlemlerini yalnız ayrı tableService ad alanına gönderir", async () => {
+    const shell = fakeShell();
+    const vado = createVado(shell.host);
+    expect("joinTable" in vado.ordering).toBe(false);
+    const pending = vado.tableService.join();
+    expect(shell.last()).toMatchObject({ method: "tableService.join" });
+    shell.reply({ id: shell.last().id, ok: true, result: { id: "oturum" } });
+    await expect(pending).resolves.toEqual({ id: "oturum" });
+  });
+
   it("iade ve favori işlemlerini kabuk köprüsüne tipli iletir", async () => {
     const shell = fakeShell();
     const vado = createVado(shell.host);

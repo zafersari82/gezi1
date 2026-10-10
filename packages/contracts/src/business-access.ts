@@ -3,6 +3,9 @@ import { z } from "zod";
 import { businessMemberRoleSchema } from "./business-management";
 import { idSchema, timestampSchema } from "./common";
 
+/** Teslimat görevlisi rolü; çekirdeğe sektör adı taşınmaz. */
+export const DELIVERY_AGENT_ROLE = "courier" as const;
+
 /**
  * İşletme içi yetkinin tek kataloğu. Sahip ve yönetici bütün izinlere işletme genelinde sahiptir;
  * personel yalnız kendisine verilen izinleri, verildiği kapsamda kullanır. Yeni bir modül kendi

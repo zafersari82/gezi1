@@ -1,11 +1,11 @@
 {
   "manifest": 1,
   "id": "restoran",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "VADO Restoran",
   "entry": "index.html",
   "icon": "icon.png",
-  "permissions": ["ordering.basic", "location.addresses", "storage.local"],
+  "permissions": ["ordering.basic", "table_service.basic", "location.addresses", "storage.local"],
   "network": [],
   "config": []
 }

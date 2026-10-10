@@ -21,6 +21,7 @@ export * from "./engine-capabilities";
 export * from "./errors";
 export * from "./events";
 export * from "./feedback";
+export * from "./http-statuses";
 export * from "./incentives";
 export * from "./location";
 export * from "./media";

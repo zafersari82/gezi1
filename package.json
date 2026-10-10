@@ -30,7 +30,7 @@
     "format:check": "prettier --check .",
     "typegen": "npm run typegen --workspaces --if-present",
     "lint": "npm run typegen && eslint .",
-    "conventions": "node scripts/check-conventions.mjs",
+    "conventions": "node scripts/check-conventions.mjs && node --test scripts/check-conventions.test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",

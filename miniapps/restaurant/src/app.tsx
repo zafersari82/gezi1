@@ -7,7 +7,7 @@ import {
   type DeliveryQuote,
   mergeOrderSnapshot,
   type Order,
-  type RestaurantContext,
+  type StoreContext,
   studioPaletteById,
   studioTemplateById,
   type TableSession,
@@ -43,7 +43,7 @@ type Saved = z.infer<typeof savedSchema>;
 const failure = (cause: unknown) =>
   cause instanceof Error ? cause.message : "İşlem tamamlanamadı. Yeniden dene.";
 export function App() {
-  const [context, setContext] = useState<RestaurantContext | null>(null);
+  const [context, setContext] = useState<StoreContext | null>(null);
   const [table, setTable] = useState<TableSession | null>(null);
   const [branch, setBranch] = useState("");
   const [scheduled, setScheduled] = useState("");
@@ -83,7 +83,7 @@ export function App() {
     pending.current = value;
     updatePendingValue(value);
   }
-  const contextRef = useRef<RestaurantContext | null>(null);
+  const contextRef = useRef<StoreContext | null>(null);
   const tableRef = useRef<TableSession | null>(null);
   const menuRequest = useRef(0);
   const sharedProduct = useRef<SharedProductIntent | null>(null);
@@ -168,7 +168,7 @@ export function App() {
     if (refreshLock.current || contextRef.current === null) return;
     refreshLock.current = true;
     try {
-      const currentContext = await vado.ordering.getRestaurant();
+      const currentContext = await vado.ordering.getStore();
       if (!active()) return;
       contextRef.current = currentContext;
       setContext(currentContext);
@@ -187,8 +187,8 @@ export function App() {
       }
       const seating = tableRef.current;
       if (seating !== null) {
-        const current = await vado.ordering.getTable({ id: seating.id });
-        const currentBill = await vado.ordering.getBill({ id: seating.id });
+        const current = await vado.tableService.get({ id: seating.id });
+        const currentBill = await vado.tableService.getBill({ id: seating.id });
         if (active() && tableRef.current?.id === seating.id) {
           tableRef.current = current;
           setTable(current);
@@ -211,7 +211,7 @@ export function App() {
     const active = () => alive.current && attempt === lifecycle.current;
     try {
       const launch = await vado.app.getContext();
-      const c = await vado.ordering.getRestaurant();
+      const c = await vado.ordering.getStore();
       const raw = await vado.storage.get(storageKey);
       if (!active()) return;
       contextRef.current = c;
@@ -231,7 +231,7 @@ export function App() {
         }
       }
       let seating: TableSession | null = null;
-      if (launch.params.masa) seating = await vado.ordering.joinTable();
+      if (launch.params.masa) seating = await vado.tableService.join();
       if (!active()) return;
       tableRef.current = seating;
       setTable(seating);
@@ -572,7 +572,7 @@ export function App() {
     await run(async () => {
       const s = tableRef.current;
       if (s === null) return;
-      await vado.ordering.requestService({ id: s.id, kind, key: crypto.randomUUID() });
+      await vado.tableService.request({ id: s.id, kind, key: crypto.randomUUID() });
       setNotice(kind === "waiter" ? "Garson çağrın iletildi." : "Hesap isteğin iletildi.");
       await refresh();
     });

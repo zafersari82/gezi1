@@ -10,7 +10,6 @@ import { type Database, sql } from "../../core/database";
 import { AppError } from "../../core/errors";
 import { withIdempotency } from "../../core/idempotency";
 import { requireBusinessRole, type TenantScope, withTenant } from "../../core/tenant-scope";
-import { createStorefrontContext } from "../business-management/storefront-context";
 import type { QrService } from "../qr/qr.service";
 
 interface SessionRow {
@@ -53,10 +52,9 @@ async function ownSession(tx: Database, scope: TenantScope, id: string, open = f
   return row;
 }
 export function createRestaurantService(
-  { db, storage }: Pick<AppContext, "db" | "storage">,
+  { db }: Pick<AppContext, "db">,
   qr: Pick<QrService, "issueTable" | "tablePayload">,
 ) {
-  const context = createStorefrontContext({ db, storage });
   function slots(scope: TenantScope, branchId: string) {
     customer(scope);
     return withTenant(db, scope, async (tx) => {
@@ -297,7 +295,6 @@ export function createRestaurantService(
     });
   }
   return {
-    context,
     slots,
     tables,
     createTable,

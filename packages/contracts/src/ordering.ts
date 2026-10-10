@@ -4,6 +4,12 @@ import { catalogSelectionSchema, moneyMinorSchema, vatBasisPointsSchema } from "
 import { idSchema, timestampSchema } from "./common";
 import { deliverySummarySchema } from "./delivery";
 import { incentiveQuoteSchema } from "./incentives";
+import {
+  type Fulfilment,
+  fulfilmentSchema,
+  type OrderContext,
+  orderContextSchema,
+} from "./ordering-registry";
 import { timezoneSchema } from "./time";
 
 export const CORE_ORDER_STATES = [
@@ -24,31 +30,6 @@ export const CORE_ORDER_GRAPH: Readonly<Record<string, readonly string[]>> = {
 export const orderStateSchema = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/);
 export const orderGraphSchema = z.record(orderStateSchema, z.array(orderStateSchema).max(20));
 export const expectedVersionSchema = z.number().int().min(1).max(2_147_483_647);
-/** Paketlerin kaydettiği teslim biçimleri. Çekirdek bir biçimin adını bilmez. */
-export const fulfilmentSchema = z.enum(["pickup", "dine_in", "delivery"]);
-export type Fulfilment = z.infer<typeof fulfilmentSchema>;
-/** Sunucu teslim biçimi kayıtlarındaki tahsilat yerleriyle aynı sırada tanımlanır. */
-export const PAYMENT_PLACES = ["counter", "table", "delivery"] as const;
-export type PaymentPlace = (typeof PAYMENT_PLACES)[number];
-export const FULFILMENT_PAYMENT_PLACES: Readonly<
-  Record<Fulfilment, readonly [PaymentPlace, ...PaymentPlace[]]>
-> = {
-  pickup: ["counter"],
-  dine_in: ["table", "counter"],
-  delivery: ["delivery", "counter"],
-};
-
-export const FULFILMENT_LABELS: Readonly<Record<Fulfilment, string>> = {
-  pickup: "Gel-al",
-  dine_in: "Masada servis",
-  delivery: "Adrese teslim",
-};
-/** Paketlerin kaydettiği sipariş bağlamı türleri (masa servisi: masa oturumu). */
-export const ORDER_CONTEXT_KINDS = ["table_session"] as const;
-export const orderContextSchema = z
-  .object({ kind: z.enum(ORDER_CONTEXT_KINDS), id: idSchema })
-  .strict();
-export type OrderContext = z.infer<typeof orderContextSchema>;
 export const openCartBodySchema = z
   .object({
     branchId: idSchema,
@@ -240,3 +221,14 @@ export const branchPerformanceSchema = z.object({
   items: z.array(branchPerformanceRowSchema),
 });
 export type BranchPerformance = z.infer<typeof branchPerformanceSchema>;
+
+// Ortak tipler eski dış içe aktarmaları bozmadan yeni kayıt dosyasına yönlendirilir.
+export {
+  fulfilmentSchema,
+  PAYMENT_PLACES,
+  FULFILMENT_PAYMENT_PLACES,
+  FULFILMENT_LABELS,
+  ORDER_CONTEXT_KINDS,
+  orderContextSchema,
+} from "./ordering-registry";
+export type { Fulfilment, OrderContext, PaymentPlace } from "./ordering-registry";

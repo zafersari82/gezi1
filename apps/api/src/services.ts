@@ -2,8 +2,8 @@ import { createBusinessOrderConsumer } from "./core/business-order-live";
 import type { AppContext } from "./core/context";
 import { createLiveReplayService } from "./core/live-replay";
 import { orderingAuditConsumer } from "./core/ordering-audit";
+import { createOrderingLifecycle } from "./core/ordering-lifecycle";
 import { createOutboxWorker } from "./core/outbox-worker";
-import { createOrderPushConsumer, createRestaurantLiveConsumer } from "./core/restaurant-live";
 import { createTenantMaintenance } from "./core/tenant-maintenance";
 import { createAdminService } from "./modules/admin/admin.service";
 import { createAdminAccountService } from "./modules/admin-accounts/admin-accounts.service";
@@ -14,6 +14,7 @@ import { createBusinessAccessService } from "./modules/business-management/busin
 import { createBusinessManagementService } from "./modules/business-management/business-management.service";
 import { createBusinessSocketService } from "./modules/business-management/business-socket.service";
 import { createOperationDeviceService } from "./modules/business-management/operation-devices.service";
+import { createStorefrontContext } from "./modules/business-management/storefront-context";
 import { createBusinessService } from "./modules/businesses/businesses.service";
 import {
   deviceMaySetStatus,
@@ -42,10 +43,16 @@ import { createPackageService } from "./modules/packages/packages.service";
 import { createPaymentService } from "./modules/payments/payments.service";
 import { createQrService } from "./modules/qr/qr.service";
 import { createReportService } from "./modules/reports/reports.service";
+import {
+  createOrderPushConsumer,
+  createRestaurantLiveConsumer,
+} from "./modules/restaurant/restaurant-live";
 import { createRestaurantService } from "./modules/restaurant/restaurant.service";
 import { tableSessionLabels } from "./modules/restaurant/table-session-labels";
 import { createReturnService } from "./modules/returns/returns.service";
 import { createUserService } from "./modules/users/users.service";
+import { createCourierLiveConsumer } from "./providers/delivery/courier-live";
+import { createOwnCourierProvider } from "./providers/delivery/own-courier";
 import { createSignedWebhookConsumer } from "./providers/webhook";
 
 /** Tüm servisleri bağımlılık sırasına göre kurar. */
@@ -139,6 +146,7 @@ export function createServices(context: AppContext) {
     packages,
     qr,
     restaurant: createRestaurantService(context, qr),
+    storefrontContext: createStorefrontContext(context),
     payments,
     reports,
     admin,
@@ -147,6 +155,3 @@ export function createServices(context: AppContext) {
 }
 
 export type Services = ReturnType<typeof createServices>;
-import { createOrderingLifecycle } from "./core/ordering-lifecycle";
-import { createCourierLiveConsumer } from "./providers/delivery/courier-live";
-import { createOwnCourierProvider } from "./providers/delivery/own-courier";
