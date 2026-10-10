@@ -46,7 +46,7 @@ export const sendMessageBodySchema = z.discriminatedUnion("kind", [
 ]);
 export type SendMessageBody = z.infer<typeof sendMessageBodySchema>;
 
-export const conversationKindSchema = z.enum(["direct", "group"]);
+export const conversationKindSchema = z.enum(["direct", "group", "business"]);
 export type ConversationKind = z.infer<typeof conversationKindSchema>;
 
 export const memberRoleSchema = z.enum(["owner", "member"]);

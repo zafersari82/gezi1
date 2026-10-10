@@ -98,6 +98,7 @@ export interface Vado {
       params: BridgeParams["ordering.getDeliverySnapshot"],
     ) => Promise<BridgeResults["ordering.getDeliverySnapshot"]>;
     getRestaurant: () => Promise<BridgeResults["ordering.getRestaurant"]>;
+    getStore: () => Promise<BridgeResults["ordering.getStore"]>;
     getSlots: (
       params: BridgeParams["ordering.getSlots"],
     ) => Promise<BridgeResults["ordering.getSlots"]>;
@@ -372,6 +373,7 @@ export function createVado(host: HostWindow | undefined): Vado {
       getDeliveryQuote: (params) => interactive("ordering.getDeliveryQuote", params),
       getDeliverySnapshot: (params) => interactive("ordering.getDeliverySnapshot", params),
       getRestaurant: () => quick("ordering.getRestaurant"),
+      getStore: () => quick("ordering.getStore"),
       getSlots: (params) => quick("ordering.getSlots", params),
       joinTable: () => quick("ordering.joinTable"),
       getTable: (params) => quick("ordering.getTable", params),

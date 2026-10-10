@@ -1,4 +1,5 @@
 import { MESSAGE_MAX_LENGTH, TYPING_THROTTLE_MS } from "@vado/contracts";
+import { router } from "expo-router";
 import { useRef, useState } from "react";
 import {
   Platform,
@@ -31,7 +32,13 @@ function isPlainEnterOnWeb(event: TextInputKeyPressEvent): boolean {
 }
 
 /** Sohbetin altındaki mesaj yazma alanı. */
-export function Composer({ conversationId }: { conversationId: string }) {
+export function Composer({
+  conversationId,
+  allowImages = true,
+}: {
+  conversationId: string;
+  allowImages?: boolean;
+}) {
   const insets = useSafeAreaInsets();
   const { sendTyping } = useRealtime();
   const [text, setText] = useState("");
@@ -72,11 +79,22 @@ export function Composer({ conversationId }: { conversationId: string }) {
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, space.sm) }]}>
       <HeaderButton
-        icon="image-outline"
-        label="Fotoğraf gönder"
+        icon="share-social-outline"
+        label="İşletme veya mini uygulama paylaş"
         color="muted"
-        onPress={() => void attachImage()}
+        onPress={() => {
+          router.push({ pathname: "/chat/[id]/share", params: { id: conversationId } });
+        }}
+        testID="share-target"
       />
+      {allowImages && (
+        <HeaderButton
+          icon="image-outline"
+          label="Fotoğraf gönder"
+          color="muted"
+          onPress={() => void attachImage()}
+        />
+      )}
       <TextInput
         value={text}
         onChangeText={changeText}

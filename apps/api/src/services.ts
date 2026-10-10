@@ -8,23 +8,23 @@ import { createTenantMaintenance } from "./core/tenant-maintenance";
 import { createAdminService } from "./modules/admin/admin.service";
 import { createAdminAccountService } from "./modules/admin-accounts/admin-accounts.service";
 import { createAuthService } from "./modules/auth/auth.service";
+import { createBookingService } from "./modules/booking/booking.service";
 import { createBranchOperationsService } from "./modules/business-management/branch-operations.service";
 import { createBusinessAccessService } from "./modules/business-management/business-access.service";
 import { createBusinessManagementService } from "./modules/business-management/business-management.service";
 import { createBusinessSocketService } from "./modules/business-management/business-socket.service";
 import { createKitchenDeviceService } from "./modules/business-management/kitchen-devices.service";
 import { createBusinessService } from "./modules/businesses/businesses.service";
-import {
-  deviceMaySetStatus,
-  orderDecisionRequired,
-  permitOrderTransition,
-} from "./modules/capabilities/capabilities.registry";
+import { permitOrderTransition } from "./modules/capabilities/capabilities.registry";
 import { createCapabilityService } from "./modules/capabilities/capabilities.service";
 import { createCatalogService } from "./modules/catalog/catalog.service";
+import { createChannelService } from "./modules/channels/channels.service";
+import { createBusinessChatService } from "./modules/chat/business-chat.service";
 import { createChatService } from "./modules/chat/chat.service";
 import { createContactService } from "./modules/contacts/contacts.service";
 import { createDeliveryService } from "./modules/delivery/delivery.service";
 import { deliveryFulfilmentPolicy } from "./modules/delivery/delivery-policy";
+import { createDeliveryAvailabilityReader } from "./modules/discovery/delivery-availability.reader";
 import { createDiscoveryService } from "./modules/discovery/discovery.service";
 import { createFeedbackService } from "./modules/feedback/feedback.service";
 import { createIncentiveService } from "./modules/incentives/incentives.service";
@@ -65,6 +65,7 @@ export function createServices(context: AppContext) {
   const auth = createAuthService(context, { notifications });
   const media = createMediaService(context);
   const chat = createChatService(context, { notifications });
+  const businessChat = createBusinessChatService(context, { notifications });
   const users = createUserService(context, { auth, chat });
   const contacts = createContactService(context);
   const moments = createMomentService(context);
@@ -78,11 +79,7 @@ export function createServices(context: AppContext) {
   const ordering = createOrderingService(
     context,
     catalog,
-    {
-      permitTransition: permitOrderTransition,
-      deviceMaySetStatus,
-      decisionRequired: orderDecisionRequired,
-    },
+    permitOrderTransition,
     createFulfilmentValidator([deliveryFulfilmentPolicy, restaurantFulfilmentPolicy]),
     orderingLifecycle,
     incentives.pricing,
@@ -110,11 +107,16 @@ export function createServices(context: AppContext) {
     auth,
     media,
     chat,
+    businessChat,
+    channels: createChannelService(context),
     users,
     contacts,
     moments,
     businesses,
-    discovery: createDiscoveryService(context),
+    discovery: createDiscoveryService(
+      context,
+      createDeliveryAvailabilityReader(context.platformDb),
+    ),
     businessManagement,
     businessAccess: createBusinessAccessService(context),
     branchOperations: createBranchOperationsService(context),
@@ -123,6 +125,7 @@ export function createServices(context: AppContext) {
     businessSockets: createBusinessSocketService(context),
     catalog,
     ordering,
+    booking: createBookingService(context),
     returns,
     capabilities,
     miniApps,

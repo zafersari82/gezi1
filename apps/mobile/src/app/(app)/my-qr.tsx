@@ -1,11 +1,12 @@
 import * as Clipboard from "expo-clipboard";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
 import { usePersonalQr } from "@/features/qr/queries";
 import { useMe } from "@/features/session/session-provider";
 import { formatCountdown } from "@/lib/format";
+import { useNow } from "@/lib/use-now";
 import { colors, radius, space } from "@/theme/tokens";
 import { AppText } from "@/ui/app-text";
 import { Avatar } from "@/ui/avatar";
@@ -22,17 +23,8 @@ export default function MyQrScreen() {
   const me = useMe();
   const qr = usePersonalQr();
   const { notify } = useFeedback();
-  const [now, setNow] = useState(Date.now);
+  const now = useNow(1000);
   const { refetch } = qr;
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
 
   const expiresAt = qr.data?.expiresAt ?? null;
   const secondsLeft = expiresAt === null ? null : (new Date(expiresAt).getTime() - now) / 1000;

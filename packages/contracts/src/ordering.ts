@@ -82,6 +82,8 @@ export const cartSchema = z.object({
   appInstanceId: idSchema,
   businessCustomerId: idSchema,
   fulfilment: fulfilmentSchema,
+  /** Sepet sahibine ait adres kimliği; tam adres teslimat teklifinde izinle açılır. */
+  addressId: idSchema.nullable().optional(),
   tableSessionId: idSchema.nullable().default(null),
   scheduledAt: timestampSchema.nullable().default(null),
   status: z.enum(["open", "checked_out", "expired"]),

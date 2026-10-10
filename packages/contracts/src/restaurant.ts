@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { idSchema } from "./common";
 import { expectedVersionSchema } from "./ordering";
-import { studioStorefrontSchema } from "./studio";
+import { storeContextSchema } from "./storefront";
 
 export const initialVersionSchema = z.number().int().min(0).max(2_147_483_647);
 export const preparationMinutesSchema = z.number().int().min(1).max(240);
@@ -217,23 +217,8 @@ export const kitchenPairingPollSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
-export const restaurantContextSchema = z.object({
-  businessId: idSchema,
-  appInstanceId: idSchema,
-  businessName: z.string(),
-  storefront: studioStorefrontSchema.nullable(),
-  capabilities: z.array(z.string()),
-  branches: z.array(
-    z.object({
-      id: idSchema,
-      name: z.string(),
-      timezone: z.string(),
-      address: z.string(),
-      openNow: z.boolean(),
-      preparationMinutes: preparationMinutesSchema,
-    }),
-  ),
-});
+/** Mevcut restoran paketleri için geriye dönük ortak mağaza bağlamı takma adı. */
+export const restaurantContextSchema = storeContextSchema;
 export type RestaurantContext = z.infer<typeof restaurantContextSchema>;
 export const businessTableBillSchema = z.object({
   id: idSchema,

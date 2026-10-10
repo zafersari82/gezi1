@@ -47,19 +47,15 @@ const PACKAGE_ID = "randevu";
 const MERCHANT_ID = "kadikoy-berber";
 const DEFAULT_MINI_APP_URL = "http://localhost:5173";
 const DEVELOPMENT_RECORD_ID = "randevu-gelistirme";
-const CAPABILITIES = [
-  "identity.basic",
-  "payment.request",
-  "storage.local",
-  "share.native",
-] as const;
+const CAPABILITIES = [] as const;
 
 /** Aynı paketi yayınlayan uygulama kayıtları: her işletmenin kendi adı, satıcısı ve hizmetleri. */
 const RECORDS = [
   {
     id: "randevu",
     name: "Kadıköy Berber",
-    description: "Saç, sakal ve bakım randevunu birkaç dokunuşla al.",
+    description:
+      "Saç, sakal ve bakım hizmetlerinin önizlemesi; gerçek randevu VADO işletme profilinde.",
     merchantId: MERCHANT_ID,
     services: "berber",
     sortOrder: 1,
@@ -67,7 +63,7 @@ const RECORDS = [
   {
     id: "elit-guzellik",
     name: "Elit Güzellik Salonu",
-    description: "Manikür, cilt bakımı ve fön için randevunu birkaç dokunuşla al.",
+    description: "Güzellik hizmetleri önizlemesi; gerçek randevu VADO işletme profilinde.",
     merchantId: "elit-guzellik",
     services: "guzellik",
     sortOrder: 2,
@@ -312,11 +308,7 @@ async function seedPackagedMiniApps(
     await miniAppAdmin.publish(admins.operator, record.id, {
       packageId: PACKAGE_ID,
       version,
-      config: {
-        businessName: record.name,
-        merchantId: record.merchantId,
-        services: record.services,
-      },
+      config: { businessName: record.name },
     });
     await miniAppAdmin.update(admins.operator, record.id, { verified: true });
   }
@@ -347,8 +339,6 @@ async function seedDevelopmentRecord(
   });
   await miniAppAdmin.saveConfig(admins.operator, DEVELOPMENT_RECORD_ID, {
     businessName: "Geliştirme Berberi",
-    merchantId: MERCHANT_ID,
-    services: "berber",
   });
   // Adres değiştiğinde doğrulama sıfırlanır; örnek kayıt yeniden doğrulanmış sayılır.
   await miniAppAdmin.update(admins.operator, DEVELOPMENT_RECORD_ID, { verified: true });

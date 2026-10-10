@@ -5,6 +5,7 @@ import type { AdminGuard, AdminKeyGuard, Guard } from "./core/http";
 import { adminRoutes } from "./modules/admin/admin.routes";
 import { adminAccountRoutes } from "./modules/admin-accounts/admin-accounts.routes";
 import { authRoutes } from "./modules/auth/auth.routes";
+import { bookingRoutes } from "./modules/booking/booking.routes";
 import { branchOperationsRoutes } from "./modules/business-management/branch-operations.routes";
 import { businessAccessRoutes } from "./modules/business-management/business-access.routes";
 import { businessManagementRoutes } from "./modules/business-management/business-management.routes";
@@ -12,6 +13,8 @@ import { kitchenDeviceRoutes } from "./modules/business-management/kitchen-devic
 import { businessRoutes } from "./modules/businesses/businesses.routes";
 import { capabilityRoutes } from "./modules/capabilities/capabilities.routes";
 import { catalogRoutes } from "./modules/catalog/catalog.routes";
+import { channelRoutes } from "./modules/channels/channels.routes";
+import { businessChatRoutes } from "./modules/chat/business-chat.routes";
 import { chatRoutes } from "./modules/chat/chat.routes";
 import { contactRoutes } from "./modules/contacts/contacts.routes";
 import { deliveryRoutes } from "./modules/delivery/delivery.routes";
@@ -61,6 +64,8 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   notificationRoutes(server, context);
   contactRoutes(server, context);
   chatRoutes(server, context);
+  businessChatRoutes(server, context);
+  channelRoutes(server, context);
   momentRoutes(server, context);
   mediaRoutes(server, context);
   qrRoutes(server, context);
@@ -72,6 +77,7 @@ export function registerRoutes(server: FastifyInstance, context: RouteContext): 
   catalogRoutes(server, context);
   capabilityRoutes(server, context);
   orderingRoutes(server, context);
+  bookingRoutes(server, context);
   returnRoutes(server, context);
   deliveryRoutes(server, context);
   courierRoutes(server, context);

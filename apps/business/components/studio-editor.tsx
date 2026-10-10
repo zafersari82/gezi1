@@ -109,8 +109,8 @@ export function StudioEditor({
       <section className="panel">
         <h2>Bu sektörün şablonları hazırlanıyor</h2>
         <p className="muted">
-          Şu anda yemek ve güzellik sektörlerinin mağaza görünümü düzenlenebilir. İşletmenin diğer
-          yönetim özellikleri kullanılmaya devam eder.
+          Şu anda yemek, alışveriş ve güzellik sektörlerinin vitrin şablonları düzenlenebilir.
+          İşletmenin diğer yönetim özellikleri kullanılmaya devam eder.
         </p>
       </section>
     );

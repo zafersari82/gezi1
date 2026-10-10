@@ -78,18 +78,6 @@ export const engineCapabilityManifestSchema = z
     permissions: z.array(z.string()),
     events: z.object({ publishes: z.array(z.string()), subscribes: z.array(z.string()) }).strict(),
     stateMachine: z.object({ insertions: z.array(workflowInsertionSchema).max(20) }).strict(),
-    /**
-     * Paketin sipariş işletimine kattığı kurallar. Çekirdek paket adını bilmez; yalnız bu alanı okur.
-     * `deviceStatuses`: eşleştirilmiş operasyon cihazının (ör. mutfak ekranı) verebileceği durumlar.
-     * `decisionRequired`: kabulde hazırlık süresi, retde gerekçe zorunlu mu?
-     */
-    operations: z
-      .object({
-        deviceStatuses: z.array(orderStateSchema).max(20),
-        decisionRequired: z.boolean(),
-      })
-      .strict()
-      .optional(),
     api: z.array(
       z
         .object({

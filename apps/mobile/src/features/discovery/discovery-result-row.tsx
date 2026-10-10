@@ -12,20 +12,43 @@ export function discoveryItemKey(item: DiscoveryItem): string {
 }
 
 /** Keşfet ve Arama aynı güvenli işletme/mini uygulama açılışını paylaşır. */
-export function DiscoveryResultRow({ item }: { item: DiscoveryItem }) {
+export function DiscoveryResultRow({
+  item,
+  deliveryAddressId,
+}: {
+  item: DiscoveryItem;
+  deliveryAddressId?: string;
+}) {
   if (item.kind === "business") {
     const business = item.business;
     return (
       <ListRow
         title={business.name}
-        subtitle={`İşletme · ${CATEGORY_LABELS[business.category]} · ${business.city}`}
+        subtitle={
+          item.delivery === undefined
+            ? `İşletme · ${CATEGORY_LABELS[business.category]} · ${business.city}`
+            : `${item.delivery.branchName} · Teslimat ${new Intl.NumberFormat("tr-TR", {
+                style: "currency",
+                currency: "TRY",
+              }).format(
+                item.delivery.feeMinor / 100,
+              )} · Tahmini ${item.delivery.deliveryMinutes} dk`
+        }
         leading={<CategoryTile category={business.category} />}
         trailing={
           business.verified ? <Icon name="checkmark-circle" size={18} color="teal" /> : null
         }
         chevron
         onPress={() => {
-          router.push({ pathname: "/businesses/[id]", params: { id: business.id } });
+          router.push({
+            pathname: "/businesses/[id]",
+            params: {
+              id: business.id,
+              ...(item.delivery !== undefined && deliveryAddressId !== undefined
+                ? { deliveryBranchId: item.delivery.branchId, deliveryAddressId }
+                : {}),
+            },
+          });
         }}
         testID={`result-business-${business.id}`}
       />

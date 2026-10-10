@@ -1,6 +1,8 @@
 import {
   businessMiniAppLaunchSchema,
   CATEGORY_LABELS,
+  commerceMiniAppIdForCategory,
+  idSchema,
   studioPaletteById,
   studioTemplateById,
 } from "@vado/contracts";
@@ -11,13 +13,20 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 
 import { api, errorMessage } from "@/api/client";
 import { CategoryTile } from "@/features/businesses/category-tile";
+import {
+  useChannelFollow,
+  useChannelPosts,
+  useToggleChannelFollow,
+} from "@/features/businesses/channels";
 import { useBusiness } from "@/features/businesses/queries";
+import { prepareDeliveryStoreLaunch } from "@/features/discovery/delivery-order-launch";
 import { rememberLaunch } from "@/features/miniapps/launch-params";
 import { MiniAppIcon } from "@/features/miniapps/mini-app-icon";
 import { ReportSheet } from "@/features/reports/report-sheet";
 import { colors, radius, space } from "@/theme/tokens";
 import { AppText } from "@/ui/app-text";
 import { Tag } from "@/ui/badge";
+import { Button } from "@/ui/button";
 import { useFeedback } from "@/ui/feedback";
 import { HeaderActions, HeaderButton } from "@/ui/header-button";
 import { ListRow } from "@/ui/list-row";
@@ -25,9 +34,20 @@ import { SectionTitle } from "@/ui/screen";
 import { ErrorView, LoadingView } from "@/ui/states";
 
 export default function BusinessScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, deliveryBranchId, deliveryAddressId } = useLocalSearchParams<{
+    id: string;
+    deliveryBranchId?: string;
+    deliveryAddressId?: string;
+  }>();
+  const deliveryBranch = idSchema.safeParse(deliveryBranchId);
+  const deliveryAddress = idSchema.safeParse(deliveryAddressId);
+  const hasDeliverySelection = deliveryBranch.success && deliveryAddress.success;
   const business = useBusiness(id);
+  const channelFollow = useChannelFollow(id);
+  const channelPosts = useChannelPosts(id);
+  const toggleFollow = useToggleChannelFollow(id);
   const [reporting, setReporting] = useState(false);
+  const [openingChat, setOpeningChat] = useState(false);
   const [openingApp, setOpeningApp] = useState<string | null>(null);
   const { notify } = useFeedback();
   async function openBusinessApp(miniAppId: string) {
@@ -52,11 +72,51 @@ export default function BusinessScreen() {
     }
   }
 
+  async function openDeliveryStore() {
+    if (!id || !deliveryBranch.success || !deliveryAddress.success || openingApp !== null) return;
+    const appId = commerceMiniAppIdForCategory(business.data?.category ?? "other");
+    if (appId === null) return;
+    setOpeningApp(appId);
+    try {
+      const { launch } = await prepareDeliveryStoreLaunch(
+        id,
+        deliveryBranch.data,
+        deliveryAddress.data,
+        appId,
+      );
+      router.push({ pathname: "/miniapps/[id]", params: { id: appId, launch } });
+    } catch (error) {
+      notify(errorMessage(error));
+    } finally {
+      setOpeningApp(null);
+    }
+  }
+
+  async function openBusinessChat() {
+    if (!id || openingChat) return;
+    setOpeningChat(true);
+    try {
+      const result = await api.post<{ conversationId: string }>(`/v1/businesses/${id}/chat`, {});
+      router.push({ pathname: "/chat/[id]", params: { id: result.conversationId } });
+    } catch (error) {
+      notify(errorMessage(error));
+    } finally {
+      setOpeningChat(false);
+    }
+  }
+
   if (business.isPending) return <LoadingView />;
   if (business.isError) {
     return <ErrorView error={business.error} onRetry={() => void business.refetch()} />;
   }
   const { name, category, city, description, verified, miniApps, storefront } = business.data;
+  const orderingAppId = commerceMiniAppIdForCategory(category);
+  const deliveryAppReady = miniApps.some(
+    (app) =>
+      app.id === orderingAppId &&
+      app.capabilities.includes("ordering.basic") &&
+      app.capabilities.includes("location.addresses"),
+  );
   const palette = storefront === null ? null : studioPaletteById(storefront.palette);
   const layout = storefront === null ? "classic" : studioTemplateById(storefront.templateId).layout;
   const coverUrl = storefront?.coverUrl ?? null;
@@ -68,6 +128,14 @@ export default function BusinessScreen() {
         options={{
           headerRight: () => (
             <HeaderActions>
+              <HeaderButton
+                icon="qr-code-outline"
+                label="Mağaza QR kodu ve paylaşım"
+                onPress={() => {
+                  if (id)
+                    router.push({ pathname: "/share-target", params: { kind: "business", id } });
+                }}
+              />
               <HeaderButton
                 icon="flag-outline"
                 label="Şikayet et"
@@ -128,6 +196,75 @@ export default function BusinessScreen() {
       )}
       {description !== "" && <AppText style={styles.description}>{description}</AppText>}
 
+      {(category === "beauty" || category === "education") && (
+        <View style={styles.channelFollow}>
+          <Button
+            label="Randevu al / Müsait saatlere bak"
+            variant="secondary"
+            onPress={() => {
+              router.push({ pathname: "/bookings/[businessId]", params: { businessId: id } });
+            }}
+            testID="business-booking-open"
+          />
+        </View>
+      )}
+      <View style={styles.channelFollow}>
+        <Button
+          label="İşletmeye mesaj gönder"
+          loading={openingChat}
+          onPress={() => void openBusinessChat()}
+          testID="business-chat-open"
+        />
+        <Button
+          label={channelFollow.data?.following ? "Takipten çık" : "İşletmeyi takip et"}
+          variant="secondary"
+          loading={toggleFollow.isPending}
+          disabled={channelFollow.isPending || channelFollow.isError}
+          onPress={() => {
+            void toggleFollow
+              .mutateAsync(!channelFollow.data?.following)
+              .catch((error: unknown) => {
+                notify(errorMessage(error));
+              });
+          }}
+          testID="business-channel-follow"
+        />
+        <AppText color="muted" variant="caption">
+          İşletmenin duyurularını VADO'da gör. Reklam mesajı gönderilmez.
+        </AppText>
+      </View>
+      {(channelPosts.data?.items.length ?? 0) > 0 && (
+        <SectionTitle>İşletmeden duyurular</SectionTitle>
+      )}
+      {channelPosts.data?.items.map((post) => (
+        <View key={post.id} style={styles.channelPost}>
+          <AppText>{post.body}</AppText>
+          <AppText color="muted" variant="caption">
+            {new Date(post.publishedAt).toLocaleDateString("tr-TR")}
+          </AppText>
+        </View>
+      ))}
+      {hasDeliverySelection && (
+        <View style={styles.channelFollow}>
+          <AppText variant="bodyStrong">Seçtiğin adrese teslimat</AppText>
+          <AppText color="muted" variant="caption">
+            Keşifte eşleşen şube ve adres, açılışta sunucudan yeniden kontrol edilir. Ürün, güncel
+            ücret ve sipariş koşulları sonraki adımda doğrulanır.
+          </AppText>
+          <Button
+            label="Bu şubeden teslimatla sipariş ver"
+            loading={openingApp === orderingAppId}
+            disabled={openingApp !== null || !deliveryAppReady}
+            onPress={() => void openDeliveryStore()}
+            testID="business-delivery-open"
+          />
+          {!deliveryAppReady && (
+            <AppText color="muted" variant="caption">
+              Bu işletmenin gerekli adres iznine sahip satış mini uygulaması henüz yayımlanmamış.
+            </AppText>
+          )}
+        </View>
+      )}
       {miniApps.length > 0 && <SectionTitle>Mini uygulamaları</SectionTitle>}
       {miniApps.length === 0 && (
         <AppText color="muted" style={styles.description}>
@@ -165,6 +302,17 @@ export default function BusinessScreen() {
 }
 
 const styles = StyleSheet.create({
+  channelFollow: {
+    padding: space.lg,
+    gap: space.sm,
+  },
+  channelPost: {
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    gap: space.xs,
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.surface,

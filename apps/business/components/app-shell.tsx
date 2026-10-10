@@ -50,6 +50,55 @@ export function AppShell({
         </svg>
         <span>Mağaza tasarımı</span>
       </Link>
+      {(role === "owner" || role === "manager") && (
+        <Link href="/chats" className={pathname === "/chats" ? "nav-link active" : "nav-link"}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.65"
+            aria-hidden="true"
+          >
+            <path d="M4 4h16v13H8l-4 3z M7 9h10 M7 13h7" />
+          </svg>
+          <span>Mesajlar</span>
+        </Link>
+      )}
+      {(role === "owner" || role === "manager") && (
+        <Link
+          href="/bookings"
+          className={pathname === "/bookings" ? "nav-link active" : "nav-link"}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.65"
+            aria-hidden="true"
+          >
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M7 2v6 M17 2v6 M3 11h18 M8 15h3" />
+          </svg>
+          <span>Randevular</span>
+        </Link>
+      )}
+      {(role === "owner" || role === "manager") && (
+        <Link
+          href="/channels"
+          className={pathname === "/channels" ? "nav-link active" : "nav-link"}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.65"
+            aria-hidden="true"
+          >
+            <path d="M3 11h4l12-7v16l-12-7H3z M7 13v6 M21 10v4" />
+          </svg>
+          <span>Duyurular</span>
+        </Link>
+      )}
       <Link
         href="/performance"
         className={pathname === "/performance" ? "nav-link active" : "nav-link"}

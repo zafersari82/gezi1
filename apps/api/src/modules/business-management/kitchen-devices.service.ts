@@ -13,8 +13,8 @@ import { AppError } from "../../core/errors";
 import { platformScope } from "../../core/platform-scope";
 import { randomToken, safeEqual, sha256 } from "../../core/security";
 import {
-  authoriseDeviceTenant,
-  type DeviceTenantScope,
+  authoriseKitchenTenant,
+  type KitchenTenantScope,
   requireBusinessRole,
   type TenantScope,
   withTenant,
@@ -133,23 +133,23 @@ export function createKitchenDeviceService({ db, platformDb, config, realtime }:
       where ${filter} and d.revoked_at is null and d.expires_at>now() and b.active and i.active and u.status='active' and business.status='active' and business.verified
         and ordering_capabilities_for_instance(d.business_id,d.app_instance_id) ? 'ordering.kitchen@1.0.0' for share of d,b,i,u`);
   }
-  async function authenticate(token: string): Promise<DeviceTenantScope> {
+  async function authenticate(token: string): Promise<KitchenTenantScope> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new AppError("unauthorized");
     const row = await platformScope(platformDb, (tx) =>
       active(tx, sql`d.token_hash=${sha256(token)}`),
     );
     if (row === null) throw new AppError("unauthorized");
-    return authoriseDeviceTenant({
+    return authoriseKitchenTenant({
       businessId: row.business_id,
       branchId: row.branch_id,
       appInstanceId: row.app_instance_id,
       deviceId: row.id,
-      role: "device",
+      role: "kitchen",
       userId: null,
       businessCustomerId: null,
     });
   }
-  function info(scope: DeviceTenantScope) {
+  function info(scope: KitchenTenantScope) {
     return withTenant(db, scope, async (tx) => {
       const row = await tx.one<DeviceRow & { business_name: string; branch_name: string }>(
         sql`select d.*,b.name as business_name,branch.name as branch_name from kitchen_devices d join businesses b on b.id=d.business_id join branches branch on branch.business_id=d.business_id and branch.id=d.branch_id where d.business_id=${scope.businessId} and d.id=${scope.deviceId}`,
@@ -185,7 +185,7 @@ export function createKitchenDeviceService({ db, platformDb, config, realtime }:
     realtime.disconnectKitchenDevice(id);
     return result;
   }
-  function issueTicket(scope: DeviceTenantScope): Promise<BusinessSocketTicket> {
+  function issueTicket(scope: KitchenTenantScope): Promise<BusinessSocketTicket> {
     return withTenant(db, scope, async (tx) => {
       const ticket = randomToken();
       const row = await tx.one<{ expires_at: Date }>(

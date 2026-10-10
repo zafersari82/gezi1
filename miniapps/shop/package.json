@@ -1,0 +1,28 @@
+{
+  "name": "@vado/miniapp-shop",
+  "version": "2.8.0-alpha.5",
+  "private": true,
+  "description": "VADO Shops: sektörden bağımsız müşteri mağazası",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vado/contracts": "*",
+    "@vado/miniapp-sdk": "*",
+    "@vado/miniapp-shared": "*",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "~19.2.3",
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "^8.3.2"
+  }
+}

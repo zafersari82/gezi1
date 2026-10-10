@@ -1,10 +1,11 @@
 "use client";
 import { type Branch, type KitchenDevice, kitchenDeviceSchema } from "@vado/contracts";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
 import { formText } from "../lib/values";
+import { useNow } from "./use-now";
 export function DevicesView({
   initial,
   branches,
@@ -18,15 +19,7 @@ export function DevicesView({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 10000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
+  const now = useNow(10_000);
   const [notice, setNotice] = useState("");
   async function mutate(action: () => Promise<void>) {
     if (lock.current) return;

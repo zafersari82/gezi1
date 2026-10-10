@@ -182,10 +182,6 @@ export const KITCHEN_MANIFEST = engineCapabilityManifestSchema.parse({
   id: "ordering.kitchen",
   configSchema: z.toJSONSchema(coreConfig),
   defaults: {},
-  operations: {
-    deviceStatuses: ["accepted", "rejected", "preparing", "ready", "completed"],
-    decisionRequired: true,
-  },
   businessBlocks: [
     {
       id: "kitchen",
@@ -686,32 +682,6 @@ export function resolveCapabilities(settings: readonly CapabilitySetting[]) {
   };
 }
 
-function manifestsFor(capabilities: readonly string[]): EngineCapabilityManifest[] | null {
-  const manifests: EngineCapabilityManifest[] = [];
-  for (const key of capabilities) {
-    const definition = CAPABILITY_DEFINITIONS.find(
-      (d) => `${d.manifest.id}@${d.manifest.version}` === key && d.manifest.id !== "ordering",
-    );
-    if (definition === undefined) return null;
-    manifests.push(definition.manifest);
-  }
-  return manifests;
-}
-
-/** Operasyon cihazı bu durumu verebilir mi? Yalnız açık paketlerin bildirdiği durumlar. */
-export function deviceMaySetStatus(capabilities: readonly string[], status: string): boolean {
-  return (manifestsFor(capabilities) ?? []).some(
-    (manifest) => manifest.operations?.deviceStatuses.includes(status) === true,
-  );
-}
-
-/** Kabulde hazırlık süresi, retde gerekçe istenir mi? */
-export function orderDecisionRequired(capabilities: readonly string[]): boolean {
-  return (manifestsFor(capabilities) ?? []).some(
-    (manifest) => manifest.operations?.decisionRequired === true,
-  );
-}
-
 /** Geçişte yalnızca sürümle gelen, adı kayıtlı işlev çağrılır. */
 export function permitOrderTransition(
   capabilities: readonly string[],
@@ -719,8 +689,14 @@ export function permitOrderTransition(
   to: string,
   fulfilment?: "pickup" | "dine_in" | "delivery",
 ): boolean {
-  const manifests = manifestsFor(capabilities);
-  if (manifests === null) return false;
+  const manifests: EngineCapabilityManifest[] = [];
+  for (const key of capabilities) {
+    const definition = CAPABILITY_DEFINITIONS.find(
+      (d) => `${d.manifest.id}@${d.manifest.version}` === key && d.manifest.id !== "ordering",
+    );
+    if (definition === undefined) return false;
+    manifests.push(definition.manifest);
+  }
   const { rules } = compileOrderWorkflow(manifests, fulfilment);
   const name = rules[from]?.[to];
   return name !== undefined && namedRules[name]?.() === true;

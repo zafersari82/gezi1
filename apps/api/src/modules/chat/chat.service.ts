@@ -17,6 +17,7 @@ import {
 import type { AppContext } from "../../core/context";
 import { type Database, sql, type SqlFragment } from "../../core/database";
 import { AppError } from "../../core/errors";
+import { withUser } from "../../core/user-scope";
 import { areContacts, filterContacts } from "../contacts/relations";
 import { requireOwnedMedia } from "../media/media.service";
 import type { NotificationService } from "../notifications/notifications.service";
@@ -258,7 +259,10 @@ export function createChatService(
         isDirect && row.peer_avatar_key !== null ? storage.publicUrl(row.peer_avatar_key) : null,
       peerId: row.peer_id,
       memberCount: row.member_count,
-      lastMessage,
+      lastMessage:
+        row.kind === "business" && lastMessage !== null
+          ? { ...lastMessage, senderName: null }
+          : lastMessage,
       unreadCount: row.unread_count,
       updatedAt: (row.last_created_at ?? row.created_at).toISOString(),
     };
@@ -288,7 +292,8 @@ export function createChatService(
         peer.avatar_key as peer_avatar_key,
         lm.id as last_id,
         lm.seq as last_seq,
-        lm.sender_id as last_sender_id,
+        case when c.kind = 'business' and lm.sender_id <> ${userId}
+          then null else lm.sender_id end as last_sender_id,
         lm.kind as last_kind,
         lm.body as last_body,
         lm.system_event as last_system_event,
@@ -330,6 +335,18 @@ export function createChatService(
       where cm.conversation_id = ${conversationId} and cm.user_id = ${userId}
     `);
     if (membership === null) throw new AppError("conversation_not_found");
+    if (membership.kind === "business") {
+      const eligible = await withUser(db, userId, (tx) =>
+        tx.maybeOne(sql`
+        select 1 from business_chat_threads t
+        join businesses b on b.id=t.business_id
+        join users owner on owner.id=b.owner_id
+        where t.conversation_id=${conversationId} and t.customer_id=${userId}
+          and b.status='active' and b.verified and owner.status='active'
+      `),
+      );
+      if (eligible === null) throw new AppError("conversation_not_found");
+    }
     return membership;
   }
 
@@ -366,6 +383,7 @@ export function createChatService(
     userId: string,
     conversationId: string,
   ): Promise<ConversationDetail> {
+    await requireMember(userId, conversationId);
     const row = await db.maybeOne<ConversationRow>(
       conversationQuery(userId, sql`c.id = ${conversationId}`),
     );
@@ -551,7 +569,7 @@ export function createChatService(
     conversationId: string,
     page: PageQuery,
   ): Promise<Page<Message>> {
-    await requireMember(userId, conversationId);
+    const membership = await requireMember(userId, conversationId);
     const rows = await db.many<MessageRow>(sql`
       select ${MESSAGE_COLUMNS}
       from messages m
@@ -565,7 +583,12 @@ export function createChatService(
       db,
       rows.map((row) => row.system_event),
     );
-    const items = rows.slice(0, page.limit).map((row) => toMessage(row, names));
+    const items = rows.slice(0, page.limit).map((row) => {
+      const message = toMessage(row, names);
+      return membership.kind === "business" && message.senderId !== userId
+        ? { ...message, senderId: null }
+        : message;
+    });
     const last = items.at(-1);
     return {
       items,
@@ -590,6 +613,8 @@ export function createChatService(
         throw new AppError("not_contacts");
       }
     }
+    if (membership.kind === "business" && body.kind !== "text")
+      throw new AppError("validation_failed");
     if (body.kind === "image") await requireOwnedMedia(db, userId, [body.mediaId]);
 
     const { inserted, eventId, duplicate } = await db.transaction(async (tx) => {
@@ -610,12 +635,18 @@ export function createChatService(
       select ${MESSAGE_COLUMNS} from m left join media md on md.id = m.media_id
     `);
       if (inserted === null) {
-        const existing = await tx.one<MessageRow>(sql`
+        const existing = await tx.maybeOne<MessageRow>(sql`
         select ${MESSAGE_COLUMNS}
         from messages m
         left join media md on md.id = m.media_id
         where m.sender_id = ${userId} and m.client_id = ${body.clientId}
       `);
+        if (
+          existing?.conversation_id !== conversationId ||
+          existing.kind !== body.kind ||
+          (body.kind === "text" && existing.body !== body.body)
+        )
+          throw new AppError("idempotency_conflict");
         return { inserted: existing, eventId: null, duplicate: true };
       }
 
@@ -627,13 +658,17 @@ export function createChatService(
         and last_read_seq < ${inserted.seq}
     `);
 
-      const eventId = await notifications.enqueueMessage(tx, {
-        messageId: inserted.id,
-        conversationId,
-        senderId: userId,
-        kind: inserted.kind,
-        body: inserted.body,
-      });
+      // İşletmenin personeli konuşmanın kişisel üyesi değildir; gelen kutusundan okur.
+      const eventId =
+        membership.kind === "business"
+          ? null
+          : await notifications.enqueueMessage(tx, {
+              messageId: inserted.id,
+              conversationId,
+              senderId: userId,
+              kind: inserted.kind,
+              body: inserted.body,
+            });
       return { inserted, eventId, duplicate: false };
     });
     if (duplicate) return toMessage(inserted, NO_NAMES);
@@ -669,7 +704,11 @@ export function createChatService(
   /** "Yazıyor" bildiriminin alıcıları; gönderen üye değilse boş liste. */
   async function typingRecipients(userId: string, conversationId: string): Promise<string[]> {
     const members = await memberIdsOf(db, conversationId);
-    return members.includes(userId) ? members.filter((id) => id !== userId) : [];
+    if (!members.includes(userId)) return [];
+    const kind = await db.maybeOne<{ kind: ConversationKind }>(sql`
+      select kind from conversations where id=${conversationId}
+    `);
+    return kind?.kind === "business" ? [] : members.filter((id) => id !== userId);
   }
 
   return {

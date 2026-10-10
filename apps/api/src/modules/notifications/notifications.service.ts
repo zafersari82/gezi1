@@ -178,9 +178,11 @@ export function createNotificationService({ db, platformDb, log, push }: AppCont
       from conversations c, users u where c.id = ${message.conversation_id} and u.id = ${message.sender_id}
     `);
     const title =
-      context.kind === "group" && context.title !== null
-        ? `${context.sender} · ${context.title}`
-        : context.sender;
+      context.kind === "business" && context.title !== null
+        ? context.title
+        : context.kind === "group" && context.title !== null
+          ? `${context.sender} · ${context.title}`
+          : context.sender;
     const text = message.kind === "image" ? "📷 Fotoğraf" : shorten(message.body);
     const data: PushData = { type: "message", conversationId: message.conversation_id, eventId };
     await deliver(recipients, (recipient) => ({

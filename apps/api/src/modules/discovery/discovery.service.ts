@@ -8,12 +8,14 @@ import {
   type BusinessRow,
   toBusiness,
 } from "../businesses/business-rows";
+import { readOwnedAddress } from "../location/location-addresses";
 import {
   createMiniAppMapper,
   MINI_APP_COLUMNS,
   miniAppLive,
   type MiniAppRow,
 } from "../miniapps/miniapp-rows";
+import type { DeliveryAvailabilityReader } from "./delivery-availability.reader";
 import { decodeDiscoveryCursor, encodeDiscoveryCursor } from "./discovery-cursor";
 
 interface RankedRow {
@@ -24,11 +26,27 @@ interface RankedRow {
 }
 
 /** Tek sıralamada iki kayıt türünü arar; sonuçları tek tek sorgulamaz. */
-export function createDiscoveryService({ config, db }: AppContext) {
+export function createDiscoveryService(
+  { config, db }: AppContext,
+  deliveryReader: DeliveryAvailabilityReader,
+) {
   const mapper = createMiniAppMapper(config);
   const live = miniAppLive(config.miniAppDevMode);
 
-  async function search(query: DiscoveryQuery): Promise<DiscoveryPage> {
+  async function search(query: DiscoveryQuery, userId: string): Promise<DiscoveryPage> {
+    // Adres erişim yetkisi SQL sorgusundan ÖNCE doğrulanır. Bilinmeyen ve başka
+    // kullanıcıya ait adresler keşif SQL fonksiyonuna asla gönderilmez.
+    const address =
+      query.deliveryAddressId === undefined
+        ? null
+        : await readOwnedAddress(db, userId, query.deliveryAddressId);
+    if (address?.archived) return { items: [], nextCursor: null };
+    // Privileged reader returns only public serviceability. It NEVER sees user IDs,
+    // address book data, name, phone or full address lines.
+    const deliveryRows =
+      address === null ? [] : await deliveryReader.readByNeighborhood(address.neighborhoodId);
+    const deliveryByBusiness = new Map(deliveryRows.map((row) => [row.business_id, row]));
+    const deliveryBusinessIds = deliveryRows.map((row) => row.business_id);
     const cleaned = query.q.trim().replace(/\s+/g, " ");
     const terms = cleaned.split(" ").filter(Boolean);
     const position = decodeDiscoveryCursor(query);
@@ -66,14 +84,16 @@ export function createDiscoveryService({ config, db }: AppContext) {
     // İl/ilçe eşleşmesi etkin şubelerden gelir. İl düzeyinde eski işletme kaydındaki
     // şehir adı da kullanılabilir; ilçe düzeyinde serbest adres metni tahmin edilmez.
     const locationPredicate =
-      query.provinceId === undefined
-        ? sql.empty
-        : query.districtId !== undefined
-          ? sql`and exists (
+      address !== null
+        ? sql`and b.id = any(${deliveryBusinessIds}::uuid[])`
+        : query.provinceId === undefined
+          ? sql.empty
+          : query.districtId !== undefined
+            ? sql`and exists (
         select 1 from branch_discovery_locations br where br.business_id=b.id
           and br.province_id=${query.provinceId} and br.district_id=${query.districtId}
       )`
-          : sql`and (
+            : sql`and (
         exists(select 1 from branch_discovery_locations br where br.business_id=b.id
           and br.province_id=${query.provinceId})
         or exists(select 1 from location_provinces p where p.id=${query.provinceId}
@@ -139,7 +159,26 @@ export function createDiscoveryService({ config, db }: AppContext) {
     for (const row of current) {
       if (row.kind === "business") {
         const business = businesses.get(row.record_id);
-        if (business !== undefined) items.push({ kind: "business", business });
+        if (business !== undefined) {
+          const delivery = deliveryByBusiness.get(row.record_id);
+          // Bölge işlem sırasında kapatıldıysa yanlış teslimat vaadi verme.
+          if (address !== null && delivery === undefined) continue;
+          items.push({
+            kind: "business",
+            business,
+            ...(delivery === undefined
+              ? {}
+              : {
+                  delivery: {
+                    branchId: delivery.branch_id,
+                    branchName: delivery.branch_name,
+                    feeMinor: delivery.fee_minor,
+                    minimumMinor: delivery.minimum_minor,
+                    deliveryMinutes: delivery.delivery_minutes,
+                  },
+                }),
+          });
+        }
       } else {
         const miniApp = miniApps.get(row.record_id);
         if (miniApp !== undefined) items.push({ kind: "miniapp", miniApp });

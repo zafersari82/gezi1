@@ -21,6 +21,7 @@ function fingerprint(query: DiscoveryQuery): string {
         query.kind,
         query.provinceId ?? "",
         query.districtId ?? "",
+        query.deliveryAddressId ?? "",
       ]),
     )
     .digest("hex")

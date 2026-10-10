@@ -26,6 +26,48 @@ export const STUDIO_STARTER_ITEMS = [
   { id: "food-soup", category: "food", name: "Günün çorbası", description: "Günlük çorba" },
   { id: "food-toast", category: "food", name: "Kaşarlı tost", description: "Kaşarlı tost" },
   {
+    id: "shop-water",
+    category: "shopping",
+    name: "Su (1,5 litre)",
+    description: "Örnek market ürünü; gerçek fiyat ve stok mağazaya aittir",
+  },
+  {
+    id: "shop-milk",
+    category: "shopping",
+    name: "Süt (1 litre)",
+    description: "Örnek market ürünü; marka ve fiyat işletme tarafından düzenlenir",
+  },
+  {
+    id: "shop-eggs",
+    category: "shopping",
+    name: "Yumurta",
+    description: "Örnek market ürünü; paket bilgisi işletme tarafından girilir",
+  },
+  {
+    id: "shop-pet-food",
+    category: "shopping",
+    name: "Evcil hayvan maması",
+    description: "Marka, gramaj ve fiyatı mağaza belirler",
+  },
+  {
+    id: "shop-cat-litter",
+    category: "shopping",
+    name: "Kedi kumu",
+    description: "Örnek petshop ürünü",
+  },
+  {
+    id: "shop-flowers",
+    category: "shopping",
+    name: "Mevsim çiçek buketi",
+    description: "Örnek çiçekçi ürünü; görsel ve fiyat sonradan eklenir",
+  },
+  {
+    id: "shop-orchid",
+    category: "shopping",
+    name: "Orkide",
+    description: "Örnek çiçekçi ürünü",
+  },
+  {
     id: "beauty-haircut",
     category: "beauty",
     name: "Saç kesimi",

@@ -132,6 +132,7 @@ const handlers: Handlers = {
   "ordering.getDeliveryQuote": (host, params) => ordering(host).getDeliveryQuote(params),
   "ordering.getDeliverySnapshot": (host, params) => ordering(host).getDeliverySnapshot(params),
   "ordering.getRestaurant": (host, params) => ordering(host).getRestaurant(params),
+  "ordering.getStore": (host, params) => ordering(host).getStore(params),
   "ordering.getSlots": (host, params) => ordering(host).getSlots(params),
   "ordering.joinTable": (host, params) => ordering(host).joinTable(params),
   "ordering.getTable": (host, params) => ordering(host).getTable(params),

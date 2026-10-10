@@ -7,6 +7,7 @@ import type {
   CatalogPriceBody,
   CatalogSelection,
   PricedLine,
+  PublicShareProduct,
   StudioItemImageBody,
   StudioStarterCatalogBody,
 } from "@vado/contracts";
@@ -655,6 +656,87 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
     });
   }
 
+  /** Tek işlemde listelenebilir işletmeyi doğrular; sonra yalnız o tenant'ın RLS kapsamını açar. */
+  async function withPublicCatalog<T>(businessId: string, run: (tx: Database) => Promise<T>) {
+    return db.transaction(async (tx) => {
+      const business = await tx.maybeOne(sql`
+        select b.id from businesses b where b.id = ${businessId}
+          and b.status = 'active' and b.verified for share
+      `);
+      if (business === null) throw new AppError("business_not_found");
+      const current = await tx.one<{ business_id: string | null }>(sql`
+        select nullif(current_setting('vado.business_id', true), '') as business_id
+      `);
+      if (current.business_id !== null) throw new AppError("forbidden");
+      await tx.execute(sql`select set_config('vado.business_id', ${businessId}, true)`);
+      return run(tx);
+    });
+  }
+
+  /** Paylaşımda yalnız etkin şubeler görünür. Adres/personel bilgisi yayınlanmaz. */
+  function shareBranches(businessId: string) {
+    return withPublicCatalog(businessId, (tx) =>
+      tx.many<{ id: string; name: string }>(sql`
+        select id, name from branches
+        where business_id = ${businessId} and active order by name, id limit 500
+      `),
+    );
+  }
+
+  interface SharedProductRow {
+    id: string;
+    name: string;
+    description: string;
+    storage_key: string | null;
+    amount_minor: number;
+  }
+  /** Canlı fiyat/bulunurluk aynı şubeye göre hesaplanır; mesajda saklanan isim/fiyat kullanılmaz. */
+  function shareProducts(businessId: string, branchId: string, q?: string, itemId?: string) {
+    return withPublicCatalog(businessId, async (tx): Promise<PublicShareProduct[]> => {
+      const branch = await tx.maybeOne<{ name: string }>(sql`
+        select name from branches where business_id = ${businessId} and id = ${branchId}
+          and active for share
+      `);
+      if (branch === null) throw new AppError("not_found");
+      const rows = await tx.many<SharedProductRow>(sql`
+        select i.id, i.name, i.description, m.storage_key,
+          coalesce(branch_price.amount_minor, default_price.amount_minor) as amount_minor
+        from catalog_items i
+        left join catalog_categories c on c.id = i.category_id and c.business_id = i.business_id
+        left join media m on m.id = i.image_media_id
+        left join prices branch_price on branch_price.business_id = i.business_id
+          and branch_price.item_id = i.id and branch_price.branch_id = ${branchId}
+        left join prices default_price on default_price.business_id = i.business_id
+          and default_price.item_id = i.id and default_price.branch_id is null
+        where i.business_id = ${businessId} and i.active and i.available
+          and (i.category_id is null or c.active)
+          and coalesce(branch_price.amount_minor, default_price.amount_minor) is not null
+          and catalog_item_served_at(${businessId}, ${branchId}, i.id, now())
+          ${q === undefined || q === "" ? sql.empty : sql`and position(lower(${q}) in lower(i.name)) > 0`}
+          ${itemId === undefined ? sql.empty : sql`and i.id = ${itemId}`}
+        order by i.name, i.id limit ${itemId === undefined ? 60 : 1}
+      `);
+      return rows.map((row) => ({
+        id: row.id,
+        businessId,
+        branchId,
+        branchName: branch.name,
+        name: row.name,
+        description: row.description,
+        imageUrl: row.storage_key === null ? null : storage.publicUrl(row.storage_key),
+        amountMinor: row.amount_minor,
+        currency: "TRY" as const,
+      }));
+    });
+  }
+
+  async function shareProduct(businessId: string, branchId: string, itemId: string) {
+    const products = await shareProducts(businessId, branchId, undefined, itemId);
+    const product = products[0];
+    if (product === undefined) throw new AppError("not_found");
+    return product;
+  }
+
   return {
     get,
     saveCategory,
@@ -668,6 +750,9 @@ export function createCatalogService({ db, storage }: Pick<AppContext, "db" | "s
     quote,
     preview,
     customerCatalog,
+    shareBranches,
+    shareProducts,
+    shareProduct,
   };
 }
 

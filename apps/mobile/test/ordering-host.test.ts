@@ -255,3 +255,54 @@ test("teslimat kabuğu teklif ve görüntü için kendi bağlamındaki sabit uç
     path: `/v1/shell/${businessId}/${appInstanceId}/orders/${orderId}/delivery-snapshot`,
   });
 });
+
+test("genel mağaza köprüsü yalnız kabuğun seçtiği işletmenin yayımlanmış bağlamını verir", async () => {
+  const context = {
+    businessId,
+    appInstanceId,
+    businessName: "Mahalle Marketi",
+    storefront: null,
+    capabilities: ["ordering.pickup@1.0.0"],
+    branches: [
+      {
+        id: branchId,
+        name: "Merkez",
+        timezone: "Europe/Istanbul",
+        address: "Merkez",
+        openNow: true,
+        preparationMinutes: 15,
+      },
+    ],
+  };
+  const calls: string[] = [];
+  const host = createOrderingHost(
+    { businessId, appInstanceId, miniAppId: "magaza" },
+    {
+      request: (method, path) => {
+        calls.push(`${method} ${path}`);
+        return Promise.resolve(
+          path.endsWith("/business-context")
+            ? { businessId, appInstanceId, businessCustomerId }
+            : context,
+        );
+      },
+    },
+  );
+  expect(await host.getStore(undefined)).toEqual(context);
+  expect(calls).toEqual([
+    "POST /v1/shell/business-context",
+    `GET /v1/shell/${businessId}/${appInstanceId}/store`,
+  ]);
+  const foreign = createOrderingHost(
+    { businessId, appInstanceId, miniAppId: "magaza" },
+    {
+      request: (_method, path) =>
+        Promise.resolve(
+          path.endsWith("/business-context")
+            ? { businessId, appInstanceId, businessCustomerId }
+            : { ...context, businessId: randomUUID() },
+        ),
+    },
+  );
+  await expect(foreign.getStore(undefined)).rejects.toThrow("Mağaza bağlamı uyuşmuyor.");
+});

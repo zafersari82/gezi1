@@ -21,17 +21,36 @@ export const discoveryQuerySchema = z
     /** Kullanıcının isteğe bağlı seçtiği yer; GPS koordinatları saklanmaz. */
     provinceId: idSchema.optional(),
     districtId: idSchema.optional(),
+    /** Giriş yapan kullanıcının kayıtlı ve etkin adresiyle kesin mahalle eşleşmesi. */
+    deliveryAddressId: idSchema.optional(),
     limit: z.coerce.number().int().min(1).max(40).default(20),
     cursor: z.string().min(1).max(512).optional(),
   })
   .refine((query) => query.districtId === undefined || query.provinceId !== undefined, {
     message: "İlçe için önce il seçilmeli.",
     path: ["provinceId"],
+  })
+  .refine((query) => query.deliveryAddressId === undefined || query.kind === "business", {
+    message: "Adrese teslimat keşfi yalnız işletmeler içindir.",
+    path: ["kind"],
   });
 export type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
 
+export const discoveryDeliverySchema = z.object({
+  branchId: idSchema,
+  branchName: z.string(),
+  feeMinor: z.number().int().nonnegative(),
+  minimumMinor: z.number().int().nonnegative(),
+  deliveryMinutes: z.number().int().positive(),
+});
+
 export const discoveryItemSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("business"), business: businessSchema }),
+  z.object({
+    kind: z.literal("business"),
+    business: businessSchema,
+    /** Yalnız adresle eşlenen teslimat keşif sonuçlarında bulunur. */
+    delivery: discoveryDeliverySchema.optional(),
+  }),
   z.object({ kind: z.literal("miniapp"), miniApp: miniAppSchema }),
 ]);
 export type DiscoveryItem = z.infer<typeof discoveryItemSchema>;

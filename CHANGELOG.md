@@ -1,5 +1,60 @@
 # Değişiklikler
 
+## 2.8.0-alpha.5 — kanallar, işletme sohbeti, paylaşım, Shops, Booking (2026-10-10)
+
+alpha.4 üzerine başka bir ortamda S1–S11 adımlarıyla yazılan kaynak ilk kez gerçek ortamda
+çalıştırıldı. `npm ci` kilit dosyası eksik olduğu için açılmıyordu; tip denetimi bütün çalışma
+alanlarında düşüyordu; 43 lint hatası, 91 biçimsiz dosya ve 3 düşen test vardı.
+
+**Gelenler (alpha.4 sonrası):**
+
+- İşletme kanalları (S1): işletmeyi takip etme, duyuru akışı, Business'ta duyuru yazma
+  (`0028_business_channels.sql`). Ayrıntı: [docs/VADO_SUPERAPP_KANALLAR_S1.md](docs/VADO_SUPERAPP_KANALLAR_S1.md).
+- İşletme sohbeti (S2): müşteri işletmeye yazar, sahip ve yönetici Business gelen kutusundan
+  yanıtlar; mevcut mesaj çekirdeği kullanılır (`0029_business_chat.sql`). Ayrıntı:
+  [docs/BUSINESS_CHAT_S2.md](docs/BUSINESS_CHAT_S2.md).
+- Paylaşım (S3–S7): sohbette işletme, mini uygulama, ürün ve sipariş kartı; QR ile paylaşım;
+  karttaki ad, fiyat ve durum mesajdan değil sunucudan okunur; paylaşılan üründen doğru şubenin
+  restoran menüsüne geçiş. Ayrıntı: `docs/SHARING_S3.md` … `docs/SHARING_S7.md`.
+- Adrese göre keşif (S8–S9): kayıtlı adrese teslim eden şubeler; keşiften seçilen şube ve adresle
+  restoran teslimat sepeti. Restoran mini uygulaması 1.1.0'a ve `location.addresses` iznine
+  çıktı; paketin yeniden yayımlanması gerekir. Ayrıntı: [docs/DISCOVERY_DELIVERY_S8.md](docs/DISCOVERY_DELIVERY_S8.md),
+  [docs/DISCOVERY_TO_DELIVERY_S9.md](docs/DISCOVERY_TO_DELIVERY_S9.md).
+- VADO Shops (S10): market, çiçekçi ve petshop için tek mağaza mini uygulaması; aynı katalog ve
+  sepet motoru; `ordering.getStore`. Ortak ürün ve bağlantı kuralları `@vado/miniapp-shared`
+  paketinde. Ayrıntı: [docs/SHOPS_S10.md](docs/SHOPS_S10.md).
+- VADO Booking (S11): sunucuda hizmet, kaynak ve haftalık müsaitlik; müşteri gerçek boş saati
+  seçer, aynı saat iki kişiye satılmaz (`0030_booking.sql`). Ödeme alınmaz. Personel vardiyası ve
+  görev yönetimi değildir. Ayrıntı: [docs/BOOKING_S11.md](docs/BOOKING_S11.md).
+
+**Bu ara sürümde düzeltilenler:**
+
+- Kilit dosyası iki yeni çalışma alanıyla yeniden üretildi; `zod` kullanan mini uygulama
+  paketleri bağımlılığı artık açıkça yazıyor.
+- Köprü sözleşmesinde eksik `StoreContext` içe aktarımı eklendi.
+- Business rezervasyon ekranı ücreti `Number` ile okuyordu; "40,50" yazan işletmeci hata
+  alıyordu. Diğer formlarla aynı `decimalToMinor` kullanılıyor.
+- Render sırasında `Date.now` okuyan ekranlar (rezervasyon, cihazlar, kişisel QR) tek `useNow`
+  kancasına geçti.
+- Mağaza mini uygulaması seçim değişince durumu etki içinde sıfırlıyordu; katalog ve teslimat
+  teklifi artık istendikleri seçimle saklanıyor, eski sonuç kendiliğinden geçersiz.
+- Teslimat alt sınırı hesabı restoran ve mağazada ayrı ayrı yazılmıştı; ortak pakette tek işlev
+  (`unmetDeliveryMinimum`) ve testi var.
+- Restoranın yalnız yeniden dışa aktaran üç ara dosyası kaldırıldı; ortak kuralların testleri
+  `miniapps/shared/test` altına taşındı.
+- Düşen testler test hatasıydı: yeni rezervasyon 201 döner; adrese bağlı imleç testi başkasının
+  adresiyle `not_found`'a takılıyordu; mini uygulama kimliği UUID değil kısa addır.
+- Kökteki iki devir notu kaldırıldı; aşama belgelerindeki "çalıştırılmadı" satırları gerçek
+  sonuçlarla değiştirildi.
+
+**Denenen:** `npm ci` ve `npm run check`. PostgreSQL 16 üzerinde 1058 test (sözleşmeler 175, SDK
+17, API 700, Business 17, mobil 129, restoran 4, ortak mini uygulama 13, mağaza 3); 0028–0030
+temiz kurulumda ve 2.7.0 şemasından yükseltmede uygulanıyor; bütün uygulamaların üretim derlemesi.
+
+**Denenmedi:** kanallar, işletme sohbeti, paylaşım kartları, adrese teslim keşfi, mağaza ve
+rezervasyon ekranlarının telefonda ve tarayıcıda kullanımı; restoran 1.1.0 ve mağaza paketlerinin
+yayımlanması. A2 (nötr sipariş çekirdeği) bu kaynakta henüz yok.
+
 ## 2.8.0-alpha.4 — ara sürüm A1 (2026-10-10)
 
 `2.8.0-alpha.3` sonrasında başka bir ortamda yazılan Studio, keşif, kurumsal yetki, iade ve

@@ -8,6 +8,9 @@ export const studioTemplateIdSchema = z.enum([
   "food-classic",
   "food-premium",
   "food-enterprise",
+  "shop-neighborhood",
+  "shop-boutique",
+  "shop-enterprise",
   "beauty-solo",
   "beauty-team",
   "beauty-premium",
@@ -69,6 +72,39 @@ export const STUDIO_TEMPLATES: readonly StudioTemplate[] = [
     engine: "ordering",
     name: "Kurumsal Zincir",
     description: "Çok şubeli markalar için net menü ve şube seçimi.",
+    accent: "#364665",
+    layout: "enterprise",
+    eyebrow: "Markanın VADO mağazası",
+    menuHeading: "Ürün kataloğu",
+  },
+  {
+    id: "shop-neighborhood",
+    category: "shopping",
+    engine: "ordering",
+    name: "Mahalle Mağazası",
+    description: "Market, petshop ve gündelik alışveriş için sade ürün vitrini.",
+    accent: "#155e63",
+    layout: "compact",
+    eyebrow: "Mahallendeki mağaza",
+    menuHeading: "Ürünlerimiz",
+  },
+  {
+    id: "shop-boutique",
+    category: "shopping",
+    engine: "ordering",
+    name: "Butik ve Çiçekçi",
+    description: "Görselleri öne çıkaran ferah ve seçkin mağaza tasarımı.",
+    accent: "#754d68",
+    layout: "editorial",
+    eyebrow: "Özenle seçildi",
+    menuHeading: "Koleksiyonumuz",
+  },
+  {
+    id: "shop-enterprise",
+    category: "shopping",
+    engine: "ordering",
+    name: "Çok Şubeli Mağaza",
+    description: "Zincir mağazalar için şube ve katalog odaklı kurumsal vitrin.",
     accent: "#364665",
     layout: "enterprise",
     eyebrow: "Markanın VADO mağazası",
@@ -138,8 +174,9 @@ export const studioPaletteIdSchema = z.enum(["teal", "forest", "navy", "plum"]);
 
 /** Her başlangıç şablonuna uygun ilk renk; kullanıcı sonradan değiştirebilir. */
 export function studioInitialPalette(templateId: StudioTemplateId): StudioPaletteId {
-  if (["food-premium", "food-enterprise", "beauty-team"].includes(templateId)) return "navy";
-  if (templateId === "beauty-premium") return "plum";
+  if (["food-premium", "food-enterprise", "shop-enterprise", "beauty-team"].includes(templateId))
+    return "navy";
+  if (["beauty-premium", "shop-boutique"].includes(templateId)) return "plum";
   if (templateId === "food-classic") return "forest";
   return "teal";
 }

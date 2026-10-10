@@ -1605,3 +1605,165 @@ label {
   margin: 4px 0 0;
   padding-left: 18px;
 }
+
+/* Duyuru ekranı: telefonda rahat okunabilen, tek sütunlu editör. */
+.channel-editor {
+  max-width: 720px;
+  display: grid;
+  gap: 24px;
+}
+.channel-editor form {
+  display: grid;
+  gap: 12px;
+  background: var(--surface);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.channel-editor form label {
+  font-weight: 650;
+}
+.channel-editor .primary-button {
+  width: fit-content;
+  background: var(--teal);
+  color: white;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 20px;
+}
+.channel-posts {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.channel-posts li {
+  display: grid;
+  gap: 12px;
+  background: var(--surface);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.channel-posts li p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.channel-posts li button {
+  width: fit-content;
+  color: var(--coral);
+  background: transparent;
+  border: 0;
+  padding: 4px 0;
+}
+.channel-error {
+  color: var(--coral);
+}
+.channel-notice {
+  color: var(--teal);
+}
+@media (max-width: 600px) {
+  .channel-editor form,
+  .channel-posts li {
+    padding: 14px;
+  }
+  .channel-editor .primary-button {
+    width: 100%;
+  }
+}
+
+/* VADO Business Chat: küçük ekranda yatay kaydırma gerektirmeyen ortak gelen kutusu. */
+.business-chats {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px;
+}
+.business-chats > section {
+  min-width: 0;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.business-chats-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.business-chats button {
+  cursor: pointer;
+}
+.business-chats .chat-thread {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 5px;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.business-chats .chat-thread.active {
+  border-color: var(--teal);
+  background: var(--mist);
+}
+.business-chats .chat-thread span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.business-chats-detail {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.business-chats-detail .chat-messages {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+.business-chats-detail .chat-messages li {
+  background: var(--mist);
+  padding: 12px;
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+.business-chats-detail .chat-messages p {
+  margin: 5px 0;
+  white-space: pre-wrap;
+}
+.business-chats-detail .chat-messages small {
+  color: var(--muted);
+}
+.business-chats-detail form {
+  display: grid;
+  gap: 8px;
+}
+.business-chats-detail textarea {
+  min-height: 84px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.business-chats-detail form button {
+  width: fit-content;
+}
+@media (max-width: 700px) {
+  .business-chats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .business-chats > section {
+    padding: 12px;
+  }
+  .business-chats-detail form button {
+    width: 100%;
+  }
+}

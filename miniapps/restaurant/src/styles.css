@@ -129,6 +129,19 @@ label {
 .service-bar p {
   margin: 0;
 }
+.delivery-summary {
+  display: grid;
+  gap: 5px;
+  flex: 2;
+  min-width: min(100%, 260px);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--store-surface, #f9faf6);
+  border: 1px solid var(--line);
+}
+.delivery-summary small {
+  color: var(--muted);
+}
 /* Studio vitrin sunumları: ortak katalog/sepet davranışı değişmez. */
 .storefront-intro {
   background: var(--store-surface, #edf0e4);

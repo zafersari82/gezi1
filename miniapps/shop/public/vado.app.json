@@ -1,0 +1,11 @@
+{
+  "manifest": 1,
+  "id": "magaza",
+  "version": "1.0.0",
+  "name": "VADO Mağaza",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "permissions": ["ordering.basic", "location.addresses", "storage.local"],
+  "network": [],
+  "config": []
+}

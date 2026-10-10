@@ -13,6 +13,7 @@ import {
   orderSummarySchema,
   reorderResultSchema,
   restaurantContextSchema,
+  storeContextSchema,
   tableBillSchema,
   tableSessionSchema,
 } from "@vado/contracts";
@@ -104,6 +105,13 @@ export function createOrderingHost(
       return deliveryQuoteSchema.parse(
         await transport.request("GET", `${base()}/orders/${id}/delivery-snapshot`),
       );
+    },
+    async getStore() {
+      const context = await confirm();
+      const value = storeContextSchema.parse(await transport.request("GET", `${base()}/store`));
+      if (value.businessId !== context.businessId || value.appInstanceId !== context.appInstanceId)
+        throw new Error("Mağaza bağlamı uyuşmuyor.");
+      return value;
     },
     async getRestaurant() {
       const context = await confirm();

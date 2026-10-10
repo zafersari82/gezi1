@@ -1,10 +1,12 @@
 # VADO
 
+> **S2 geliştirme adayı:** Claude A1 ve S1 Business Channels üzerine VADO Business Chat eklendi. Müşteri işletmeye mesaj gönderir; işletme sahibi/yönetici telefon uyumlu gelen kutusundan yanıtlar. Son kabul için tam npm/PostgreSQL testleri gereklidir. [S2 kapsamı ve testler](docs/BUSINESS_CHAT_S2.md).
+
 Türkiye için mesajlaşma, mini uygulama ve ödeme platformu. Telefon numarasıyla giriş, kişiler,
 birebir ve grup sohbetleri, Anlar, QR ile ekleme, uygulama içinde açılan mini uygulamalar, ödeme
 onayı ve işletme hesapları tek bir uygulamada toplanır.
 
-Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.4) yama olarak değil, o
+Kod 2.0'da tek bir standartla baştan yazıldı; sonraki sürümler (bu kaynak 2.8.0-alpha.5) yama olarak değil, o
 temelin üzerine aynı standartla eklenir. Standart yalnızca belgede durmaz; biçim, lint, proje
 kuralları, tip denetimi ve testler `npm run check` komutuyla makine tarafından denetlenir.
 

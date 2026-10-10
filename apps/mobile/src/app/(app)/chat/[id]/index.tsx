@@ -86,9 +86,10 @@ export default function ChatScreen() {
 
   // Birebir sohbette en son kendi mesajının altında karşı tarafın okuyup okumadığı yazar.
   const lastOwnSeq = loaded.find((message) => message.senderId === me.id)?.seq;
-  const peerReadSeq = isGroup
-    ? null
-    : (conversation.data.members.find((member) => member.id !== me.id)?.lastReadSeq ?? 0);
+  const peerReadSeq =
+    isGroup || conversation.data.kind === "business"
+      ? null
+      : (conversation.data.members.find((member) => member.id !== me.id)?.lastReadSeq ?? 0);
   const nameOf = (userId: string | null) =>
     conversation.data.members.find((member) => member.id === userId)?.displayName ?? null;
 
@@ -167,11 +168,22 @@ export default function ChatScreen() {
           ),
           headerRight: () => (
             <HeaderActions>
-              <HeaderButton
-                icon="videocam-outline"
-                label="Görüntülü görüşme başlat"
-                onPress={() => void startVideoCall(id)}
-              />
+              {conversation.data.kind !== "business" && (
+                <HeaderButton
+                  icon="videocam-outline"
+                  label="Görüntülü görüşme başlat"
+                  onPress={() => void startVideoCall(id)}
+                />
+              )}
+              {conversation.data.kind === "business" && (
+                <HeaderButton
+                  icon="receipt-outline"
+                  label="Siparişlerimi paylaş"
+                  onPress={() => {
+                    router.push({ pathname: "/chat/[id]/orders", params: { id } });
+                  }}
+                />
+              )}
               <HeaderButton
                 icon="ellipsis-horizontal"
                 label="Sohbet bilgisi"
@@ -207,7 +219,7 @@ export default function ChatScreen() {
           </View>
         }
       />
-      <Composer conversationId={id} />
+      <Composer conversationId={id} allowImages={conversation.data.kind !== "business"} />
       <ImageViewer
         imageUrl={viewedImage}
         onClose={() => {

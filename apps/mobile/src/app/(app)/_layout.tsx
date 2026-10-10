@@ -60,8 +60,17 @@ export default function AppLayout() {
             <Stack.Screen name="miniapps/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="businesses/index" options={{ title: "İşletmeler" }} />
             <Stack.Screen name="businesses/[id]" options={{ title: "" }} />
+            <Stack.Screen name="bookings/[businessId]" options={{ title: "Randevu al" }} />
+            <Stack.Screen name="businesses/following" options={{ title: "Takip ettiklerim" }} />
             <Stack.Screen name="businesses/register" options={{ title: "İşletme başvurusu" }} />
             <Stack.Screen name="scan" options={{ title: "QR okut" }} />
+            <Stack.Screen name="share-target" options={{ title: "VADO'da paylaş" }} />
+            <Stack.Screen name="chat/[id]/products" options={{ title: "Ürün seç" }} />
+            <Stack.Screen
+              name="products/[businessId]/[branchId]/[itemId]"
+              options={{ title: "Ürün" }}
+            />
+            <Stack.Screen name="chat/[id]/share" options={{ title: "Sohbette paylaş" }} />
             <Stack.Screen name="my-qr" options={{ title: "QR kodum" }} />
             <Stack.Screen name="payments" options={{ title: "Ödemeler" }} />
             <Stack.Screen name="settings/profile" options={{ title: "Profil" }} />

@@ -26,6 +26,9 @@ describe("VADO Search sayfalama imleci", () => {
     expect(() => decodeDiscoveryCursor({ ...base, q: "başka", cursor })).toThrow();
     expect(() => decodeDiscoveryCursor({ ...base, kind: "miniapp", cursor })).toThrow();
     expect(() => decodeDiscoveryCursor({ ...base, provinceId: randomUUID(), cursor })).toThrow();
+    expect(() =>
+      decodeDiscoveryCursor({ ...base, deliveryAddressId: randomUUID(), cursor }),
+    ).toThrow();
     expect(() => decodeDiscoveryCursor({ ...base, cursor: "gecersiz" })).toThrow();
   });
 
@@ -34,6 +37,10 @@ describe("VADO Search sayfalama imleci", () => {
     expect(discoveryQuerySchema.safeParse({ limit: 41 }).success).toBe(false);
     expect(discoveryQuerySchema.safeParse({ cursor: "x".repeat(513) }).success).toBe(false);
     expect(discoveryQuerySchema.safeParse({ districtId: randomUUID() }).success).toBe(false);
+    expect(discoveryQuerySchema.safeParse({ deliveryAddressId: randomUUID() }).success).toBe(false);
+    expect(
+      discoveryQuerySchema.safeParse({ kind: "business", deliveryAddressId: randomUUID() }).success,
+    ).toBe(true);
   });
 });
 

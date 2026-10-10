@@ -4,6 +4,7 @@ import {
   type Catalog,
   type CatalogSelection,
   checkoutCartBodySchema,
+  type DeliveryQuote,
   mergeOrderSnapshot,
   type Order,
   type RestaurantContext,
@@ -12,12 +13,18 @@ import {
   type TableSession,
 } from "@vado/contracts";
 import { vado } from "@vado/miniapp-sdk";
+import { unmetDeliveryMinimum } from "@vado/miniapp-shared/cart-rules";
+import { deliveryLaunchIntent } from "@vado/miniapp-shared/delivery-launch-intent";
+import { ProductOptions } from "@vado/miniapp-shared/product-options";
+import {
+  type SharedProductIntent,
+  sharedProductLaunch,
+} from "@vado/miniapp-shared/shared-product-intent";
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 import { z } from "zod";
 
 import { Aftercare } from "./aftercare";
 import { dateTime, money, states } from "./model";
-import { ProductOptions } from "./product-options";
 
 const pendingSchema = checkoutCartBodySchema.extend({ id: z.uuid(), key: z.uuid() });
 type Pending = z.infer<typeof pendingSchema>;
@@ -40,6 +47,9 @@ export function App() {
   const [table, setTable] = useState<TableSession | null>(null);
   const [branch, setBranch] = useState("");
   const [scheduled, setScheduled] = useState("");
+  const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryAddressId, setDeliveryAddressId] = useState<string | null>(null);
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
@@ -76,6 +86,8 @@ export function App() {
   const contextRef = useRef<RestaurantContext | null>(null);
   const tableRef = useRef<TableSession | null>(null);
   const menuRequest = useRef(0);
+  const sharedProduct = useRef<SharedProductIntent | null>(null);
+  const deliverySelection = useRef<{ branchId: string; addressId: string } | null>(null);
   const cursor = useRef(0);
   const refreshLock = useRef(false);
   const alive = useRef(true);
@@ -131,6 +143,21 @@ export function App() {
       return;
     setCatalog(menu);
     setSlots(times.items.map((slot) => slot.at));
+    // Dış paylaşımdan gelen ürün ancak bu şubenin güncel kataloğuyla açılır.
+    const intent = sharedProduct.current;
+    if (intent !== null && intent.branchId === chosen.branch) {
+      sharedProduct.current = null; // Yeniden bağlanınca modal tekrar açılmaz.
+      const item = menu.items.find((candidate) => candidate.id === intent.itemId);
+      const hasPrice = menu.prices.some((price) => price.itemId === intent.itemId);
+      if (item?.available && hasPrice) {
+        setSearch("");
+        setCategory(item.categoryId ?? "");
+        setProduct(item); // Sepete kendiliğinden ekleme veya satın alma yok.
+        setNotice("Paylaşılan ürünü açtık. Seçenekleri ve güncel fiyatı kontrol et.");
+      } else {
+        setNotice("Paylaşılan ürün bu şubede şu an sunulmuyor. Menüyü inceleyebilirsin.");
+      }
+    }
   }
   async function refresh() {
     const active = () => alive.current;
@@ -233,11 +260,56 @@ export function App() {
           acceptCart(existing);
         } else setPending(null);
       } else setPending(null);
-      const chosenBranch = seating?.branchId ?? restoredCart?.branchId ?? c.branches[0]?.id ?? "";
+      const sharedLaunch = sharedProductLaunch(launch.params, c, restoredCart, seating);
+      sharedProduct.current = sharedLaunch.type === "ready" ? sharedLaunch.intent : null;
+      if (sharedLaunch.type === "conflict") setNotice(sharedLaunch.message);
+      const deliveryLaunch = deliveryLaunchIntent(launch.params, c, restoredCart, seating);
+      if (deliveryLaunch.type === "conflict") setNotice(deliveryLaunch.message);
+      const restoredDelivery =
+        restoredCart?.status === "open" &&
+        restoredCart.fulfilment === "delivery" &&
+        restoredCart.addressId
+          ? { branchId: restoredCart.branchId, addressId: restoredCart.addressId }
+          : null;
+      const missingDeliveryAddress =
+        restoredCart?.status === "open" &&
+        restoredCart.fulfilment === "delivery" &&
+        restoredDelivery === null;
+      if (missingDeliveryAddress)
+        setNotice("Önceki teslimat sepetinin adresi doğrulanamadı. Sepeti bırakıp yeniden seç.");
+      const choice = deliveryLaunch.type === "ready" ? deliveryLaunch.intent : restoredDelivery;
+      deliverySelection.current = choice;
+      setFulfilment(choice !== null || missingDeliveryAddress ? "delivery" : "pickup");
+      setDeliveryAddressId(choice?.addressId ?? null);
+      setDeliveryQuote(null);
+      const chosenBranch =
+        seating?.branchId ??
+        restoredCart?.branchId ??
+        choice?.branchId ??
+        sharedProduct.current?.branchId ??
+        c.branches[0]?.id ??
+        "";
       const chosenTime = restoredCart?.scheduledAt ?? "";
       selection.current = { branch: chosenBranch, scheduled: chosenTime };
       setBranch(chosenBranch);
       setScheduled(chosenTime);
+      if (choice !== null) {
+        try {
+          const quote = await vado.ordering.getDeliveryQuote({
+            branchId: choice.branchId,
+            addressId: choice.addressId,
+            ...(chosenTime === "" ? {} : { scheduledAt: chosenTime }),
+          });
+          if (!active()) return;
+          if (quote.address.id !== choice.addressId || quote.address.archived) {
+            throw new Error("Teslimat adresi değişmiş; yeniden seçmelisin.");
+          }
+          setDeliveryQuote(quote);
+        } catch (cause) {
+          if (!active()) return;
+          setNotice(`Teslimat şu an doğrulanamadı: ${failure(cause)}`);
+        }
+      }
       const previous = await vado.ordering.listOrders({ limit: 30 });
       if (!active()) return;
       if (orderId.current === null && previous.items[0]) orderId.current = previous.items[0].id;
@@ -297,6 +369,7 @@ export function App() {
       alive.current = false;
       lifecycleRef.current++;
       menuRef.current++;
+      sharedProduct.current = null;
       unsub();
       conn();
       clearInterval(timer);
@@ -313,7 +386,28 @@ export function App() {
       )
         setError(failure(cause));
     });
-  }, [branch, scheduled, ready]);
+    if (fulfilment === "delivery" && deliverySelection.current?.branchId === branch) {
+      const addressId = deliverySelection.current.addressId;
+      let cancelled = false;
+      setDeliveryQuote(null);
+      void vado.ordering
+        .getDeliveryQuote({
+          branchId: branch,
+          addressId,
+          ...(scheduled === "" ? {} : { scheduledAt: scheduled }),
+        })
+        .then((quote) => {
+          if (!cancelled && quote.address.id === addressId && !quote.address.archived)
+            setDeliveryQuote(quote);
+        })
+        .catch((cause: unknown) => {
+          if (!cancelled) setNotice(`Teslimat uygunluğu yenilenemedi: ${failure(cause)}`);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [branch, scheduled, ready, fulfilment]);
   async function resetCart() {
     await run(async () => {
       const current = cartRef.current;
@@ -334,18 +428,42 @@ export function App() {
       setScheduled("");
       setPriceChanged(false);
       setProduct(null);
+      if (fulfilment === "delivery" && deliverySelection.current === null) {
+        setFulfilment("pickup");
+        setDeliveryAddressId(null);
+        setDeliveryQuote(null);
+      }
       setNotice("Sepet bırakıldı. Şube ve teslim zamanını yeniden seçebilirsin.");
       await save();
       await refresh();
     });
   }
+  async function checkDeliveryQuote() {
+    const choice = deliverySelection.current;
+    if (choice?.branchId !== branch) throw new Error("Teslimat şubesini yeniden seç.");
+    const quote = await vado.ordering.getDeliveryQuote({
+      branchId: choice.branchId,
+      addressId: choice.addressId,
+      ...(scheduled === "" ? {} : { scheduledAt: scheduled }),
+    });
+    if (quote.address.id !== choice.addressId || quote.address.archived) {
+      throw new Error("Teslimat adresi artık kullanılamıyor.");
+    }
+    setDeliveryQuote(quote);
+    return quote;
+  }
   async function add(line: CatalogSelection) {
     await run(async () => {
       let current = cartRef.current;
       if (current?.status !== "open") {
+        // The host checks the user's live address and the selected branch again.
+        if (fulfilment === "delivery") await checkDeliveryQuote();
         current = await vado.ordering.openCart({
           branchId: branch,
-          fulfilment: tableRef.current === null ? "pickup" : "dine_in",
+          fulfilment: tableRef.current !== null ? "dine_in" : fulfilment,
+          ...(fulfilment === "delivery" && deliveryAddressId !== null
+            ? { addressId: deliveryAddressId }
+            : {}),
           tableSessionId: tableRef.current?.id ?? null,
           scheduledAt: scheduled || null,
         });
@@ -402,6 +520,9 @@ export function App() {
     await run(async () => {
       const current = cartRef.current;
       if (current === null) return;
+      if (current.fulfilment === "delivery" && pending.current === null) {
+        await checkDeliveryQuote();
+      }
       const body = pending.current ?? {
         id: current.id,
         key: crypto.randomUUID(),
@@ -467,9 +588,11 @@ export function App() {
           "--store-surface": storefrontPalette.surface,
         } as CSSProperties);
   const selectedBranch = context?.branches.find((b) => b.id === branch);
+  const belowDeliveryMinimum = unmetDeliveryMinimum(cart) !== null;
   const canOrder =
     ready &&
     branch !== "" &&
+    (fulfilment !== "delivery" || (deliveryQuote !== null && deliveryAddressId !== null)) &&
     (table === null || table.status === "open") &&
     selectedBranch?.openNow === true;
   return (
@@ -546,6 +669,64 @@ export function App() {
                   </p>
                 )}
               </>
+            ) : fulfilment === "delivery" ? (
+              <>
+                <strong>Adrese teslimat · {selectedBranch?.name ?? "Seçilen şube"}</strong>
+                {deliveryQuote !== null ? (
+                  <div className="delivery-summary">
+                    <p>
+                      {deliveryQuote.address.label} ·{" "}
+                      {deliveryQuote.address.geography.neighborhood.name}
+                    </p>
+                    <p>
+                      {deliveryQuote.address.addressLine} · {deliveryQuote.address.door}
+                    </p>
+                    <p>
+                      Servis ücreti {money(deliveryQuote.feeMinor)} · En az{" "}
+                      {money(deliveryQuote.minimumMinor)}
+                    </p>
+                    <p>Tahmini teslimat {deliveryQuote.deliveryMinutes} dakika</p>
+                    <small>Kesin tutar ve uygunluk siparişten önce yeniden doğrulanır.</small>
+                  </div>
+                ) : (
+                  <p role="alert" className="error">
+                    Teslimat uygunluğu doğrulanamadı. Şu an sipariş verilemez.
+                  </p>
+                )}
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await checkDeliveryQuote();
+                    })
+                  }
+                >
+                  Teslimat bilgisini yenile
+                </button>
+                <label>
+                  Teslim zamanı · {selectedBranch?.timezone}
+                  <select
+                    value={scheduled}
+                    disabled={cart !== null || busy}
+                    onChange={(e) => {
+                      selection.current.scheduled = e.target.value;
+                      setScheduled(e.target.value);
+                      setCatalog(null);
+                      setDeliveryQuote(null);
+                    }}
+                  >
+                    <option value="">
+                      Şimdi · yaklaşık {selectedBranch?.preparationMinutes} dk
+                    </option>
+                    {slots.map((at) => (
+                      <option key={at} value={at}>
+                        {selectedBranch && dateTime(at, selectedBranch.timezone)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
             ) : (
               <>
                 <label>
@@ -593,7 +774,9 @@ export function App() {
               <p className="error">
                 {table?.status === "closed"
                   ? "Tekrar sipariş vermek için masanın QR kodunu VADO ile yeniden okut."
-                  : "Şube şu anda kapalı; çalışma saatlerinde sipariş verebilirsin."}
+                  : fulfilment === "delivery" && deliveryQuote === null
+                    ? "Bu adres için teslimat doğrulanmadan sipariş verilemez."
+                    : "Şube şu anda kapalı; çalışma saatlerinde sipariş verebilirsin."}
               </p>
             )}
           </section>
@@ -659,7 +842,14 @@ export function App() {
                       <strong>{i.name}</strong>
                       <span>{i.description}</span>
                       <b>
-                        {money(catalog.prices.find((p) => p.itemId === i.id)?.amountMinor ?? 0)}
+                        {money(
+                          (
+                            catalog.prices.find(
+                              (p) => p.itemId === i.id && p.branchId === branch,
+                            ) ??
+                            catalog.prices.find((p) => p.itemId === i.id && p.branchId === null)
+                          )?.amountMinor ?? 0,
+                        )}
                       </b>
                       {!i.available && <em>Bu saatte sunulmuyor / tükendi</em>}
                     </button>
@@ -711,12 +901,24 @@ export function App() {
                       <span>Toplam · KDV dahil</span>
                       <strong>{money(cart.totalMinor)}</strong>
                     </div>
-                    <p className="muted small">Ödeme masada veya kasada yapılır.</p>
+                    {belowDeliveryMinimum && cart.delivery && (
+                      <p role="alert" className="error">
+                        Teslimat için ürün toplamı en az {money(cart.delivery.minimumMinor)} olmalı.
+                        Teslimat ücreti asgari tutara dahil değildir.
+                      </p>
+                    )}
+                    <p className="muted small">
+                      {cart.fulfilment === "delivery"
+                        ? "Teslimat siparişi · mevcut işletme tahsilat akışı geçerlidir."
+                        : "Ödeme masada veya kasada yapılır."}
+                    </p>
                     <button
                       disabled={
                         busy ||
                         (pendingValue === null &&
-                          (!canOrder || cart.lines.some((l) => !l.available)))
+                          (!canOrder ||
+                            belowDeliveryMinimum ||
+                            cart.lines.some((l) => !l.available)))
                       }
                       onClick={() => void checkout()}
                     >
@@ -796,7 +998,8 @@ export function App() {
         <ProductOptions
           item={product}
           catalog={catalog}
-          busy={busy}
+          branchId={branch}
+          busy={busy || pendingValue !== null || !canOrder}
           onAdd={add}
           onClose={() => {
             setProduct(null);

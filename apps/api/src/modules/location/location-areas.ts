@@ -83,7 +83,7 @@ export function readMatchingServiceAreas(
   branchId: string,
   neighborhoodId: string,
 ): Promise<LocationArea[]> {
-  if (scope.role === "device") throw new AppError("forbidden");
+  if (scope.role === "kitchen") throw new AppError("forbidden");
   return withUser(tx, scope.userId, (db) =>
     withTenant(db, scope, async (scoped) => {
       await requireBranch(scoped, scope, branchId);

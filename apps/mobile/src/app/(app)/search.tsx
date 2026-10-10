@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 
 import { api } from "@/api/client";
+import { DeliveryAddressFilter, useDeliveryDiscovery } from "@/features/discovery/delivery-filter";
 import { useDiscoveryLocation } from "@/features/discovery/discovery-location";
 import { discoveryItemKey, DiscoveryResultRow } from "@/features/discovery/discovery-result-row";
 import { type DiscoveryKind } from "@/features/discovery/search";
@@ -29,6 +30,7 @@ function searchKind(value: string | undefined): DiscoveryKind {
 /** Sunucu araması: filtre değişiminde sayfa başından başlar; aynı isteği cihazda çoğaltmaz. */
 export default function SearchScreen() {
   const { location, isPending: locationPending } = useDiscoveryLocation();
+  const delivery = useDeliveryDiscovery();
   const params = useLocalSearchParams<{ q?: string; category?: string; kind?: string }>();
   const [query, setQuery] = useState(params.q ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
@@ -47,27 +49,31 @@ export default function SearchScreen() {
     };
   }, [query]);
 
+  const deliveryAddressId = kind === "miniapp" ? undefined : (delivery.addressId ?? undefined);
+  const effectiveKind = deliveryAddressId === undefined ? kind : "business";
   const search = useInfiniteQuery({
     queryKey: [
       "discovery",
       "search",
       debouncedQuery,
-      kind,
+      effectiveKind,
       category,
       location?.provinceId,
       location?.districtId,
+      deliveryAddressId,
     ],
-    enabled: !locationPending,
+    enabled: !locationPending && !delivery.pending,
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       api.get<DiscoveryPage>("/v1/discovery/search", {
         q: debouncedQuery,
-        kind,
+        kind: effectiveKind,
         category: category ?? undefined,
         limit: 20,
         cursor: pageParam,
-        provinceId: kind === "miniapp" ? undefined : location?.provinceId,
-        districtId: kind === "miniapp" ? undefined : location?.districtId,
+        provinceId: kind === "miniapp" || deliveryAddressId ? undefined : location?.provinceId,
+        districtId: kind === "miniapp" || deliveryAddressId ? undefined : location?.districtId,
+        deliveryAddressId,
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -91,6 +97,7 @@ export default function SearchScreen() {
               : `${location.provinceName}${location.districtName ? ` / ${location.districtName}` : ""}`}{" "}
             · Mini uygulamalar ülke genelinde gösterilir.
           </AppText>
+          <DeliveryAddressFilter filter={delivery} />
           <SearchField
             value={query}
             onChangeText={setQuery}
@@ -121,13 +128,17 @@ export default function SearchScreen() {
           </View>
           <CategoryFilter available={[...CATEGORIES]} selected={category} onChange={setCategory} />
           <AppText color="muted" variant="caption" style={styles.hint}>
+            {deliveryAddressId !== undefined &&
+              "Seçili adresine şu an teslimat yapan işletmeler · "}
             {updating || search.isPending
               ? "Aranıyor…"
               : `${items.length} sonuç gösteriliyor${search.hasNextPage ? " · Daha fazlası var" : ""}`}
           </AppText>
         </View>
       }
-      renderItem={({ item }) => <DiscoveryResultRow item={item} />}
+      renderItem={({ item }) => (
+        <DiscoveryResultRow item={item} deliveryAddressId={deliveryAddressId} />
+      )}
       ListEmptyComponent={
         <View style={styles.state}>
           {updating || search.isPending ? (
@@ -146,7 +157,11 @@ export default function SearchScreen() {
             <EmptyState
               icon="search-outline"
               title="Sonuç bulunamadı"
-              message="Arama ifadesini kısalt veya kategori süzgecini kaldır."
+              message={
+                deliveryAddressId === undefined
+                  ? "Arama ifadesini kısalt veya kategori süzgecini kaldır."
+                  : "Bu adrese şu an teslimat yapan eşleşen şube bulunamadı."
+              }
             />
           )}
         </View>

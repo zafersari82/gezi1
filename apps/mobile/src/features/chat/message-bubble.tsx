@@ -2,10 +2,16 @@ import { Image } from "expo-image";
 import * as Linking from "expo-linking";
 import { Pressable, StyleSheet, View } from "react-native";
 
+import { openSharedTarget } from "@/features/sharing/open-target";
+import { SharedPreviewCard } from "@/features/sharing/shared-preview-card";
+import {
+  MESSAGE_LINK_PATTERN,
+  parseSharedTarget,
+  sharedPreviewTarget,
+} from "@/features/sharing/shared-target";
 import { colors, radius, space } from "@/theme/tokens";
 import { AppText } from "@/ui/app-text";
 
-const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 const IMAGE_SIZE = 220;
 
 interface MessageBubbleProps {
@@ -30,21 +36,28 @@ function LinkedText({ text, mine }: { text: string; mine: boolean }) {
   const color = mine ? "white" : "ink";
   return (
     <AppText color={color}>
-      {text.split(URL_PATTERN).map((part, index) =>
-        index % 2 === 1 ? (
+      {text.split(MESSAGE_LINK_PATTERN).map((part, index) => {
+        if (index % 2 === 0) return part;
+        const target = parseSharedTarget(part);
+        if (part.startsWith("vado:") && target === null) return part;
+        return (
           <AppText
             key={`${index}-${part}`}
             color={color}
             style={styles.link}
             accessibilityRole="link"
-            onPress={() => void Linking.openURL(part)}
+            onPress={() => {
+              if (target !== null) {
+                openSharedTarget(target);
+              } else {
+                void Linking.openURL(part);
+              }
+            }}
           >
             {part}
           </AppText>
-        ) : (
-          part
-        ),
-      )}
+        );
+      })}
     </AppText>
   );
 }
@@ -61,6 +74,8 @@ export function MessageBubble({
   onLongPress,
 }: MessageBubbleProps) {
   const hasFootnote = footnote !== undefined && footnote !== null;
+  const previewTarget =
+    imageUrl === null && !pending && onPress === undefined ? sharedPreviewTarget(body) : null;
 
   return (
     <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
@@ -69,28 +84,34 @@ export function MessageBubble({
           {senderName}
         </AppText>
       )}
-      <Pressable
-        onPress={onPress}
-        onLongPress={onLongPress}
-        disabled={onPress === undefined && onLongPress === undefined}
-        accessibilityHint={onLongPress === undefined ? undefined : "Şikayet etmek için basılı tut"}
-        style={[
-          imageUrl === null ? styles.bubble : styles.imageBubble,
-          imageUrl === null && (mine ? styles.bubbleMine : styles.bubbleTheirs),
-          pending && styles.pending,
-        ]}
-      >
-        {imageUrl === null ? (
-          <LinkedText text={body} mine={mine} />
-        ) : (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.image}
-            contentFit="cover"
-            accessibilityLabel="Fotoğraf"
-          />
-        )}
-      </Pressable>
+      {previewTarget !== null ? (
+        <SharedPreviewCard target={previewTarget} onLongPress={onLongPress} />
+      ) : (
+        <Pressable
+          onPress={onPress}
+          onLongPress={onLongPress}
+          disabled={onPress === undefined && onLongPress === undefined}
+          accessibilityHint={
+            onLongPress === undefined ? undefined : "Şikayet etmek için basılı tut"
+          }
+          style={[
+            imageUrl === null ? styles.bubble : styles.imageBubble,
+            imageUrl === null && (mine ? styles.bubbleMine : styles.bubbleTheirs),
+            pending && styles.pending,
+          ]}
+        >
+          {imageUrl === null ? (
+            <LinkedText text={body} mine={mine} />
+          ) : (
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.image}
+              contentFit="cover"
+              accessibilityLabel="Fotoğraf"
+            />
+          )}
+        </Pressable>
+      )}
       {hasFootnote && (
         <AppText variant="caption" color={footnoteTone} style={styles.footnote}>
           {footnote}

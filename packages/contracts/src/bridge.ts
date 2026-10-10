@@ -50,6 +50,7 @@ import {
   returnRequestBodySchema,
   returnWithdrawBodySchema,
 } from "./returns";
+import type { StoreContext } from "./storefront";
 
 /**
  * Mini uygulama ile VADO kabuğu arasındaki köprü protokolü.
@@ -98,6 +99,7 @@ export const BRIDGE_METHODS = {
   "ordering.checkout": "ordering.basic",
   "ordering.getOrder": "ordering.basic",
   "ordering.getRestaurant": "ordering.basic",
+  "ordering.getStore": "ordering.basic",
   "ordering.getSlots": "ordering.basic",
   "ordering.joinTable": "ordering.basic",
   "ordering.getTable": "ordering.basic",
@@ -194,6 +196,7 @@ export const bridgeParamsSchemas = {
     .strict(),
   "ordering.getOrder": z.object({ id: idSchema }).strict(),
   "ordering.getRestaurant": noParamsSchema,
+  "ordering.getStore": noParamsSchema,
   "ordering.getSlots": z.object({ branchId: idSchema }).strict(),
   "ordering.joinTable": noParamsSchema,
   "ordering.getTable": z.object({ id: idSchema }).strict(),
@@ -295,6 +298,7 @@ export interface BridgeResults {
   "ordering.checkout": { type: "order"; order: Order } | { type: "cart_changed"; cart: Cart };
   "ordering.getOrder": Order;
   "ordering.getRestaurant": RestaurantContext;
+  "ordering.getStore": StoreContext;
   "ordering.getSlots": { items: { at: string }[]; preparationMinutes: number; openNow: boolean };
   "ordering.joinTable": TableSession;
   "ordering.getTable": TableSession;

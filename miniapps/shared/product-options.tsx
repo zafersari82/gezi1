@@ -1,7 +1,7 @@
 import type { Catalog, CatalogSelection } from "@vado/contracts";
 import { useState } from "react";
 
-import { money, selectionProblem } from "./model";
+import { money, selectionProblem } from "./catalog-options";
 
 export function ProductOptions({
   item,
@@ -9,26 +9,32 @@ export function ProductOptions({
   onAdd,
   onClose,
   busy,
+  branchId,
 }: {
   item: Catalog["items"][number];
   catalog: Catalog;
   onAdd: (line: CatalogSelection) => Promise<void>;
   onClose: () => void;
   busy: boolean;
+  branchId?: string;
 }) {
   const groups = catalog.optionGroups.filter((g) => item.optionGroupIds.includes(g.id) && g.active);
   const [selected, setSelected] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
   const problem = selectionProblem(groups, selected);
-  const price = catalog.prices.find((p) => p.itemId === item.id)?.amountMinor;
+  const price = (
+    catalog.prices.find(
+      (p) => p.itemId === item.id && branchId !== undefined && p.branchId === branchId,
+    ) ?? catalog.prices.find((p) => p.itemId === item.id && p.branchId === null)
+  )?.amountMinor;
   return (
     <div className="modal-backdrop">
       <section className="product-dialog" role="dialog" aria-modal="true" aria-label={item.name}>
         <button className="close" onClick={onClose} disabled={busy} aria-label="Ürünü kapat">
           ×
         </button>
-        <span className="eyebrow">Sana göre hazırlayalım</span>
+        <span className="eyebrow">Ürün seçenekleri</span>
         <h2>{item.name}</h2>
         <p>{item.description}</p>
         {groups.map((g) => (

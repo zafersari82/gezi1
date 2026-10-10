@@ -9,6 +9,10 @@ import {
   catalogPriceBodySchema,
   catalogQuoteBodySchema,
   itemOptionGroupsBodySchema,
+  productShareBranchParamsSchema,
+  productShareListParamsSchema,
+  productShareListQuerySchema,
+  productShareParamsSchema,
   shellBusinessParamsSchema,
   studioItemImageBodySchema,
   studioStarterCatalogBodySchema,
@@ -20,6 +24,25 @@ import type { RouteContext } from "../../routes";
 
 export function catalogRoutes(server: FastifyInstance, { services, guard }: RouteContext): void {
   const { catalog, businessManagement } = services;
+  server.get("/v1/businesses/:businessId/share-branches", async (request) => {
+    await guard(request);
+    const { businessId } = parse(productShareBranchParamsSchema, request.params);
+    return { items: await catalog.shareBranches(businessId) };
+  });
+  server.get("/v1/businesses/:businessId/branches/:branchId/share-products", async (request) => {
+    await guard(request);
+    const { businessId, branchId } = parse(productShareListParamsSchema, request.params);
+    const { q } = parse(productShareListQuerySchema, request.query);
+    return { items: await catalog.shareProducts(businessId, branchId, q) };
+  });
+  server.get(
+    "/v1/businesses/:businessId/branches/:branchId/share-products/:itemId",
+    async (request) => {
+      await guard(request);
+      const { businessId, branchId, itemId } = parse(productShareParamsSchema, request.params);
+      return catalog.shareProduct(businessId, branchId, itemId);
+    },
+  );
   server.post("/v1/business/:businessId/catalog/quote", async (request) => {
     const { userId } = await guard(request);
     const { businessId } = parse(businessParamsSchema, request.params);

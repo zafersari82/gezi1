@@ -33,6 +33,7 @@ it("restoran paketi olmayan mağaza sunucu sepetinden ücretli teslimat alır", 
 it("teslimatın adresi teklif ve değişmez görüntü ucundadır; tekrar yanıtı kişisel veri taşımaz", async () => {
   const f = await checkoutDelivery(app);
   expect(f.cart.delivery).not.toHaveProperty("address");
+  expect(f.cart.addressId).toBe(f.address.id);
   const quote = await f.client.ok(
     z.looseObject({ address: z.looseObject({ phone: z.string() }) }),
     "POST",

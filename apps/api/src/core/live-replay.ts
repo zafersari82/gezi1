@@ -56,7 +56,7 @@ export function createLiveReplayService({ db }: TenantContext) {
       const filter =
         scope.role === "customer"
           ? sql`and business_customer_id=${scope.businessCustomerId} and app_instance_id=${scope.appInstanceId}`
-          : scope.role === "device"
+          : scope.role === "kitchen"
             ? sql`and branch_id=${scope.branchId} and app_instance_id=${scope.appInstanceId} and order_id is not null`
             : scope.role === "staff"
               ? sql`and ((order_id is not null ${permittedBranch(scope, "orders.view", branch)})

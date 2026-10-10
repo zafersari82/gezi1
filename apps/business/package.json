@@ -1,6 +1,6 @@
 {
   "name": "@vado/business",
-  "version": "2.8.0-alpha.4",
+  "version": "2.8.0-alpha.5",
   "private": true,
   "description": "VADO hesabınla işletmenin günlük işlerini yönet",
   "type": "module",

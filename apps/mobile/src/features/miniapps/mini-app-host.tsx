@@ -187,6 +187,17 @@ export function MiniAppHost({
         </View>
         <View style={styles.capsule}>
           <HeaderButton
+            icon="share-social-outline"
+            label="Mini uygulamayı paylaş veya QR göster"
+            color="ink"
+            onPress={() => {
+              router.push({
+                pathname: "/share-target",
+                params: { kind: "miniapp", id: miniApp.id },
+              });
+            }}
+          />
+          <HeaderButton
             icon="flag-outline"
             label="Şikayet et"
             color="ink"

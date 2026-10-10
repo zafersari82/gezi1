@@ -1,0 +1,26 @@
+{
+  "name": "@vado/miniapp-shared",
+  "version": "2.8.0-alpha.5",
+  "private": true,
+  "type": "module",
+  "description": "VADO mini uygulamalarında ortak katalog, ürün ve bağlantı kuralları",
+  "exports": {
+    "./catalog-options": "./catalog-options.ts",
+    "./product-options": "./product-options.tsx",
+    "./shared-product-intent": "./shared-product-intent.ts",
+    "./delivery-launch-intent": "./delivery-launch-intent.ts",
+    "./cart-rules": "./cart-rules.ts"
+  },
+  "dependencies": {
+    "@vado/contracts": "*",
+    "react": "19.2.3",
+    "zod": "^4.6.5"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2"
+  }
+}

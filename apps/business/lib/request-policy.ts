@@ -12,6 +12,12 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
     "studio/media/usage",
     "returns",
     "reviews",
+    "channel/posts",
+    "bookings/setup",
+    "bookings",
+    "chats",
+    `chats/${UUID}/messages`,
+    `chats/${UUID}/orders/${UUID}`,
     "kitchen-queue",
     "live-events",
     "tables",
@@ -34,6 +40,13 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
   ],
   POST: [
     "studio/publish",
+    "channel/posts",
+    "bookings/services",
+    "bookings/resources",
+    `chats/${UUID}/messages`,
+    `chats/${UUID}/orders/${UUID}`,
+    `chats/${UUID}/read`,
+    `channel/posts/${UUID}/withdraw`,
     "studio/media/prune",
     "socket-ticket",
     "tables",
@@ -59,6 +72,10 @@ const patterns: Readonly<Record<string, readonly string[]>> = {
   PUT: [
     "studio",
     "studio/media/usage",
+    `bookings/services/${UUID}`,
+    `bookings/resources/${UUID}`,
+    `bookings/resources/${UUID}/hours`,
+    `bookings/${UUID}/status`,
     "members",
     "catalog/branch-prices",
     "branches/availability-batch",
@@ -105,7 +122,10 @@ export function businessApiPath(
       ? ["days"]
       : path === "returns"
         ? ["limit", "cursor", "status"]
-        : path === "reviews"
+        : path === "reviews" ||
+            path === "channel/posts" ||
+            path === "chats" ||
+            /^chats\/[0-9a-f-]{36}\/messages$/.test(path)
           ? ["limit", "cursor"]
           : path === "live-events"
             ? ["cursor"]

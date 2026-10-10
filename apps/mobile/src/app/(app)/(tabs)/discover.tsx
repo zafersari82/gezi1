@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-n
 
 import { api } from "@/api/client";
 import { CategoryTile } from "@/features/businesses/category-tile";
+import { DeliveryAddressFilter, useDeliveryDiscovery } from "@/features/discovery/delivery-filter";
 import { useDiscoveryLocation } from "@/features/discovery/discovery-location";
 import { discoveryItemKey, DiscoveryResultRow } from "@/features/discovery/discovery-result-row";
 import { colors, radius, space } from "@/theme/tokens";
@@ -28,27 +29,34 @@ function useDiscoveryPreview(
   kind: "business" | "miniapp",
   provinceId?: string,
   districtId?: string,
+  deliveryAddressId?: string,
   ready = true,
 ) {
   return useQuery({
-    queryKey: ["discovery", "home", kind, provinceId, districtId],
+    queryKey: ["discovery", "home", kind, provinceId, districtId, deliveryAddressId],
     enabled: ready,
     queryFn: () =>
       api.get<DiscoveryPage>("/v1/discovery/search", {
         kind,
         limit: HOME_PAGE_SIZE,
-        ...(kind === "business" ? { provinceId, districtId } : {}),
+        ...(kind === "business"
+          ? deliveryAddressId === undefined
+            ? { provinceId, districtId }
+            : { deliveryAddressId }
+          : {}),
       }),
   });
 }
 
 export default function DiscoverScreen() {
   const { location, isPending: locationPending } = useDiscoveryLocation();
+  const delivery = useDeliveryDiscovery();
   const businesses = useDiscoveryPreview(
     "business",
     location?.provinceId,
     location?.districtId,
-    !locationPending,
+    delivery.addressId ?? undefined,
+    !locationPending && !delivery.pending,
   );
   const miniApps = useDiscoveryPreview("miniapp");
   const businessItems = businesses.data?.items ?? [];
@@ -97,6 +105,18 @@ export default function DiscoverScreen() {
               ? "Konum seç · Yakınındaki işletmeler"
               : `${location.provinceName}${location.districtName ? ` / ${location.districtName}` : ""} · Değiştir`}
         </AppText>
+      </Pressable>
+      <DeliveryAddressFilter filter={delivery} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Takip ettiğim işletmelerin duyuruları"
+        style={styles.location}
+        onPress={() => {
+          router.push("/businesses/following");
+        }}
+      >
+        <Icon name="megaphone-outline" size={18} color="teal" />
+        <AppText color="teal">Takip ettiklerim · İşletme duyuruları</AppText>
       </Pressable>
       <Pressable
         style={styles.search}
@@ -170,10 +190,18 @@ export default function DiscoverScreen() {
       {businessItems.length > 0 && (
         <>
           <SectionTitle>
-            {location === null ? "İşletmeleri keşfet" : "Seçtiğin konumdaki işletmeler"}
+            {delivery.addressId !== null
+              ? "Adresine teslimat yapan işletmeler"
+              : location === null
+                ? "İşletmeleri keşfet"
+                : "Seçtiğin konumdaki işletmeler"}
           </SectionTitle>
           {businessItems.map((item) => (
-            <DiscoveryResultRow key={discoveryItemKey(item)} item={item} />
+            <DiscoveryResultRow
+              key={discoveryItemKey(item)}
+              item={item}
+              deliveryAddressId={delivery.addressId ?? undefined}
+            />
           ))}
           <Pressable
             style={styles.seeAll}
@@ -209,11 +237,19 @@ export default function DiscoverScreen() {
           </Pressable>
         </>
       )}
-      {location !== null && businessItems.length === 0 && businesses.isSuccess && (
+      {businessItems.length === 0 && businesses.isSuccess && delivery.addressId !== null && (
         <AppText color="muted" style={styles.info}>
-          Bu konumda kayıtlı şube bulunamadı. İl geneline geçerek aramayı genişletebilirsin.
+          Bu adrese şu an teslimat yapan bir şube bulunamadı. Diğer adreslerini deneyebilirsin.
         </AppText>
       )}
+      {location !== null &&
+        delivery.addressId === null &&
+        businessItems.length === 0 &&
+        businesses.isSuccess && (
+          <AppText color="muted" style={styles.info}>
+            Bu konumda kayıtlı şube bulunamadı. İl geneline geçerek aramayı genişletebilirsin.
+          </AppText>
+        )}
       {showEmpty && (
         <AppText color="muted" style={styles.info}>
           Henüz listelenmiş bir işletme veya mini uygulama bulunmuyor.
