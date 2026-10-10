@@ -17,6 +17,7 @@ import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
+import { orderDisplayNumber } from "../lib/order-display";
 import { formText, money, STATE_LABELS } from "../lib/values";
 import { OrderActions } from "./order-actions";
 import { useBusinessLive } from "./use-business-live";
@@ -291,7 +292,7 @@ export function TablesView({
               {bill.orders.map((o) => (
                 <div className="item-row" key={o.id}>
                   <span>
-                    #{o.id.slice(0, 8)} · {STATE_LABELS[o.status] ?? o.status} ·{" "}
+                    {orderDisplayNumber(o.id)} · {STATE_LABELS[o.status] ?? o.status} ·{" "}
                     {o.paid ? "Ödendi" : "Ödeme bekliyor"}
                   </span>
                   <button

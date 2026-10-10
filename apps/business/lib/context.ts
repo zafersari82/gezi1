@@ -34,6 +34,8 @@ export const getBusinessContext = cache(async () => {
   const membership =
     selected === null ? memberships[0] : memberships.find((m) => m.businessId === selected);
   if (membership === undefined) redirect("/businesses");
+  const canBook =
+    membership.businessCategory === "beauty" || membership.businessCategory === "health";
   const instances = (
     await apiGet(
       z.object({ items: z.array(appInstanceSchema) }),
@@ -51,9 +53,14 @@ export const getBusinessContext = cache(async () => {
           `/v1/business/${membership.businessId}/app-instances/${instance.id}/capabilities`,
         );
   const catalog = await apiGet(engineCapabilityCatalogSchema, "/v1/capabilities", false);
-  const blocks = resolved?.businessBlocks ?? catalog.engines[0]?.businessBlocks ?? [];
+  // Randevu işletmesinde, yalnız örnek uygulama örneği var diye sipariş menüsü açılmaz.
+  const orderingEnabled =
+    resolved !== null &&
+    (!canBook || resolved.settings.some((setting) => setting.capabilityId.startsWith("ordering.")));
+  const blocks = orderingEnabled ? (resolved?.businessBlocks ?? []) : [];
   return {
     membership,
+    canBook,
     instances,
     instance: instance ?? null,
     blocks,

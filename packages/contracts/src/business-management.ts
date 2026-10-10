@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { idSchema, timestampSchema } from "./common";
+import { categorySchema, idSchema, timestampSchema } from "./common";
 import { miniAppIdSchema } from "./miniapps";
 import { timezoneSchema } from "./time";
 
@@ -11,6 +11,7 @@ export const businessMembershipSchema = z.object({
   businessId: idSchema,
   userId: idSchema,
   businessName: z.string(),
+  businessCategory: categorySchema.optional(),
   displayName: z.string().optional(),
   role: businessMemberRoleSchema,
   active: z.boolean(),

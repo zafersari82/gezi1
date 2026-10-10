@@ -44,6 +44,7 @@ const HTTP_ERROR = 400;
 export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
   const webView = useRef<WebView>(null);
   const [failed, setFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [left, setLeft] = useState(false);
   const { entryUrl, scope } = miniApp;
 
@@ -57,7 +58,7 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
     reload() {
       setFailed(false);
       setLeft(false);
-      webView.current?.reload();
+      setRetryCount((count) => count + 1);
     },
   }));
 
@@ -80,6 +81,7 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
         actionLabel="Yeniden dene"
         onAction={() => {
           setFailed(false);
+          setRetryCount((count) => count + 1);
         }}
       />
     );
@@ -87,6 +89,7 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
 
   return (
     <WebView
+      key={`${entryUrl}:${retryCount}`}
       ref={webView}
       source={{ uri: entryUrl }}
       style={styles.frame}

@@ -10,6 +10,7 @@ import { type SyntheticEvent, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
+import { orderDisplayNumber } from "../lib/order-display";
 import { formText, money } from "../lib/values";
 
 const listSchema = z.object({
@@ -191,7 +192,7 @@ export function ReturnsView({ initial }: { initial: Page }) {
               }}
             >
               <span className="record-heading">
-                <strong>#{item.orderId.slice(0, 8).toUpperCase()}</strong>
+                <strong>{orderDisplayNumber(item.orderId)}</strong>
                 <span className="badge">{statusLabel[item.status]}</span>
               </span>
               <span className="small muted">
@@ -234,7 +235,7 @@ export function ReturnsView({ initial }: { initial: Page }) {
               <dl className="record-facts">
                 <div>
                   <dt>Sipariş</dt>
-                  <dd>#{selected.orderId.slice(0, 8).toUpperCase()}</dd>
+                  <dd>{orderDisplayNumber(selected.orderId)}</dd>
                 </div>
                 <div>
                   <dt>Tür</dt>

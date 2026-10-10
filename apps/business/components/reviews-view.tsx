@@ -5,6 +5,7 @@ import { type SyntheticEvent, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
+import { orderDisplayNumber } from "../lib/order-display";
 import { formText } from "../lib/values";
 
 const listSchema = z.object({
@@ -141,7 +142,7 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
               </span>
               <span className="record-preview">{item.comment || "Yazılı yorum bırakılmamış."}</span>
               <span className="small muted">
-                Sipariş #{item.orderId.slice(0, 8).toUpperCase()} ·{" "}
+                Sipariş {orderDisplayNumber(item.orderId)} ·{" "}
                 {item.visibility === "published" ? "Yayında" : "Gizli"}
               </span>
               {item.reply !== null && <span className="badge">Yanıtlandı</span>}
@@ -174,7 +175,7 @@ export function ReviewsView({ initial, canReply }: { initial: Page; canReply: bo
           ) : (
             <div className="form-stack">
               <div className="section-heading">
-                <h2>Sipariş #{selected.orderId.slice(0, 8).toUpperCase()}</h2>
+                <h2>Sipariş {orderDisplayNumber(selected.orderId)}</h2>
                 <span className="badge">{selected.rating} / 5</span>
               </div>
               <p className="record-comment">{selected.comment || "Yazılı yorum bırakılmamış."}</p>

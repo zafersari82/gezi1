@@ -153,12 +153,12 @@ export default function BusinessBookingScreen() {
     return <ErrorView error={catalog.error} onRetry={() => void catalog.refetch()} />;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <AppText variant="heading">VADO Randevu</AppText>
+      <AppText variant="heading">Randevu al</AppText>
       <AppText color="muted">
         Gerçek müsaitlik bilgisiyle randevu al. Ücret varsa işletmede ödenir; uygulamada ödeme
         alınmaz.
       </AppText>
-      <AppText variant="title">Şube</AppText>
+      <AppText variant="subheading">Şube</AppText>
       <View style={styles.choices}>
         {branches.map((b) => (
           <Chip
@@ -180,7 +180,7 @@ export default function BusinessBookingScreen() {
       )}
       {branchId !== "" && (
         <>
-          <AppText variant="title">Hizmet</AppText>
+          <AppText variant="subheading">Hizmet</AppText>
           <View style={styles.choices}>
             {services.map((s) => (
               <Chip
@@ -197,7 +197,7 @@ export default function BusinessBookingScreen() {
           {services.length === 0 && (
             <AppText color="muted">Bu şube henüz randevu hizmeti yayımlamamış.</AppText>
           )}
-          <AppText variant="title">Kaynak / Uzman</AppText>
+          <AppText variant="subheading">Kaynak / Uzman</AppText>
           <View style={styles.choices}>
             {resources.map((r) => (
               <Chip
@@ -215,7 +215,7 @@ export default function BusinessBookingScreen() {
       )}
       {serviceId !== "" && resourceId !== "" && (
         <>
-          <AppText variant="title">Gün seç</AppText>
+          <AppText variant="subheading">Gün seç</AppText>
           <View style={styles.choices}>
             {days.map((d) => (
               <Chip
@@ -233,7 +233,7 @@ export default function BusinessBookingScreen() {
       )}
       {day !== "" && (
         <>
-          <AppText variant="title">Müsait saatler</AppText>
+          <AppText variant="subheading">Müsait saatler</AppText>
           {slots.isFetching && <AppText color="muted">Saatler güncelleniyor…</AppText>}
           {slots.isError && <AppText color="coral">Müsaitlik alınamadı. Yeniden dene.</AppText>}
           <View style={styles.choices}>
@@ -261,7 +261,7 @@ export default function BusinessBookingScreen() {
       )}
       {error !== "" && <AppText color="coral">{error}</AppText>}
       {notice !== "" && <AppText color="teal">{notice}</AppText>}
-      <AppText variant="title">Randevularım</AppText>
+      <AppText variant="subheading">Randevularım</AppText>
       {mine.isPending && <AppText color="muted">Randevular yükleniyor…</AppText>}
       {mine.data?.items.length === 0 && <AppText color="muted">Henüz randevun yok.</AppText>}
       {mine.data?.items.map((item) => (

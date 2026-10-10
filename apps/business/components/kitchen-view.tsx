@@ -1,6 +1,6 @@
 "use client";
-import { formatBranchDateTime, FULFILMENT_LABELS } from "@vado/contracts";
 import {
+  FULFILMENT_LABELS,
   type Branch,
   type LiveEvent,
   mergeOrderSnapshot,
@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
+import { operationalDateTime, orderDisplayNumber } from "../lib/order-display";
 import { STATE_LABELS } from "../lib/values";
 import { OrderActions } from "./order-actions";
 import { useBusinessLive } from "./use-business-live";
@@ -242,14 +243,14 @@ export function KitchenView({
             data-order-id={o.id}
           >
             <div className="section-heading">
-              <h2>#{o.id.slice(0, 8).toUpperCase()}</h2>
+              <h2>{orderDisplayNumber(o.id)}</h2>
               <span className={`badge status-${o.status}`}>
                 {STATE_LABELS[o.status] ?? o.status}
               </span>
             </div>
             <p>
               {FULFILMENT_LABELS[o.fulfilment]} ·{" "}
-              {formatBranchDateTime(o.createdAt, o.branchTimezone)}
+              {operationalDateTime(o.createdAt, o.branchTimezone)}
             </p>
             {o.contextLabel !== null && (
               <p>
@@ -258,7 +259,7 @@ export function KitchenView({
             )}
             {o.scheduledAt && (
               <p className="scheduled-time">
-                İleri saat · {formatBranchDateTime(o.scheduledAt, o.branchTimezone)}
+                İleri saat · {operationalDateTime(o.scheduledAt, o.branchTimezone)}
               </p>
             )}
             <ul className="kitchen-lines">

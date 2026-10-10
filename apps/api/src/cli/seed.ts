@@ -11,6 +11,7 @@ import {
 import { loadConfig, loadEnvFile } from "../core/config";
 import type { AppContext } from "../core/context";
 import { createDatabase, type Database, sql } from "../core/database";
+import { platformScope } from "../core/platform-scope";
 import { StartupError } from "../core/errors";
 import { createAppKeys } from "../core/keys";
 import { migrate } from "../core/migrator";
@@ -311,6 +312,16 @@ async function seedPackagedMiniApps(
       config: { businessName: record.name },
     });
     await miniAppAdmin.update(admins.operator, record.id, { verified: true });
+    if (business !== null && record.merchantId === MERCHANT_ID) {
+      await platformScope(context.platformDb, async (tx) => {
+        await tx.execute(sql`
+          insert into app_instances (business_id, mini_app_id, merchant_id, engine, active)
+          values (${business.id}, ${record.id}, ${record.merchantId}, 'ordering', true)
+          on conflict (business_id, mini_app_id, merchant_id)
+          do update set active = excluded.active
+        `);
+      });
+    }
   }
   return version;
 }

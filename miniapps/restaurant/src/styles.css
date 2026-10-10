@@ -340,6 +340,7 @@ label {
 }
 
 .restaurant-layout {
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   gap: 30px;
@@ -357,11 +358,14 @@ label {
   white-space: nowrap;
 }
 .menu-grid {
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 14px;
 }
 .menu-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: grid;
   text-align: left;
   align-content: start;
@@ -513,7 +517,7 @@ fieldset small {
     display: block;
   }
   .menu-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
   .menu-item {
     padding: 14px;
@@ -601,4 +605,12 @@ fieldset small {
   height: 120px;
   object-fit: cover;
   border-radius: 10px;
+}
+
+/* Dar cihazda iç içerik grid'in asgari genişliğini büyütemez. */
+.restaurant-layout > *,
+.menu-grid > *,
+.menu-heading > * {
+  min-width: 0;
+  max-width: 100%;
 }

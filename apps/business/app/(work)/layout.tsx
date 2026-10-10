@@ -9,6 +9,7 @@ export default async function WorkLayout({ children }: { children: ReactNode }) 
     <AppShell
       name={context.membership.businessName}
       role={context.membership.role}
+      canBook={context.canBook}
       blocks={context.blocks.filter(
         (block) => block.view !== "returns" || context.membership.role !== "staff",
       )}

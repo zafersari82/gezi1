@@ -1,6 +1,6 @@
 "use client";
-import { formatBranchDateTime, FULFILMENT_LABELS } from "@vado/contracts";
 import {
+  FULFILMENT_LABELS,
   mergeOrderSnapshot,
   type Order,
   orderSchema,
@@ -12,6 +12,7 @@ import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
 
 import { call, errorMessage } from "../lib/client";
+import { operationalDateTime, orderDisplayNumber } from "../lib/order-display";
 import { type OrderFilter, orderListSearch } from "../lib/order-query";
 import { money, STATE_LABELS } from "../lib/values";
 import { OrderActions } from "./order-actions";
@@ -178,14 +179,14 @@ export function OrdersView({
               onClick={() => open(o)}
             >
               <div className="order-top">
-                <strong>#{o.id.slice(0, 8).toUpperCase()}</strong>
+                <strong>{orderDisplayNumber(o.id)}</strong>
                 <span className={`badge status-${o.status}`}>
                   {STATE_LABELS[o.status] ?? o.status}
                 </span>
               </div>
               <div className="order-bottom">
                 <span className="muted">
-                  {formatBranchDateTime(o.createdAt, o.branchTimezone)} ·{" "}
+                  {operationalDateTime(o.createdAt, o.branchTimezone)} ·{" "}
                   {FULFILMENT_LABELS[o.fulfilment]}
                 </span>
                 <strong>{money(o.totalMinor)}</strong>
@@ -225,7 +226,7 @@ export function OrdersView({
               <div className="section-heading">
                 <div>
                   <span className="eyebrow">Sipariş ayrıntısı</span>
-                  <h2>#{selected.id.slice(0, 8).toUpperCase()}</h2>
+                  <h2>{orderDisplayNumber(selected.id)}</h2>
                 </div>
                 <span className={`badge status-${selected.status}`}>
                   {STATE_LABELS[selected.status] ?? selected.status}
@@ -274,7 +275,7 @@ export function OrdersView({
                 {selected.history.map((entry) => (
                   <li key={entry.version}>
                     <span>{STATE_LABELS[entry.toStatus] ?? entry.toStatus}</span>
-                    <time>{formatBranchDateTime(entry.createdAt, selected.branchTimezone)}</time>
+                    <time>{operationalDateTime(entry.createdAt, selected.branchTimezone)}</time>
                   </li>
                 ))}
               </ol>

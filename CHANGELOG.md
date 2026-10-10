@@ -1,5 +1,11 @@
 # Değişiklikler
 
+## Hazırlanıyor: M0 ekran kabulü (doğrulama bekliyor)
+
+- Restoran ve mağaza dar ekran düzenleri, operasyon tarihi ve kısa sipariş kimlikleri sadeleştirildi.
+- İptal/tahsilat görünürlüğü, tutar taşması, randevu başlıkları ve örnek berber uygulama örneği iyileştirildi.
+- M0 gerçek cihaz, PostgreSQL ve bütün çalışma alanı testleri tamamlanmadan yeni sürüm yayımlanmaz.
+
 ## 2.8.0-alpha.6 — tarafsız sipariş çekirdeği (A2) (2026-10-10)
 
 Sipariş çekirdeği artık hiçbir sektörün adını bilmez: paketler, teslim biçimleri, sipariş

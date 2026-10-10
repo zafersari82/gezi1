@@ -1,6 +1,5 @@
 "use client";
 import {
-  formatBranchDateTime,
   FULFILMENT_PAYMENT_PLACES,
   type Order,
   orderSchema,
@@ -9,6 +8,7 @@ import {
 import { useRef, useState } from "react";
 
 import { call, errorMessage } from "../lib/client";
+import { operationalDateTime } from "../lib/order-display";
 import { STATE_LABELS } from "../lib/values";
 
 export function OrderActions({
@@ -31,6 +31,7 @@ export function OrderActions({
   const selectedPlace = paymentPlaces.includes(place) ? place : paymentPlaces[0];
   const root = device ? "/api/device" : "/api/business";
   const kitchen = order.capabilities.some((c) => c.startsWith("ordering.kitchen@"));
+  const returnsEnabled = order.capabilities.some((c) => c.startsWith("ordering.returns@"));
   async function mutate(action: string, body: unknown, http = "POST") {
     if (lock.current) return;
     lock.current = true;
@@ -98,8 +99,18 @@ export function OrderActions({
           </button>
         </>
       ) : null}
+      {returnsEnabled && next.includes("cancelled") && !device && (
+        <p className="muted small">
+          Bu sipariş doğrudan iptal edilemez. Müşterinin iptal talebini İadeler bölümünden
+          değerlendir.
+        </p>
+      )}
       {next
-        .filter((s) => !kitchen || !["accepted", "rejected"].includes(s))
+        .filter(
+          (s) =>
+            (!kitchen || !["accepted", "rejected"].includes(s)) &&
+            (s !== "cancelled" || (!returnsEnabled && !device)),
+        )
         .map((status) => (
           <button
             key={status}
@@ -107,11 +118,11 @@ export function OrderActions({
             disabled={busy}
             onClick={() => void mutate("status", { expectedVersion: order.version, status }, "PUT")}
           >
-            {STATE_LABELS[status] ?? status}
+            {status === "cancelled" ? "İptal et" : STATE_LABELS[status] ?? status}
           </button>
         ))}
       {!device &&
-        !["rejected", "cancelled"].includes(order.status) &&
+        ["accepted", "preparing", "ready", "completed"].includes(order.status) &&
         order.paymentStatus !== "paid" &&
         order.totalMinor > 0 && (
           <fieldset className="payment-form">
@@ -165,7 +176,7 @@ export function OrderActions({
         )}
       {order.paymentStatus === "paid" && <p className="success">Ödendi</p>}
       {order.estimatedReadyAt && (
-        <p>Tahmini hazır: {formatBranchDateTime(order.estimatedReadyAt, order.branchTimezone)}</p>
+        <p>Tahmini hazır: {operationalDateTime(order.estimatedReadyAt, order.branchTimezone)}</p>
       )}
       {order.rejectionReason && <p>Ret gerekçesi: {order.rejectionReason}</p>}
       {error && (

@@ -34,6 +34,7 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
   const port = useRef<MessagePort | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
   const [left, setLeft] = useState(false);
+  const [failed, setFailed] = useState(false);
   const isPackage = miniApp.source === "package";
   // Çerçevenin bir "oturumu": adres değişince (yeni sürüm yayınlandı) ya da kullanıcı yeniden
   // yükleyince çerçeve baştan kurulur.
@@ -45,6 +46,7 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
   }
 
   function restart() {
+    setFailed(false);
     setLeft(false);
     setReloadCount((count) => count + 1);
   }
@@ -105,6 +107,15 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
   }, []);
 
   if (left) return <LeftState onReopen={restart} />;
+  if (failed) {
+    return (
+      <div role="alert" className="miniapp-load-error">
+        <h2>Mini uygulama açılamadı</h2>
+        <p>Bağlantını kontrol edip yeniden dene.</p>
+        <button type="button" onClick={restart}>Yeniden dene</button>
+      </div>
+    );
+  }
 
   return (
     <iframe
@@ -112,6 +123,7 @@ export function MiniAppFrame({ miniApp, onMessage, ref }: MiniAppFrameProps) {
       ref={frame}
       src={miniApp.entryUrl}
       title={miniApp.name}
+      onError={() => setFailed(true)}
       sandbox={FRAME_SANDBOX}
       referrerPolicy="no-referrer"
       style={{ flex: 1, width: "100%", height: "100%", border: 0 }}

@@ -7,12 +7,24 @@ import type { ReactNode } from "react";
 import { z } from "zod";
 
 import { call } from "../lib/client";
+import { buildMobileNavigation } from "../lib/mobile-navigation";
 
-const paths: Readonly<Record<BusinessBlock["view"], string>> = {
+const paths: Readonly<
+  Record<
+    BusinessBlock["view"] | "chats" | "bookings" | "studio" | "channels" | "team" | "performance",
+    string
+  >
+> = {
   kitchen: "M4 4h16v16H4z M8 2v8 M12 2v8 M16 2v8 M6 14h12",
   tables: "M3 8h18 M5 8v13 M19 8v13 M6 4h12v4",
   devices: "M5 2h14v20H5z M10 18h4",
   orders: "M4 4h16v16H4z M8 9h8 M8 13h8 M8 17h5",
+  chats: "M4 4h16v13H8l-4 3z M7 9h10 M7 13h7",
+  bookings: "M3 5h18v16H3z M7 2v6 M17 2v6 M3 11h18",
+  studio: "M4 4h16v16H4z M4 11h16 M11 11v9",
+  channels: "M3 11h4l12-7v16l-12-7H3z",
+  team: "M12 3a4 4 0 1 0 0 8a4 4 0 0 0 0-8 M4 21a8 8 0 0 1 16 0",
+  performance: "M3 20V4 M3 20h18 M7 17v-5h3v5 M12 17V9h3v8 M17 17V5h3v12",
   returns: "M4 7h16 M4 7l4-4 M4 7l4 4 M7 13h14v8H7z",
   reviews: "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z",
   catalog: "M3 7l9-4 9 4v11l-9 4-9-4z M3 7l9 4 9-4 M12 11v11",
@@ -24,16 +36,46 @@ export function AppShell({
   role,
   blocks,
   children,
+  canBook,
 }: {
   name: string;
   role: BusinessMemberRole;
   blocks: BusinessBlock[];
   children: ReactNode;
+  canBook: boolean;
 }) {
   const pathname = usePathname();
   const query = useSearchParams().toString();
+  const canMessage = role === "owner" || role === "manager";
+  const mobile = buildMobileNavigation(blocks, canMessage, canBook);
   const nav = (
     <>
+      {blocks.map((block) => {
+        const active = block.path === `${pathname}${query === "" ? "" : `?${query}`}`;
+        return (
+          <Link
+            href={{
+              pathname: block.path.split("?")[0],
+              query: Object.fromEntries(new URLSearchParams(block.path.split("?")[1])),
+            }}
+            key={block.id}
+            className={active ? "nav-link active" : "nav-link"}
+            aria-current={active ? "page" : undefined}
+            title={block.title}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.65"
+              aria-hidden="true"
+            >
+              <path d={paths[block.view]} />
+            </svg>
+            <span>{block.title}</span>
+          </Link>
+        );
+      })}
       <Link
         href="/studio"
         className={pathname === "/studio" ? "nav-link active" : "nav-link"}
@@ -64,7 +106,7 @@ export function AppShell({
           <span>Mesajlar</span>
         </Link>
       )}
-      {(role === "owner" || role === "manager") && (
+      {canBook && (
         <Link
           href="/bookings"
           className={pathname === "/bookings" ? "nav-link active" : "nav-link"}
@@ -133,38 +175,12 @@ export function AppShell({
           <span>Ekibim</span>
         </Link>
       )}
-      {blocks.map((block) => {
-        const active = block.path === `${pathname}${query === "" ? "" : `?${query}`}`;
-        return (
-          <Link
-            href={{
-              pathname: block.path.split("?")[0],
-              query: Object.fromEntries(new URLSearchParams(block.path.split("?")[1])),
-            }}
-            key={block.id}
-            className={active ? "nav-link active" : "nav-link"}
-            aria-current={active ? "page" : undefined}
-            title={block.title}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.65"
-              aria-hidden="true"
-            >
-              <path d={paths[block.view]} />
-            </svg>
-            <span>{block.title}</span>
-          </Link>
-        );
-      })}
     </>
   );
   return (
     <div className="app-shell">
       <aside className="rail">
-        <Link href="/orders" className="brand">
+        <Link href={canBook ? "/bookings" : "/orders"} className="brand">
           <span className="brand-mark">V</span>
           <span>
             VADO<small>BUSINESS</small>
@@ -207,7 +223,52 @@ export function AppShell({
         <main className="work-content">{children}</main>
       </div>
       <nav className="bottom-nav" aria-label="Mobil menü">
-        {nav}
+        {mobile.primary.map((item) => {
+          const active = pathname === item.path.split("?")[0];
+          const view = item.view ?? item.id;
+          return (
+            <Link
+              key={item.id}
+              href={item.path}
+              className={active ? "nav-link active" : "nav-link"}
+              aria-current={active ? "page" : undefined}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.65"
+                aria-hidden="true"
+              >
+                <path d={paths[view as keyof typeof paths]} />
+              </svg>
+              <span>{item.title}</span>
+            </Link>
+          );
+        })}
+        {mobile.more.length > 0 && (
+          <details className="mobile-more">
+            <summary className="nav-link" aria-label="Diğer sayfalar">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.65"
+                aria-hidden="true"
+              >
+                <path d="M4 12h2 M11 12h2 M18 12h2" />
+              </svg>
+              <span>Diğer</span>
+            </summary>
+            <div className="mobile-more-panel">
+              {mobile.more.map((item) => (
+                <Link key={item.id} href={item.path}>
+                  {item.title}
+                </Link>
+              ))}
+            </div>
+          </details>
+        )}
       </nav>
     </div>
   );

@@ -29,6 +29,7 @@ interface MembershipRow {
   business_id: string;
   user_id: string;
   name: string;
+  category?: BusinessMembership["businessCategory"];
   display_name?: string;
   role: BusinessMembership["role"];
   active: boolean;
@@ -39,6 +40,7 @@ function toMembership(row: MembershipRow): BusinessMembership {
     businessId: row.business_id,
     userId: row.user_id,
     businessName: row.name,
+    ...(row.category === undefined ? {} : { businessCategory: row.category }),
     ...(row.display_name === undefined ? {} : { displayName: row.display_name }),
     role: row.role,
     active: row.active,
@@ -122,7 +124,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
   async function memberships(userId: string): Promise<BusinessMembership[]> {
     return platformScope(platformDb, async (tx) => {
       const rows = await tx.many<MembershipRow>(sql`
-        select m.*, b.name from business_members m
+        select m.*, b.name, b.category from business_members m
         join businesses b on b.id = m.business_id
         join users u on u.id = m.user_id
         where m.user_id = ${userId} and m.active and u.status = 'active'
@@ -135,7 +137,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
   async function authorise(userId: string, businessId: string): Promise<TenantScope> {
     const member = await platformScope(platformDb, (tx) =>
       tx.maybeOne<MembershipRow>(sql`
-      select m.*, b.name from business_members m join businesses b on b.id = m.business_id
+      select m.*, b.name, b.category from business_members m join businesses b on b.id = m.business_id
       join users u on u.id = m.user_id
       where m.business_id = ${businessId} and m.user_id = ${userId} and m.active and u.status = 'active'
     `),
@@ -154,7 +156,7 @@ export function createBusinessManagementService({ db, platformDb, config }: AppC
     requireBusinessRole(scope, MANAGERS);
     return withTenant(db, scope, async (tx) => {
       const rows = await tx.many<MembershipRow>(sql`
-        select m.*, b.name,
+        select m.*, b.name, b.category,
           coalesce(nullif(u.display_name,''),nullif(u.username,''),'Personel') as display_name
         from business_members m join businesses b on b.id = m.business_id
         join users u on u.id=m.user_id
